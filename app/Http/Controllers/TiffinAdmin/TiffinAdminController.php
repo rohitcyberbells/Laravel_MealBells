@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\TiffinAdmin;
 
+use App\Actions\Meal\CreateDailyOverride;
+use App\Actions\Menu\SaveWeeklyMenu;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
-use App\Models\MenuItem;
 use App\Models\WeeklyMenu;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -48,10 +49,8 @@ class TiffinAdminController extends Controller
         ]);
     }
 
-    public function saveMenu(Request $request)
+    public function saveMenu(Request $request, SaveWeeklyMenu $action)
     {
-        $user = Auth::user();
-
         $validated = $request->validate([
             'week_start_date' => 'required|date',
             'status' => 'required|in:draft,published',
@@ -60,52 +59,19 @@ class TiffinAdminController extends Controller
             'items.*.meal_description' => 'required|string',
         ]);
 
-        // Find or create weekly menu
-        $menu = WeeklyMenu::updateOrCreate(
-            [
-                'tiffin_service_id' => $user->tiffin_service_id,
-                'week_start_date' => $validated['week_start_date'],
-            ],
-            [
-                'status' => $validated['status'],
-            ]
-        );
-
-        // Save menu items for each day
-        foreach ($validated['items'] as $itemData) {
-            MenuItem::updateOrCreate(
-                [
-                    'weekly_menu_id' => $menu->id,
-                    'day_of_week' => strtolower($itemData['day_of_week']),
-                ],
-                [
-                    'meal_description' => $itemData['meal_description'],
-                ]
-            );
-        }
+        $action->execute($request->user(), $validated);
 
         return back()->with('message', 'Weekly menu saved successfully!');
     }
 
-    public function storeOverride(Request $request)
+    public function storeOverride(Request $request, CreateDailyOverride $action)
     {
-        $user = Auth::user();
-
         $validated = $request->validate([
             'meal_description' => 'required|string',
             'reason' => 'nullable|string',
         ]);
 
-        DailyOverrides::updateOrCreate(
-            [
-                'tiffin_service_id' => $user->tiffin_service_id,
-                'date' => Carbon::today()->toDateString(),
-            ],
-            [
-                'meal_description' => $validated['meal_description'],
-                'reason' => $validated['reason'],
-            ]
-        );
+        $action->execute($request->user(), $validated);
 
         return back()->with('message', "Today's meal override posted successfully!");
     }

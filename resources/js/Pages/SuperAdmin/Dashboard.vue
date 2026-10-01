@@ -52,6 +52,24 @@ const submitAssign = () => {
     });
 };
 
+const deleteCompany = (companyId, companyName) => {
+    if (confirm(`Are you sure you want to delete ${companyName}? This action cannot be undone.`)) {
+        router.delete(`/super-admin/companies/${companyId}`);
+    }
+};
+
+const unpairCompany = (companyId, companyName) => {
+    if (confirm(`Are you sure you want to unpair ${companyName}?`)) {
+        router.post('/super-admin/unpair', { company_id: companyId });
+    }
+};
+
+const deleteTiffin = (tiffinId, tiffinName) => {
+    if (confirm(`Are you sure you want to delete ${tiffinName}? This action cannot be undone.`)) {
+        router.delete(`/super-admin/tiffin-services/${tiffinId}`);
+    }
+};
+
 const logout = () => {
     router.post('/logout');
 };
@@ -113,16 +131,34 @@ const logout = () => {
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
                     <h3 class="text-lg font-bold text-white mb-4">Add New Company</h3>
                     <form @submit.prevent="submitCompany" class="space-y-3">
-                        <input v-model="companyForm.name" placeholder="Company Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
-                        <input v-model="companyForm.address" placeholder="Address" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
-                        <input v-model="companyForm.contact_phone" placeholder="Phone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                        <div>
+                            <input v-model="companyForm.name" placeholder="Company Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="companyForm.errors.name" class="text-red-400 text-xs mt-1">{{ companyForm.errors.name }}</p>
+                        </div>
+                        <div>
+                            <input v-model="companyForm.address" placeholder="Address" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="companyForm.errors.address" class="text-red-400 text-xs mt-1">{{ companyForm.errors.address }}</p>
+                        </div>
+                        <div>
+                            <input v-model="companyForm.contact_phone" type="tel" placeholder="Phone (e.g. 9876543210)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="companyForm.errors.contact_phone" class="text-red-400 text-xs mt-1">{{ companyForm.errors.contact_phone }}</p>
+                        </div>
                         <div class="pt-2 border-t border-slate-800">
                             <p class="text-xs text-slate-400 mb-2">Company Admin Account</p>
-                            <input v-model="companyForm.admin_name" placeholder="Admin Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-2" />
-                            <input v-model="companyForm.admin_email" type="email" placeholder="Admin Email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-2" />
-                            <input v-model="companyForm.admin_password" type="password" placeholder="Admin Password" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <div class="mb-2">
+                                <input v-model="companyForm.admin_name" placeholder="Admin Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="companyForm.errors.admin_name" class="text-red-400 text-xs mt-1">{{ companyForm.errors.admin_name }}</p>
+                            </div>
+                            <div class="mb-2">
+                                <input v-model="companyForm.admin_email" type="email" placeholder="Admin Email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="companyForm.errors.admin_email" class="text-red-400 text-xs mt-1">{{ companyForm.errors.admin_email }}</p>
+                            </div>
+                            <div>
+                                <input v-model="companyForm.admin_password" type="password" placeholder="Admin Password (min 6 chars)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="companyForm.errors.admin_password" class="text-red-400 text-xs mt-1">{{ companyForm.errors.admin_password }}</p>
+                            </div>
                         </div>
-                        <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2 rounded-lg text-sm">
+                        <button type="submit" :disabled="companyForm.processing" class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-2 rounded-lg text-sm">
                             Create Company
                         </button>
                     </form>
@@ -134,14 +170,22 @@ const logout = () => {
                         <div>
                             <h4 class="text-lg font-bold text-white">{{ c.name }}</h4>
                             <p class="text-xs text-slate-400">{{ c.address || 'No address' }} | {{ c.contact_phone || 'No phone' }}</p>
-                            <div class="mt-2 text-xs">
+                            <div class="mt-2 text-xs flex items-center gap-2">
                                 <span class="text-slate-400">Assigned Tiffin: </span>
-                                <span v-if="c.assignments?.find(a => a.is_active)" class="text-emerald-400 font-semibold">
-                                    {{ c.assignments.find(a => a.is_active).tiffin_service?.name }}
-                                </span>
+                                <template v-if="c.assignments?.find(a => a.is_active)">
+                                    <span class="text-emerald-400 font-semibold">
+                                        {{ c.assignments.find(a => a.is_active).tiffin_service?.name }}
+                                    </span>
+                                    <button @click="unpairCompany(c.id, c.name)" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded transition font-medium">
+                                        Unpair
+                                    </button>
+                                </template>
                                 <span v-else class="text-amber-400 italic">Not Assigned</span>
                             </div>
                         </div>
+                        <button @click="deleteCompany(c.id, c.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+                            Delete
+                        </button>
                     </div>
                 </div>
             </section>
@@ -152,16 +196,34 @@ const logout = () => {
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
                     <h3 class="text-lg font-bold text-white mb-4">Add Tiffin Service</h3>
                     <form @submit.prevent="submitTiffin" class="space-y-3">
-                        <input v-model="tiffinForm.name" placeholder="Tiffin Service Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
-                        <input v-model="tiffinForm.address" placeholder="Kitchen Address" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
-                        <input v-model="tiffinForm.contact_phone" placeholder="Phone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                        <div>
+                            <input v-model="tiffinForm.name" placeholder="Tiffin Service Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="tiffinForm.errors.name" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.name }}</p>
+                        </div>
+                        <div>
+                            <input v-model="tiffinForm.address" placeholder="Kitchen Address" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="tiffinForm.errors.address" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.address }}</p>
+                        </div>
+                        <div>
+                            <input v-model="tiffinForm.contact_phone" type="tel" placeholder="Phone (e.g. 9876543210)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <p v-if="tiffinForm.errors.contact_phone" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.contact_phone }}</p>
+                        </div>
                         <div class="pt-2 border-t border-slate-800">
                             <p class="text-xs text-slate-400 mb-2">Tiffin Admin Account</p>
-                            <input v-model="tiffinForm.admin_name" placeholder="Admin Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-2" />
-                            <input v-model="tiffinForm.admin_email" type="email" placeholder="Admin Email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white mb-2" />
-                            <input v-model="tiffinForm.admin_password" type="password" placeholder="Admin Password" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            <div class="mb-2">
+                                <input v-model="tiffinForm.admin_name" placeholder="Admin Name" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="tiffinForm.errors.admin_name" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.admin_name }}</p>
+                            </div>
+                            <div class="mb-2">
+                                <input v-model="tiffinForm.admin_email" type="email" placeholder="Admin Email" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="tiffinForm.errors.admin_email" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.admin_email }}</p>
+                            </div>
+                            <div>
+                                <input v-model="tiffinForm.admin_password" type="password" placeholder="Admin Password (min 6 chars)" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                                <p v-if="tiffinForm.errors.admin_password" class="text-red-400 text-xs mt-1">{{ tiffinForm.errors.admin_password }}</p>
+                            </div>
                         </div>
-                        <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2 rounded-lg text-sm">
+                        <button type="submit" :disabled="tiffinForm.processing" class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-2 rounded-lg text-sm">
                             Create Tiffin Service
                         </button>
                     </form>
@@ -169,9 +231,14 @@ const logout = () => {
 
                 <!-- Tiffin List -->
                 <div class="lg:col-span-2 space-y-4">
-                    <div v-for="t in tiffinServices" :key="t.id" class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                        <h4 class="text-lg font-bold text-white">{{ t.name }}</h4>
-                        <p class="text-xs text-slate-400">{{ t.address || 'No address' }} | {{ t.contact_phone || 'No phone' }}</p>
+                    <div v-for="t in tiffinServices" :key="t.id" class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex justify-between items-center">
+                        <div>
+                            <h4 class="text-lg font-bold text-white">{{ t.name }}</h4>
+                            <p class="text-xs text-slate-400">{{ t.address || 'No address' }} | {{ t.contact_phone || 'No phone' }}</p>
+                        </div>
+                        <button @click="deleteTiffin(t.id, t.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+                            Delete
+                        </button>
                     </div>
                 </div>
             </section>

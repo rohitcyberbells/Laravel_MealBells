@@ -7,6 +7,7 @@ const props = defineProps({
     weeklyMenu: Object,
     todayOverride: Object,
     todayMeal: Object,
+    notifications: Array,
 });
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -52,14 +53,33 @@ const logout = () => {
             </section>
 
             <template v-else>
+                <!-- 🔔 Recent Notifications Feed -->
+                <section v-if="notifications && notifications.length" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
+                        🔔 Recent Alerts & Notifications
+                    </h2>
+                    <div class="space-y-3">
+                        <div v-for="notif in notifications" :key="notif.id" class="bg-slate-950 border border-slate-800 rounded-lg p-4 flex items-start justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white">{{ notif.data.title }}</h3>
+                                <p class="text-xs text-slate-300 mt-1">{{ notif.data.message }}</p>
+                                <p v-if="notif.data.reason" class="text-xs text-amber-300 mt-1">Reason: {{ notif.data.reason }}</p>
+                            </div>
+                            <span class="text-[10px] text-slate-500 whitespace-nowrap ml-4">
+                                {{ new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- 🍱 Today's Featured Meal Card -->
                 <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-bold text-emerald-400 flex items-center gap-2">
-                            🍱 Today's Meal
+                             Today's Meal
                         </h2>
                         <span v-if="todayMeal?.is_override" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold px-3 py-1 rounded-full">
-                            🚨 Daily Kitchen Override Active
+                             Daily Kitchen Override Active
                         </span>
                     </div>
 
@@ -75,11 +95,11 @@ const logout = () => {
                     </div>
                 </section>
 
-                <!-- 📅 Published Weekly Menu (Monday - Friday) -->
+                <!--  Published Weekly Menu (Monday - Friday) -->
                 <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                     <div class="flex justify-between items-center mb-6">
                         <div>
-                            <h2 class="text-xl font-bold text-white">📅 Published Weekly Menu</h2>
+                            <h2 class="text-xl font-bold text-white"> Published Weekly Menu</h2>
                             <p class="text-slate-400 text-xs">Official menu provided by <span class="text-emerald-400 font-semibold">{{ tiffinService.name }}</span></p>
                         </div>
                         <div v-if="tiffinService.contact_phone" class="text-xs text-slate-400">
