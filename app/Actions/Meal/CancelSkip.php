@@ -18,7 +18,7 @@ class CancelSkip
             return $skip;
         }
 
-        MealGuard::assertEditable($company, $skip->date, ['locked', 'cutoff'], 'cancel skip');
+        MealGuard::assertEditable($company, $skip->date, ['past', 'locked', 'cutoff'], 'cancel skip');
 
         $skip->update([
             'cancelled_at' => now(),

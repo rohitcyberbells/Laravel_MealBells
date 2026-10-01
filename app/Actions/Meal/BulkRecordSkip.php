@@ -2,12 +2,12 @@
 
 namespace App\Actions\Meal;
 
+use App\Enums\SkipOutcome;
+use App\Exceptions\MealRuleViolation;
 use App\Models\Company;
 use App\Models\Employee;
-use App\Models\Skip;
 use App\Models\User;
 use App\Services\MealCalendar;
-use Exception;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -35,7 +35,9 @@ class BulkRecordSkip
         $recordSkipAction = new RecordSkip;
         $results = [];
         $createdCount = 0;
+        $reactivatedCount = 0;
         $alreadySkippedCount = 0;
+        $blockedCancelledCount = 0;
         $nonMealDayCount = 0;
         $rejectedCount = 0;
 
@@ -50,7 +52,9 @@ class BulkRecordSkip
             $recordSkipAction,
             &$results,
             &$createdCount,
+            &$reactivatedCount,
             &$alreadySkippedCount,
+            &$blockedCancelledCount,
             &$nonMealDayCount,
             &$rejectedCount
         ) {
@@ -63,6 +67,7 @@ class BulkRecordSkip
                             'employee_id' => $employeeId,
                             'date' => $date,
                             'status' => 'rejected',
+                            'reason_code' => 'cross_company',
                             'reason' => 'Employee not found or does not belong to this company.',
                         ];
                     }
@@ -77,45 +82,58 @@ class BulkRecordSkip
                             'employee_id' => $employeeId,
                             'date' => $date,
                             'status' => 'skipped_non_meal_day',
+                            'reason_code' => 'not_a_meal_day',
                             'reason' => 'Non-working meal day.',
                         ];
 
                         continue;
                     }
 
-                    // Check if already active skip exists
-                    $existingSkip = Skip::where('employee_id', $employeeId)
-                        ->where('date', $date)
-                        ->whereNull('cancelled_at')
-                        ->first();
-
-                    if ($existingSkip) {
-                        $alreadySkippedCount++;
-                        $results[] = [
-                            'employee_id' => $employeeId,
-                            'date' => $date,
-                            'status' => 'already_skipped',
-                            'reason' => 'Skip record already exists.',
-                        ];
-
-                        continue;
-                    }
-
                     try {
-                        $recordSkipAction->execute($company, $employee, $date, $source, $reason, $createdBy);
-                        $createdCount++;
+                        $skipResult = $recordSkipAction->execute($company, $employee, $date, $source, $reason, $createdBy);
+
+                        switch ($skipResult->outcome) {
+                            case SkipOutcome::CREATED:
+                                $createdCount++;
+                                $status = 'created';
+                                break;
+                            case SkipOutcome::REACTIVATED:
+                                $reactivatedCount++;
+                                $status = 'reactivated';
+                                break;
+                            case SkipOutcome::ALREADY_SKIPPED:
+                                $alreadySkippedCount++;
+                                $status = 'already_skipped';
+                                break;
+                            case SkipOutcome::BLOCKED_CANCELLED:
+                                $blockedCancelledCount++;
+                                $status = 'blocked_cancelled';
+                                break;
+                        }
+
                         $results[] = [
                             'employee_id' => $employeeId,
                             'date' => $date,
-                            'status' => 'created',
+                            'status' => $status,
+                            'reason_code' => null,
                             'reason' => null,
                         ];
-                    } catch (Exception $e) {
+                    } catch (MealRuleViolation $e) {
                         $rejectedCount++;
                         $results[] = [
                             'employee_id' => $employeeId,
                             'date' => $date,
                             'status' => 'rejected',
+                            'reason_code' => $e->getReasonCodeString(),
+                            'reason' => $e->getMessage(),
+                        ];
+                    } catch (\Exception $e) {
+                        $rejectedCount++;
+                        $results[] = [
+                            'employee_id' => $employeeId,
+                            'date' => $date,
+                            'status' => 'rejected',
+                            'reason_code' => 'unknown_error',
                             'reason' => $e->getMessage(),
                         ];
                     }
@@ -126,7 +144,9 @@ class BulkRecordSkip
         return [
             'total_processed' => count($employeeIds) * count($uniqueDates),
             'created_count' => $createdCount,
+            'reactivated_count' => $reactivatedCount,
             'already_skipped_count' => $alreadySkippedCount,
+            'blocked_cancelled_count' => $blockedCancelledCount,
             'non_meal_day_count' => $nonMealDayCount,
             'rejected_count' => $rejectedCount,
             'results' => $results,

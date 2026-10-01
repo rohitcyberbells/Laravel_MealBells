@@ -2,11 +2,15 @@
 
 namespace App\Actions\Meal;
 
+use App\Enums\SkipOutcome;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Skip;
 use App\Models\User;
 use App\Services\MealGuard;
+use App\Support\SkipResult;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 class RecordSkip
 {
@@ -17,23 +21,67 @@ class RecordSkip
         string $source = 'hr',
         ?string $reason = null,
         ?User $createdBy = null
-    ): Skip {
+    ): SkipResult {
+        // Strict Order of Guards
         MealGuard::assertCompanyOwns($company->id, $employee->company_id, 'Employee does not belong to this company.');
-        MealGuard::assertEditable($company, $date, ['meal_day', 'locked', 'cutoff'], 'record skip');
+        MealGuard::assertEmployeeEligible($employee);
+        MealGuard::assertValidSource($source);
+        MealGuard::assertEditable($company, $date, ['meal_day', 'past', 'advance', 'locked', 'cutoff'], 'record skip');
 
-        return Skip::updateOrCreate(
-            [
-                'employee_id' => $employee->id,
-                'date' => $date,
-            ],
-            [
-                'company_id' => $company->id,
-                'source' => $source,
-                'reason' => $reason,
-                'created_by' => $createdBy?->id,
-                'cancelled_at' => null,
-                'cancelled_by' => null,
-            ]
-        );
+        return DB::transaction(function () use ($company, $employee, $date, $source, $reason, $createdBy) {
+            $existingSkip = Skip::where('employee_id', $employee->id)
+                ->where('date', $date)
+                ->first();
+
+            if ($existingSkip) {
+                // Case 1: Active skip already exists (cancelled_at is null) -> First Source Wins!
+                if ($existingSkip->cancelled_at === null) {
+                    return new SkipResult($existingSkip, SkipOutcome::ALREADY_SKIPPED);
+                }
+
+                // Case 2: Cancelled skip exists (cancelled_at is not null)
+                $manualSources = config('mealbells.manual_skip_sources', ['hr', 'self']);
+                if (in_array($source, $manualSources)) {
+                    // Manual source (hr, self) reactivates cancelled skip
+                    $existingSkip->update([
+                        'company_id' => $company->id,
+                        'source' => $source,
+                        'reason' => $reason,
+                        'created_by' => $createdBy?->id,
+                        'cancelled_at' => null,
+                        'cancelled_by' => null,
+                    ]);
+
+                    return new SkipResult($existingSkip, SkipOutcome::REACTIVATED);
+                }
+
+                // Auto source (leave, wfh, recurring, link) cannot reactivate cancelled skip
+                return new SkipResult($existingSkip, SkipOutcome::BLOCKED_CANCELLED);
+            }
+
+            // Case 3: Create new skip (with DB race condition handling)
+            try {
+                $skip = Skip::create([
+                    'company_id' => $company->id,
+                    'employee_id' => $employee->id,
+                    'date' => $date,
+                    'source' => $source,
+                    'reason' => $reason,
+                    'created_by' => $createdBy?->id,
+                    'cancelled_at' => null,
+                    'cancelled_by' => null,
+                ]);
+
+                return new SkipResult($skip, SkipOutcome::CREATED);
+            } catch (QueryException $e) {
+                // Fallback for DB unique constraint race condition
+                $raceSkip = Skip::where('employee_id', $employee->id)->where('date', $date)->first();
+                if ($raceSkip) {
+                    return new SkipResult($raceSkip, SkipOutcome::ALREADY_SKIPPED);
+                }
+
+                throw $e;
+            }
+        });
     }
 }

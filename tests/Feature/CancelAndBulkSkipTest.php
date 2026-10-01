@@ -35,8 +35,8 @@ class CancelAndBulkSkipTest extends TestCase
 
         $date = Carbon::today()->toDateString();
 
-        // 1. Record Skip -> Expected meals drops to 0 (1 base - 1 skip)
-        $skip = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skipResult = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skip = $skipResult->skip;
         $expected = (new CalculateExpectedMeals)->execute($company, $date);
         $this->assertEquals(0, $expected['final_expected_count']);
         $this->assertEquals(1, $expected['skip_count']);
@@ -87,16 +87,18 @@ class CancelAndBulkSkipTest extends TestCase
         $date = Carbon::today()->toDateString();
 
         // Record skip then cancel it
-        $skip = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skipResult = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skip = $skipResult->skip;
         (new CancelSkip)->execute($company, $skip, $user);
 
-        // Re-record skip for same employee & date
-        $reactivatedSkip = (new RecordSkip)->execute($company, $emp, $date, 'wfh', 'Working Home', $user);
+        // Re-record skip for same employee & date with manual source (hr)
+        $reactivatedResult = (new RecordSkip)->execute($company, $emp, $date, 'hr', 'HR Override', $user);
+        $reactivatedSkip = $reactivatedResult->skip;
 
         // Same ID, cancelled_at restored to null
         $this->assertEquals($skip->id, $reactivatedSkip->id);
         $this->assertNull($reactivatedSkip->cancelled_at);
-        $this->assertEquals('wfh', $reactivatedSkip->source);
+        $this->assertEquals('hr', $reactivatedSkip->source);
     }
 
     public function test_cancel_skip_fails_if_count_is_locked(): void
@@ -108,7 +110,8 @@ class CancelAndBulkSkipTest extends TestCase
         $emp = Employee::create(['company_id' => $company->id, 'employee_code' => 'EMP1', 'name' => 'John', 'status' => 'active', 'is_meal_eligible' => true]);
 
         $date = Carbon::today()->toDateString();
-        $skip = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skipResult = (new RecordSkip)->execute($company, $emp, $date, 'leave', 'Vacation', $user);
+        $skip = $skipResult->skip;
 
         // Lock daily count
         (new ConfirmDailyCount)->execute($company, $date, $user);

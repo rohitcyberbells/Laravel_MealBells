@@ -14,6 +14,7 @@ enum MealRuleReason: string
     case CUTOFF_PASSED = 'cutoff_passed';
     case INVALID_QUANTITY = 'invalid_quantity';
     case INVALID_TYPE = 'invalid_type';
+    case INVALID_SOURCE = 'invalid_source';
     case NEGATIVE_TOTAL = 'negative_total';
     case FORBIDDEN_ROLE = 'forbidden_role';
 }
