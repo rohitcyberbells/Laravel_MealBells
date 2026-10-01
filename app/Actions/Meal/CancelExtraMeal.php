@@ -18,7 +18,7 @@ class CancelExtraMeal
             return $adjustment;
         }
 
-        MealGuard::assertEditable($company, $adjustment->date, ['locked', 'cutoff'], 'cancel extra meal');
+        MealGuard::assertEditable($company, $adjustment->date, ['past', 'locked', 'cutoff'], 'cancel extra meal');
 
         $adjustment->update([
             'cancelled_at' => now(),

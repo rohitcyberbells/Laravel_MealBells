@@ -17,6 +17,12 @@ class Employee extends Model
         'status',
     ];
 
+    protected $attributes = [
+        'status' => 'active',
+        'is_meal_eligible' => true,
+        'attendance_source' => 'manual',
+    ];
+
     protected $casts = [
         'is_meal_eligible' => 'boolean',
     ];

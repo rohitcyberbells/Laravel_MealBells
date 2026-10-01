@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\Meal\RecordExtraMeal;
 use App\Actions\Meal\RecordSkip;
+use App\Enums\SkipOutcome;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Employee;
@@ -17,7 +18,7 @@ class SkipAndAdjustmentTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_record_skip_action_creates_and_updates_skips(): void
+    public function test_record_skip_action_creates_and_preserves_first_source(): void
     {
         $company = Company::create(['name' => 'Acme Corp', 'address' => 'Addr', 'contact_phone' => '1234567890']);
         $employee = Employee::create(['company_id' => $company->id, 'employee_code' => 'EMP01', 'name' => 'Rahul']);
@@ -26,19 +27,23 @@ class SkipAndAdjustmentTest extends TestCase
         $action = new RecordSkip;
         $date = Carbon::tomorrow()->toDateString();
 
-        $skip = $action->execute($company, $employee, $date, 'hr', 'WFH Today', $user);
+        // First call -> outcome: created
+        $result = $action->execute($company, $employee, $date, 'hr', 'WFH Today', $user);
+        $skip = $result->skip;
 
+        $this->assertEquals(SkipOutcome::CREATED, $result->outcome);
         $this->assertEquals($company->id, $skip->company_id);
         $this->assertEquals($employee->id, $skip->employee_id);
         $this->assertEquals('hr', $skip->source);
         $this->assertEquals('WFH Today', $skip->reason);
 
-        // Record again for same employee & date -> updates existing skip
-        $updatedSkip = $action->execute($company, $employee, $date, 'leave', 'On Sick Leave', $user);
+        // Record again for same employee & date -> First Source Wins (outcome: already_skipped, source remains 'hr')
+        $secondResult = $action->execute($company, $employee, $date, 'leave', 'On Sick Leave', $user);
+        $secondSkip = $secondResult->skip;
 
-        $this->assertEquals($skip->id, $updatedSkip->id);
-        $this->assertEquals('leave', $updatedSkip->source);
-        $this->assertEquals('On Sick Leave', $updatedSkip->reason);
+        $this->assertEquals(SkipOutcome::ALREADY_SKIPPED, $secondResult->outcome);
+        $this->assertEquals($skip->id, $secondSkip->id);
+        $this->assertEquals('hr', $secondSkip->source); // Preserves original source!
     }
 
     public function test_record_skip_prevents_cross_company_employee_assignment(): void

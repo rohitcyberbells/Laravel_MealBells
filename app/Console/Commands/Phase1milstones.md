@@ -1,7 +1,21 @@
 MealBells: Milestones Guide (1g se 1m)
 Stage 1 ka baaki kaam, step-by-step. Har milestone mein: kyun, kya banana hai, rules, tests, aur "done kab".
 
-Status abhi: Stage 0 aur Stage 1 ke 1a-1f (backend core) done. 23 tests green. Scheduler mealbells:process-cutoff har minute registered hai.
+Status abhi: Stage 0, Stage 1 (1a-1i), aur 1j Part 1 & Part 2 (Guards fixed order, First-Source-Wins, 4 outcomes, limits, concurrency, 12 Hardening tests) DONE! 47 tests green.
+
+Completed Milestones:
+- 1a-1f: Backend Core (CalculateExpectedMeals, Lock, Cutoff, Scheduler)
+- 1g: Vendor Preparation View (BuildVendorPreparationView, Controller, Vue UI)
+- 1h: Cancel Actions + Bulk Skip (CancelSkip, CancelExtraMeal, BulkRecordSkip)
+- 1i: Company Admin UI (CompanyAdminController, EmployeeController, SkipController, MealAdjustmentController, CompanySettingController)
+- 1j Part 1: Centralized Architecture (Config, MealRuleReason enum, MealRuleViolation exception, MealCutoff service)
+- 1j Part 2: Guards Fixed Order, First-Source-Wins, SkipOutcome, Concurrency, HardeningTest (47 tests green)
+
+Up Next:
+- 1j Part 3: PostCutoffChange Hardening (lockForUpdate, negative_total check, forbidden_role check)
+- 1k: Leave / WFH CSV (ValidateSkipCsv + ImportSkips)
+- 1l: Summary, Anomaly & Review Engine
+- 1m: Production Readiness
 
 Kaam ka tareeka (har milestone par):
 
