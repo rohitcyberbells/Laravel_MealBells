@@ -79,8 +79,25 @@ All database migrations have been executed successfully against SQLite.
 
 ---
 
-## 🎯 Next Steps (In Progress)
+## ⚡ Milestone 7: Action Layer & Event-Driven Notification System (Completed)
 
-- [ ] In-App Change Notification system when Tiffin Admin updates menu or posts an override.
-- [ ] Centralized Service / Action classes for shared web + API logic.
-- [ ] `/api/v1` Sanctum API endpoints for mobile readiness.
+- **Action Layer Architecture**:
+  - Encapsulated business domain logic into [SaveWeeklyMenu.php](file:///Users/imac/Desktop/MEALBELLS/app/Actions/Menu/SaveWeeklyMenu.php) and [CreateDailyOverride.php](file:///Users/imac/Desktop/MEALBELLS/app/Actions/Meal/CreateDailyOverride.php).
+  - Refactored [TiffinAdminController.php](file:///Users/imac/Desktop/MEALBELLS/app/Http/Controllers/TiffinAdmin/TiffinAdminController.php) to use dependency-injected Actions, making business logic 100% reusable for upcoming `/api/v1` endpoints.
+- **Domain Events & Listeners**:
+  - Created [WeeklyMenuPublished.php](file:///Users/imac/Desktop/MEALBELLS/app/Events/WeeklyMenuPublished.php) and [DailyMealOverridden.php](file:///Users/imac/Desktop/MEALBELLS/app/Events/DailyMealOverridden.php) events.
+  - Registered listeners in [AppServiceProvider.php](file:///Users/imac/Desktop/MEALBELLS/app/Providers/AppServiceProvider.php).
+- **In-App Database Notifications**:
+  - Implemented [WeeklyMenuPublishedNotification.php](file:///Users/imac/Desktop/MEALBELLS/app/Notifications/WeeklyMenuPublishedNotification.php) and [DailyMealOverrideNotification.php](file:///Users/imac/Desktop/MEALBELLS/app/Notifications/DailyMealOverrideNotification.php).
+  - Automatically notifies assigned `company_admin` users whenever a menu is published or a daily override is posted.
+- **Dashboard UI Update**:
+  - Added live notification feed banner to [CompanyAdmin/Dashboard.vue](file:///Users/imac/Desktop/MEALBELLS/resources/js/Pages/CompanyAdmin/Dashboard.vue).
+- **Automated Testing**:
+  - Built comprehensive Feature tests in [TiffinActionTest.php](file:///Users/imac/Desktop/MEALBELLS/tests/Feature/TiffinActionTest.php) (4/4 tests passing).
+
+---
+
+## 🎯 Next Steps
+
+- [ ] `/api/v1` Sanctum API endpoints for Flutter mobile readiness.
+- [ ] Email & Push (FCM) channels integration for notifications.

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyTiffinAssignment;
+use App\Models\DailyOverrides;
 use App\Models\TiffinService;
 use App\Models\User;
+use App\Models\WeeklyMenu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -26,11 +28,13 @@ class SuperAdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'address' => 'nullable|string',
-            'contact_phone' => 'nullable|string|max:50',
+            'address' => 'required|string|max:500',
+            'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
             'admin_password' => 'required|string|min:6',
+        ], [
+            'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);
 
         $company = Company::create([
@@ -54,11 +58,13 @@ class SuperAdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'address' => 'nullable|string',
-            'contact_phone' => 'nullable|string|max:50',
+            'address' => 'required|string|max:500',
+            'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
             'admin_password' => 'required|string|min:6',
+        ], [
+            'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);
 
         $tiffin = TiffinService::create([
@@ -102,5 +108,40 @@ class SuperAdminController extends Controller
         ]);
 
         return back()->with('message', 'Company successfully paired with Tiffin Service!');
+    }
+
+    public function unpair(Request $request)
+    {
+        $validated = $request->validate([
+            'company_id' => 'required|exists:companies,id',
+        ]);
+        CompanyTiffinAssignment::where('company_id', $validated['company_id'])
+            ->where('is_active', true)
+            ->update([
+                'is_active' => false,
+                'unassigned_at' => now(),
+            ]);
+
+        return back()->with('message', 'Company unpaired successfully!');
+    }
+
+    public function destroyCompany(Company $company)
+    {
+        User::where('company_id', $company->id)->delete();
+        CompanyTiffinAssignment::where('company_id', $company->id)->delete();
+        $company->delete();
+
+        return back()->with('message', 'Company deleted successfully!');
+    }
+
+    public function destroyTiffin(TiffinService $tiffinService)
+    {
+        User::where('tiffin_service_id', $tiffinService->id)->delete();
+        CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)->delete();
+        WeeklyMenu::where('tiffin_service_id', $tiffinService->id)->delete();
+        DailyOverrides::where('tiffin_service_id', $tiffinService->id)->delete();
+        $tiffinService->delete();
+
+        return back()->with('message', 'Tiffin Service deleted successfully!');
     }
 }
