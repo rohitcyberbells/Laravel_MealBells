@@ -126,7 +126,13 @@ class EmployeeController extends Controller
     public function createLogins(Request $request, CreateEmployeeLogins $action)
     {
         $company = Auth::user()->company;
-        $employeeIds = $request->input('employee_ids');
+
+        $validated = $request->validate([
+            'employee_ids' => 'nullable|array',
+            'employee_ids.*' => 'exists:employees,id',
+        ]);
+
+        $employeeIds = $validated['employee_ids'] ?? null;
 
         $credentials = $action->execute($company, $employeeIds, Auth::user());
 

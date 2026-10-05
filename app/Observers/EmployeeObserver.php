@@ -11,7 +11,10 @@ class EmployeeObserver
 {
     public function updated(Employee $employee): void
     {
-        if ($employee->isDirty('status') && $employee->status === 'inactive') {
+        $becameInactive = $employee->isDirty('status') && $employee->status === 'inactive';
+        $becameIneligible = $employee->isDirty('is_meal_eligible') && ! $employee->is_meal_eligible;
+
+        if ($becameInactive || $becameIneligible) {
             $rules = RecurringSkip::where('employee_id', $employee->id)
                 ->where('active', true)
                 ->get();

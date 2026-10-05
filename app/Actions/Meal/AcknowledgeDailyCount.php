@@ -22,6 +22,9 @@ class AcknowledgeDailyCount
         }
 
         $activeAssignment = $company->activeAssignment;
+        if (! $activeAssignment) {
+            throw new MealRuleViolation("Company {$company->id} has no active Tiffin Service assignment.", MealRuleReason::INVALID_SOURCE);
+        }
 
         // 2. Fetch or create draft MealCount
         $mealCount = MealCount::firstOrCreate(
