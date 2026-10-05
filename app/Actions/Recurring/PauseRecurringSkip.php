@@ -38,7 +38,14 @@ class PauseRecurringSkip
                     ->exists();
 
                 if (! $isLocked) {
-                    $cancelAction->execute($company, $skip, $updatedBy ?? $rule->employee->user ?? User::first());
+                    $canceller = $updatedBy
+                        ?? $rule->createdBy
+                        ?? $rule->employee?->user
+                        ?? User::where('company_id', $company->id)->first();
+
+                    if ($canceller) {
+                        $cancelAction->execute($company, $skip, $canceller);
+                    }
                 }
             }
         }

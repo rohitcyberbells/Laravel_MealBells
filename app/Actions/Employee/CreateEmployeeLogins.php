@@ -7,6 +7,7 @@ use App\Exceptions\MealRuleViolation;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -39,27 +40,46 @@ class CreateEmployeeLogins
         $employees = $query->get();
         $credentials = [];
 
-        foreach ($employees as $employee) {
-            $tempPassword = Str::random(10);
+        DB::transaction(function () use ($company, $employees, &$credentials) {
+            foreach ($employees as $employee) {
+                $tempPassword = Str::random(10);
+                $email = ! empty($employee->email) ? trim($employee->email) : null;
 
-            $user = User::create([
-                'name' => $employee->name,
-                'email' => $employee->email,
-                'password' => Hash::make($tempPassword),
-                'role' => 'employee',
-                'company_id' => $company->id,
-                'login_code' => $employee->employee_code,
-                'must_change_password' => true,
-            ]);
+                if ($email && User::where('email', $email)->exists()) {
+                    $email = null;
+                }
 
-            $employee->update(['user_id' => $user->id]);
+                if (! $email) {
+                    $companyCode = strtolower($company->code ?? 'cmp');
+                    $empCode = strtolower(preg_replace('/[^A-Za-z0-9]/', '', $employee->employee_code));
+                    $email = "{$empCode}@{$companyCode}.local";
 
-            $credentials[] = [
-                'employee_code' => $employee->employee_code,
-                'name' => $employee->name,
-                'temporary_password' => $tempPassword,
-            ];
-        }
+                    $counter = 1;
+                    while (User::where('email', $email)->exists()) {
+                        $email = "{$empCode}{$counter}@{$companyCode}.local";
+                        $counter++;
+                    }
+                }
+
+                $user = User::create([
+                    'name' => $employee->name,
+                    'email' => $email,
+                    'password' => Hash::make($tempPassword),
+                    'role' => 'employee',
+                    'company_id' => $company->id,
+                    'login_code' => $employee->employee_code,
+                    'must_change_password' => true,
+                ]);
+
+                $employee->update(['user_id' => $user->id]);
+
+                $credentials[] = [
+                    'employee_code' => $employee->employee_code,
+                    'name' => $employee->name,
+                    'temporary_password' => $tempPassword,
+                ];
+            }
+        });
 
         return $credentials;
     }

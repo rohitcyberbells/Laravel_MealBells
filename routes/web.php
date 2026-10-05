@@ -27,6 +27,7 @@ Route::get('/', function () {
             'super_admin' => redirect()->route('super-admin.dashboard'),
             'tiffin_admin' => redirect()->route('tiffin-admin.dashboard'),
             'company_admin' => redirect()->route('company-admin.dashboard'),
+            'employee' => redirect()->route('employee.dashboard'),
             default => redirect('/login'),
         };
     }

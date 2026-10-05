@@ -35,7 +35,7 @@ class HealthController extends Controller
 
         // Detect missing snapshots for today
         $missingSnapshotsToday = [];
-        $companies = Company::with('setting', 'activeAssignment')->where('status', 'active')->get();
+        $companies = Company::with('setting', 'activeAssignment')->get();
 
         foreach ($companies as $company) {
             if (! $company->activeAssignment) {
