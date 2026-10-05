@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('daily_overrides', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
-    $table->date('date');
-    $table->text('meal_description');
-    $table->text('reason')->nullable();
-    $table->timestamps();
-});
+            $table->id();
+            $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
+            $table->date('date');
+            $table->text('meal_description');
+            $table->text('reason')->nullable();
+            $table->timestamps();
+        });
 
     }
 

@@ -107,9 +107,10 @@ class ValidateEmployeeCsv
                     trim((string) $row['attendance_source'])
                 );
 
+                $allowedSources = config('mealbells.attendance_sources', ['manual', 'integrated', 'none']);
                 if (! in_array(
                     $attendanceSource,
-                    ['manual', 'integrated', 'none'],
+                    $allowedSources,
                     true
                 )) {
                     $errors[] = [

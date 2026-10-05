@@ -53,6 +53,18 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Production Deployment Checklist
+
+Before deploying MealBells to production, verify the following configuration settings:
+
+- [ ] **Cron Scheduler (`schedule:run`)**: Ensure crontab invokes `php artisan schedule:run` every minute.
+- [ ] **Queue Worker (`queue:work`)**: Run background supervisor process for queued notifications (`php artisan queue:work --tries=3`).
+- [ ] **Mail Configuration (`MAIL_*`)**: Set production SMTP / Mailgun driver settings in `.env`.
+- [ ] **Shared Cache Driver**: Use Redis or Database cache store (`CACHE_STORE=database` or `CACHE_STORE=redis`) so `onOneServer()` atomic locks work correctly across multiple servers.
+- [ ] **Session Driver**: Set `SESSION_DRIVER=database` or `SESSION_DRIVER=redis` in `.env`.
+- [ ] **Environment Settings**: Set `APP_ENV=production` and `APP_DEBUG=false`.
+- [ ] **Asset Compilation**: Run `npm run build` to compile Inertia assets.
+
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The MealBells application is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

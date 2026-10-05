@@ -20,14 +20,17 @@ class TiffinAdminController extends Controller
         $user = Auth::user();
         $tiffinId = $user->tiffin_service_id;
 
-        // Current week Monday date
-        $weekStart = Carbon::now()->startOfWeek()->toDateString();
-
         // Fetch active assigned company
-        $assignment = CompanyTiffinAssignment::with('company')
+        $assignment = CompanyTiffinAssignment::with('company.setting')
             ->where('tiffin_service_id', $tiffinId)
             ->where('is_active', true)
             ->first();
+
+        $timezone = $assignment?->company?->setting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+
+        // Current week Monday date
+        $weekStart = Carbon::now($timezone)->startOfWeek()->toDateString();
+        $todayDate = Carbon::today($timezone)->toDateString();
 
         // Fetch or prepare current weekly menu
         $weeklyMenu = WeeklyMenu::with('items')
@@ -37,7 +40,7 @@ class TiffinAdminController extends Controller
 
         // Fetch today's override if any
         $todayOverride = DailyOverrides::where('tiffin_service_id', $tiffinId)
-            ->where('date', Carbon::today()->toDateString())
+            ->where('date', $todayDate)
             ->first();
 
         return Inertia::render('TiffinAdmin/Dashboard', [

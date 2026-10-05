@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('menu_items', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('weekly_menu_id')->constrained('weekly_menus')->cascadeOnDelete();
-    $table->string('day_of_week'); // monday, tuesday, wednesday...
-    $table->text('meal_description');
-    $table->timestamps();
-});
+        Schema::create('menu_items', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('weekly_menu_id')->constrained('weekly_menus')->cascadeOnDelete();
+            $table->string('day_of_week'); // monday, tuesday, wednesday...
+            $table->text('meal_description');
+            $table->timestamps();
+        });
 
     }
 

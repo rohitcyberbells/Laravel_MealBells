@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WeeklyMenu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SuperAdminController extends Controller
@@ -32,7 +33,7 @@ class SuperAdminController extends Controller
             'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
-            'admin_password' => 'required|string|min:6',
+            'admin_password' => 'nullable|string|min:6',
         ], [
             'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);
@@ -43,15 +44,21 @@ class SuperAdminController extends Controller
             'contact_phone' => $validated['contact_phone'],
         ]);
 
+        $plainPassword = ! empty($validated['admin_password']) ? $validated['admin_password'] : Str::random(12);
+
         User::create([
             'name' => $validated['admin_name'],
             'email' => $validated['admin_email'],
-            'password' => Hash::make($validated['admin_password']),
+            'password' => Hash::make($plainPassword),
             'role' => 'company_admin',
             'company_id' => $company->id,
+            'must_change_password' => true,
         ]);
 
-        return back()->with('message', 'Company & Admin created successfully!');
+        return back()->with([
+            'message' => 'Company & Admin created successfully!',
+            'temporary_password' => $plainPassword,
+        ]);
     }
 
     public function storeTiffin(Request $request)
@@ -62,7 +69,7 @@ class SuperAdminController extends Controller
             'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
-            'admin_password' => 'required|string|min:6',
+            'admin_password' => 'nullable|string|min:6',
         ], [
             'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);
@@ -73,15 +80,21 @@ class SuperAdminController extends Controller
             'contact_phone' => $validated['contact_phone'],
         ]);
 
+        $plainPassword = ! empty($validated['admin_password']) ? $validated['admin_password'] : Str::random(12);
+
         User::create([
             'name' => $validated['admin_name'],
             'email' => $validated['admin_email'],
-            'password' => Hash::make($validated['admin_password']),
+            'password' => Hash::make($plainPassword),
             'role' => 'tiffin_admin',
             'tiffin_service_id' => $tiffin->id,
+            'must_change_password' => true,
         ]);
 
-        return back()->with('message', 'Tiffin Service & Admin created successfully!');
+        return back()->with([
+            'message' => 'Tiffin Service & Admin created successfully!',
+            'temporary_password' => $plainPassword,
+        ]);
     }
 
     public function assign(Request $request)
@@ -132,6 +145,21 @@ class SuperAdminController extends Controller
         $company->delete();
 
         return back()->with('message', 'Company deleted successfully!');
+    }
+
+    public function resetPassword(Request $request, User $user)
+    {
+        $newTempPassword = Str::random(12);
+
+        $user->update([
+            'password' => Hash::make($newTempPassword),
+            'must_change_password' => true,
+        ]);
+
+        return back()->with([
+            'message' => "Password reset successfully for {$user->name}.",
+            'temporary_password' => $newTempPassword,
+        ]);
     }
 
     public function destroyTiffin(TiffinService $tiffinService)

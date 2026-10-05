@@ -3,6 +3,7 @@
 namespace App\Actions\Meal;
 
 use App\Models\Company;
+use App\Models\CompanyCalendarDay;
 use App\Models\CompanyTiffinAssignment;
 use App\Models\MealCount;
 use App\Models\TiffinService;
@@ -19,9 +20,18 @@ class BuildVendorPreparationView
     public function execute(TiffinService $tiffinService, string $date): array
     {
         // 1. Date Range Guard Check (Past 30 days to Future 14 days)
-        $targetDate = Carbon::parse($date)->startOfDay();
-        $minDate = Carbon::today()->subDays(30)->startOfDay();
-        $maxDate = Carbon::today()->addDays(14)->endOfDay();
+        // Resolve timezone from first active company assignment or fallback to default_timezone.
+        // Limitation: If vendor serves multiple companies across different timezones, default_timezone is used as fallback reference.
+        $firstCompanySetting = CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)
+            ->where('is_active', true)
+            ->with('company.setting')
+            ->first()?->company?->setting;
+
+        $timezone = $firstCompanySetting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+
+        $targetDate = Carbon::parse($date, $timezone)->startOfDay();
+        $minDate = Carbon::today($timezone)->subDays(30)->startOfDay();
+        $maxDate = Carbon::today($timezone)->addDays(14)->endOfDay();
 
         if ($targetDate->lessThan($minDate) || $targetDate->greaterThan($maxDate)) {
             throw new InvalidArgumentException('Date is out of allowed window (past 30 days to future 14 days).');
@@ -90,12 +100,22 @@ class BuildVendorPreparationView
                 $isMealDay = MealCalendar::isMealDay($company, $date);
 
                 if (! $isMealDay) {
+                    $calendarDay = CompanyCalendarDay::where('company_id', $company->id)
+                        ->where('date', $date)
+                        ->first();
+
+                    $status = ($calendarDay && $calendarDay->type === 'holiday') ? 'no_meal' : 'non_meal_day';
+                    $reason = ($calendarDay && $calendarDay->type === 'holiday') ? 'holiday' : null;
+                    $note = $calendarDay?->note;
+
                     $companyDataList[] = [
                         'company_id' => $company->id,
                         'company_name' => $company->name,
                         'is_meal_day' => false,
                         'is_locked' => false,
-                        'status' => 'non_meal_day',
+                        'status' => $status,
+                        'reason' => $reason,
+                        'note' => $note,
                         'base_eligible_count' => 0,
                         'skip_count' => 0,
                         'extra_count' => 0,

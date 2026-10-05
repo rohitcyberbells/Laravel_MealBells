@@ -4,6 +4,7 @@ namespace App\Http\Controllers\TiffinAdmin;
 
 use App\Actions\Meal\BuildVendorPreparationView;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
 use App\Models\WeeklyMenu;
 use Carbon\Carbon;
@@ -15,7 +16,16 @@ class VendorPreparationController extends Controller
 {
     public function show(Request $request, BuildVendorPreparationView $action)
     {
-        $date = $request->query('date', Carbon::today()->toDateString());
+        $user = Auth::user();
+        $tiffinId = $user?->tiffin_service_id;
+
+        $firstCompanySetting = $tiffinId ? CompanyTiffinAssignment::where('tiffin_service_id', $tiffinId)
+            ->where('is_active', true)
+            ->with('company.setting')
+            ->first()?->company?->setting : null;
+
+        $timezone = $firstCompanySetting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+        $date = $request->query('date', Carbon::today($timezone)->toDateString());
 
         $request->validate([
             'date' => 'nullable|date_format:Y-m-d',

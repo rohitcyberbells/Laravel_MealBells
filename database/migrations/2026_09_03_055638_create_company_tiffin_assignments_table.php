@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('company_tiffin_assignments', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
-    $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
-    $table->boolean('is_active')->default(true);
-    $table->timestamp('assigned_at')->useCurrent();
-    $table->timestamp('unassigned_at')->nullable();
-    $table->timestamps();
-});
+            $table->id();
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('assigned_at')->useCurrent();
+            $table->timestamp('unassigned_at')->nullable();
+            $table->timestamps();
+        });
 
     }
 

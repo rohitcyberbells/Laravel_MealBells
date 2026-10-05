@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureMustChangePassword;
+use App\Http\Middleware\EnsureUserRole;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,11 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            HandleInertiaRequests::class,
+            EnsureMustChangePassword::class,
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureUserRole::class,
+            'role' => EnsureUserRole::class,
+            'must_change_password' => EnsureMustChangePassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -25,18 +30,3 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })->create();
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-

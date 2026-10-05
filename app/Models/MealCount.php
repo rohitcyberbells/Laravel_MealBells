@@ -19,11 +19,21 @@ class MealCount extends Model
         'status',
         'confirmed_by',
         'locked_at',
+        'summary_sent_at',
+        'escalation_sent_at',
+        'reviewed_by',
+        'reviewed_at',
+        'anomaly_flags',
+        'lock_type',
     ];
 
     protected $casts = [
         'breakdown' => 'array',
+        'anomaly_flags' => 'array',
         'locked_at' => 'datetime',
+        'summary_sent_at' => 'datetime',
+        'escalation_sent_at' => 'datetime',
+        'reviewed_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -39,6 +49,11 @@ class MealCount extends Model
     public function confirmedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function changes()

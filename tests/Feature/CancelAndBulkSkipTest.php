@@ -133,6 +133,9 @@ class CancelAndBulkSkipTest extends TestCase
         $emp1 = Employee::create(['company_id' => $company->id, 'employee_code' => 'EMP1', 'name' => 'Staff 1', 'status' => 'active', 'is_meal_eligible' => true]);
         $emp2 = Employee::create(['company_id' => $company->id, 'employee_code' => 'EMP2', 'name' => 'Staff 2', 'status' => 'active', 'is_meal_eligible' => true]);
 
+        // Lock test time to Thursday 2026-10-01 so Oct 02 (Fri) and Oct 03 (Sat) are always future dates
+        Carbon::setTestNow(Carbon::parse('2026-10-01 09:00:00'));
+
         // Friday: 2026-10-02 (Meal day), Saturday: 2026-10-03 (Non-meal day)
         $dates = ['2026-10-02', '2026-10-03'];
 
@@ -146,6 +149,8 @@ class CancelAndBulkSkipTest extends TestCase
         // Re-running bulk skip returns already_skipped_count for Friday
         $secondRun = $action->execute($company, [$emp1->id], ['2026-10-02'], 'hr', 'Repeat', $user);
         $this->assertEquals(1, $secondRun['already_skipped_count']);
+
+        Carbon::setTestNow();
     }
 
     public function test_bulk_skip_rejects_ranges_exceeding_31_days(): void
