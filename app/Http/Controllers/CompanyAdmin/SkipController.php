@@ -42,6 +42,10 @@ class SkipController extends Controller
     {
         $company = Auth::user()->company;
 
+        if ($skip->company_id !== $company->id) {
+            abort(403, 'Unauthorized access to skip record.');
+        }
+
         try {
             $action->execute($company, $skip, Auth::user());
         } catch (Exception $e) {

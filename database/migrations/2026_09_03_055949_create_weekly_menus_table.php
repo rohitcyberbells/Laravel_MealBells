@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('weekly_menus', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
-    $table->date('week_start_date');
-    $table->string('status')->default('draft'); // draft | published
-    $table->timestamps();
-});
+            $table->id();
+            $table->foreignId('tiffin_service_id')->constrained('tiffin_services')->cascadeOnDelete();
+            $table->date('week_start_date');
+            $table->string('status')->default('draft'); // draft | published
+            $table->timestamps();
+        });
 
     }
 

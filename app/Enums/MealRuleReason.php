@@ -17,4 +17,6 @@ enum MealRuleReason: string
     case INVALID_SOURCE = 'invalid_source';
     case NEGATIVE_TOTAL = 'negative_total';
     case FORBIDDEN_ROLE = 'forbidden_role';
+    case EMPLOYEE_CANNOT_CANCEL_SYSTEM_SKIP = 'employee_cannot_cancel_system_skip';
+    case DUPLICATE_RULE = 'duplicate_rule';
 }

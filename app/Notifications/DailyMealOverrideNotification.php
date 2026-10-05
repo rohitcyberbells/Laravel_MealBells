@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\DailyOverrides;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DailyMealOverrideNotification extends Notification
+class DailyMealOverrideNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

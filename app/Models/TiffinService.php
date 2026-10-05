@@ -12,7 +12,8 @@ class TiffinService extends Model
         'contact_phone',
     ];
 
-    public function assignments(){
-         return $this->hasMany(CompanyTiffinAssignment::class);
+    public function assignments()
+    {
+        return $this->hasMany(CompanyTiffinAssignment::class);
     }
 }

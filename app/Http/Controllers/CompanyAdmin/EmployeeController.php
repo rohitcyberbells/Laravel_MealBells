@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\CompanyAdmin;
 
+use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Employee\ImportEmployeeCsv;
+use App\Actions\Employee\ResetEmployeePassword;
 use App\Actions\Employee\ValidateEmployeeCsv;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
@@ -45,11 +47,13 @@ class EmployeeController extends Controller
     {
         $company = Auth::user()->company;
 
+        $allowedSources = implode(',', config('mealbells.attendance_sources', ['manual', 'integrated', 'none']));
+
         $validated = $request->validate([
             'employee_code' => 'required|string|max:50',
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'attendance_source' => 'nullable|string|in:manual,csv,hrms',
+            'attendance_source' => 'nullable|string|in:'.$allowedSources,
             'is_meal_eligible' => 'required|boolean',
             'status' => 'required|in:active,inactive',
         ]);
@@ -75,10 +79,12 @@ class EmployeeController extends Controller
             abort(403, 'Unauthorized access to employee.');
         }
 
+        $allowedSources = implode(',', config('mealbells.attendance_sources', ['manual', 'integrated', 'none']));
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'attendance_source' => 'nullable|string|in:manual,csv,hrms',
+            'attendance_source' => 'nullable|string|in:'.$allowedSources,
             'is_meal_eligible' => 'required|boolean',
             'status' => 'required|in:active,inactive',
         ]);
@@ -115,5 +121,30 @@ class EmployeeController extends Controller
         $count = $action->execute($company, $request->input('rows'));
 
         return back()->with('message', "Successfully imported/updated {$count} employees.");
+    }
+
+    public function createLogins(Request $request, CreateEmployeeLogins $action)
+    {
+        $company = Auth::user()->company;
+        $employeeIds = $request->input('employee_ids');
+
+        $credentials = $action->execute($company, $employeeIds, Auth::user());
+
+        return back()->with([
+            'message' => 'Generated logins for '.count($credentials).' employees.',
+            'credentials' => $credentials,
+        ]);
+    }
+
+    public function resetPassword(Request $request, Employee $employee, ResetEmployeePassword $action)
+    {
+        $company = Auth::user()->company;
+
+        $credential = $action->execute($company, $employee, Auth::user());
+
+        return back()->with([
+            'message' => "Password reset successfully for employee {$employee->name}.",
+            'credentials' => [$credential],
+        ]);
     }
 }
