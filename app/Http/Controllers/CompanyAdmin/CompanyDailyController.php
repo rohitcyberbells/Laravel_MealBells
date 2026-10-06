@@ -53,11 +53,14 @@ class CompanyDailyController extends Controller
 
         $isMealDay = MealCalendar::isMealDay($company, $date);
 
-        // Fetch locked snapshot if present
-        $lockedSnapshot = MealCount::where('company_id', $company->id)
+        // Any snapshot for the date, locked or still a draft: the review stamp
+        // lives on the draft too, so the screen can tell draft from reviewed.
+        $snapshot = MealCount::where('company_id', $company->id)
             ->where('date', $date)
-            ->whereNotNull('locked_at')
+            ->with('reviewedBy:id,name')
             ->first();
+
+        $lockedSnapshot = $snapshot?->locked_at ? $snapshot : null;
 
         $calculator = new CalculateExpectedMeals;
         $calculatedData = $calculator->execute($company, $date);
@@ -118,7 +121,7 @@ class CompanyDailyController extends Controller
         // Extra Meals for date
         $extraMeals = MealAdjustment::where('company_id', $company->id)
             ->where('date', $date)
-            ->with('requestedBy:id,name')
+            ->with('creator:id,name')
             ->orderBy('id', 'desc')
             ->get();
 
@@ -140,6 +143,13 @@ class CompanyDailyController extends Controller
             'skips' => $skips,
             'extra_meals' => $extraMeals,
             'employees_for_search' => $employeesForSearch,
+            'snapshot' => $snapshot ? [
+                'status' => $snapshot->status,
+                'locked_at' => $snapshot->locked_at?->toDateTimeString(),
+                'lock_type' => $snapshot->lock_type,
+                'reviewed_at' => $snapshot->reviewed_at?->toDateTimeString(),
+                'reviewed_by' => $snapshot->reviewedBy?->name,
+            ] : null,
         ]);
     }
 
