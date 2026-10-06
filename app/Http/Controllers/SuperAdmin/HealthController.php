@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\HrmsWebhookEvent;
 use App\Models\MealCount;
 use App\Services\MealCalendar;
 use Carbon\Carbon;
@@ -88,6 +89,7 @@ class HealthController extends Controller
         }
 
         return Inertia::render('SuperAdmin/Health', [
+            'hrms' => $this->hrmsHealth(),
             'scheduler' => [
                 'last_run_timestamp' => $lastRun,
                 'minutes_ago' => $minutesAgo,
@@ -98,5 +100,65 @@ class HealthController extends Controller
             'missing_snapshots_today' => $missingSnapshotsToday,
             'unconfigured_companies' => $unconfiguredCompanies,
         ]);
+    }
+
+    /**
+     * HRMS webhook health.
+     *
+     * 'stuck' counts events accepted but never processed past the reconcile
+     * window - the signal that the queue worker is not running, which is the one
+     * failure mode that silently loses leave.
+     *
+     * 'abandoned' counts failed events the backstop has given up on, so they do
+     * not sit invisible behind a retry counter.
+     *
+     * @return array<string, mixed>
+     */
+    protected function hrmsHealth(): array
+    {
+        $staleMinutes = (int) config('hrms.reconcile.stale_after_minutes', 10);
+        $maxAttempts = (int) config('hrms.reconcile.max_attempts', 3);
+
+        $startOfToday = now()->startOfDay();
+        $sevenDaysAgo = now()->subDays(7);
+
+        $countsFor = fn ($since) => [
+            'failed' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_FAILED)
+                ->where('created_at', '>=', $since)->count(),
+            'blocked' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_BLOCKED)
+                ->where('created_at', '>=', $since)->count(),
+            'stale' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_STALE)
+                ->where('created_at', '>=', $since)->count(),
+        ];
+
+        $lastEvent = HrmsWebhookEvent::latest('created_at')->first();
+
+        $stuck = HrmsWebhookEvent::with('company:id,name,code')
+            ->where('status', HrmsWebhookEvent::STATUS_RECEIVED)
+            ->where('created_at', '<=', now()->subMinutes($staleMinutes))
+            ->orderBy('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn (HrmsWebhookEvent $event) => [
+                'id' => $event->id,
+                'external_event_id' => $event->external_event_id,
+                'company_name' => $event->company?->name,
+                'event_type' => $event->event_type,
+                'created_at' => $event->created_at?->toDateTimeString(),
+                'minutes_waiting' => (int) $event->created_at?->diffInMinutes(now()),
+            ]);
+
+        return [
+            'today' => $countsFor($startOfToday),
+            'last_7_days' => $countsFor($sevenDaysAgo),
+            'total_events' => HrmsWebhookEvent::count(),
+            'last_event_at' => $lastEvent?->created_at?->toDateTimeString(),
+            'stale_after_minutes' => $staleMinutes,
+            'stuck_count' => $stuck->count(),
+            'stuck_events' => $stuck,
+            'abandoned_count' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_FAILED)
+                ->where('reconcile_attempts', '>=', $maxAttempts)
+                ->count(),
+        ];
     }
 }

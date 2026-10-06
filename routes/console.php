@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\HrmsWebhookEvent;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -10,3 +11,5 @@ Artisan::command('inspire', function () {
 
 Schedule::command('mealbells:process-cutoff')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('mealbells:generate-recurring-skips')->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('hrms:reconcile')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class]])->dailyAt('03:00')->onOneServer();

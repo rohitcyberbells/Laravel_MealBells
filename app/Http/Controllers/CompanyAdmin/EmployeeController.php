@@ -101,11 +101,14 @@ class EmployeeController extends Controller
             'file' => 'required|file|mimes:csv,txt|max:2048',
         ]);
 
+        $company = Auth::user()->company;
+
         // The action takes rows, not a file: an UploadedFile and a Company were
         // being handed to execute(array $rows), which was a TypeError on every
-        // preview.
+        // preview. The company is passed so external_id can be checked against
+        // employees already in it.
         $rows = $action->parse($request->file('file'));
-        $result = $action->execute($rows);
+        $result = $action->execute($rows, $company);
 
         return back()->with('csvPreview', $result);
     }
@@ -116,6 +119,7 @@ class EmployeeController extends Controller
             'rows' => 'required|array|min:1',
             'rows.*.employee_code' => 'required|string',
             'rows.*.name' => 'required|string',
+            'rows.*.external_id' => 'nullable|string|max:255',
             'rows.*.email' => 'nullable|email',
             'rows.*.is_meal_eligible' => 'required|boolean',
             'rows.*.status' => 'required|in:active,inactive',

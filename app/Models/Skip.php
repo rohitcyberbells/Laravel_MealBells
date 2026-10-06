@@ -12,6 +12,7 @@ class Skip extends Model
         'employee_id',
         'date',
         'source',
+        'external_ref',
         'reason',
         'created_by',
         'cancelled_at',

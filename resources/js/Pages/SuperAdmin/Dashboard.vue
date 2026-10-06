@@ -5,11 +5,20 @@ import { useForm, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     companies: Array,
+    hrms_secret: { type: Object, default: null },
     tiffinServices: Array,
     assignments: Array,
 });
 
 const activeTab = ref('companies');
+
+const rotateHrmsSecret = (companyId, companyName, hasSecret) => {
+    const verb = hasSecret ? 'Rotate' : 'Generate';
+    if (!confirm(`${verb} the HRMS webhook secret for ${companyName}? The old secret stops working immediately.`)) {
+        return;
+    }
+    router.post(`/super-admin/companies/${companyId}/hrms-secret`, {}, { preserveScroll: true });
+};
 
 // Forms
 const companyForm = useForm({
@@ -107,6 +116,26 @@ const deleteTiffin = (tiffinId, tiffinName) => {
 
             <!-- Tabs -->
             <div class="flex space-x-4 border-b border-slate-800">
+            <!-- Shown exactly once: the plaintext is never stored and cannot be recovered -->
+            <div v-if="hrms_secret" class="bg-amber-500/10 border border-amber-500/40 rounded-xl p-5 space-y-3">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h4 class="font-bold text-amber-300">🔑 HRMS webhook secret for {{ hrms_secret.company_name }}</h4>
+                        <p class="text-xs text-amber-200/80">
+                            Copy it now. It is encrypted at rest and will never be shown again - rotating is the only way to get a new one.
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[11px] uppercase font-semibold text-amber-200/70">Webhook URL</label>
+                    <code class="block bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 break-all">{{ hrms_secret.webhook_url }}</code>
+                </div>
+                <div>
+                    <label class="text-[11px] uppercase font-semibold text-amber-200/70">Secret</label>
+                    <code class="block bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-emerald-300 break-all">{{ hrms_secret.secret }}</code>
+                </div>
+            </div>
+
                 <button @click="activeTab = 'companies'" :class="['pb-2 text-sm font-semibold border-b-2 transition', activeTab === 'companies' ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200']">
                     Companies ({{ companies.length }})
                 </button>
@@ -175,10 +204,24 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                                 </template>
                                 <span v-else class="text-amber-400 italic">Not Assigned</span>
                             </div>
+                            <div class="mt-1 text-xs flex items-center gap-2">
+                                <span class="text-slate-400">HRMS webhook: </span>
+                                <span v-if="c.hrms?.has_secret" class="text-emerald-400 font-semibold">Connected</span>
+                                <span v-else class="text-slate-500 italic">No secret</span>
+                            </div>
                         </div>
-                        <button @click="deleteCompany(c.id, c.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
-                            Delete
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button
+                                @click="rotateHrmsSecret(c.id, c.name, c.hrms?.has_secret)"
+                                class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium"
+                                :title="c.hrms?.secret_rotated_at ? `Last rotated ${c.hrms.secret_rotated_at}` : 'No secret yet'"
+                            >
+                                {{ c.hrms?.has_secret ? '🔄 Rotate HRMS secret' : '🔑 Generate HRMS secret' }}
+                            </button>
+                            <button @click="deleteCompany(c.id, c.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

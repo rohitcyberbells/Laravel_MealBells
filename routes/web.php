@@ -5,6 +5,7 @@ use App\Http\Controllers\CompanyAdmin\AdoptionReportController;
 use App\Http\Controllers\CompanyAdmin\CompanyAdminController;
 use App\Http\Controllers\CompanyAdmin\CompanyCalendarController;
 use App\Http\Controllers\CompanyAdmin\CompanyDailyController;
+use App\Http\Controllers\CompanyAdmin\CompanyHrmsController;
 use App\Http\Controllers\CompanyAdmin\CompanyRecurringSkipController;
 use App\Http\Controllers\CompanyAdmin\CompanySettingController;
 use App\Http\Controllers\CompanyAdmin\EmployeeController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\CompanyAdmin\SkipImportController;
 use App\Http\Controllers\Employee\EmployeeDashboardController;
 use App\Http\Controllers\Employee\RecurringSkipController;
 use App\Http\Controllers\SuperAdmin\HealthController;
+use App\Http\Controllers\SuperAdmin\HrmsConnectionController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\TiffinAdmin\TiffinAdminController;
 use App\Http\Controllers\TiffinAdmin\VendorPreparationController;
@@ -58,6 +60,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/assign', [SuperAdminController::class, 'assign'])->name('super-admin.assign');
         Route::post('/unpair', [SuperAdminController::class, 'unpair'])->name('super-admin.unpair');
         Route::post('/users/{user}/reset-password', [SuperAdminController::class, 'resetPassword'])->name('super-admin.users.reset-password');
+        Route::post('/companies/{company}/hrms-secret', [HrmsConnectionController::class, 'rotate'])->name('super-admin.companies.hrms-secret');
     });
 
     // Tiffin Admin Routes
@@ -110,6 +113,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/employees/{employee}/recurring-skips', [CompanyRecurringSkipController::class, 'store'])->name('company-admin.employees.recurring-skips.store');
         Route::patch('/employees/{employee}/recurring-skips/{rule}', [CompanyRecurringSkipController::class, 'update'])->name('company-admin.employees.recurring-skips.update');
         Route::delete('/employees/{employee}/recurring-skips/{rule}', [CompanyRecurringSkipController::class, 'destroy'])->name('company-admin.employees.recurring-skips.destroy');
+
+        // HRMS Connection
+        Route::get('/hrms', [CompanyHrmsController::class, 'index'])->name('company-admin.hrms.index');
+        Route::post('/hrms/secret', [CompanyHrmsController::class, 'rotateSecret'])->name('company-admin.hrms.secret');
+        Route::post('/hrms/test-event', [CompanyHrmsController::class, 'sendTestEvent'])->name('company-admin.hrms.test-event');
 
         // Adoption Report
         Route::get('/reports/adoption', [AdoptionReportController::class, 'index'])->name('company-admin.reports.adoption');
