@@ -8,9 +8,18 @@ const props = defineProps({
     hrms_secret: { type: Object, default: null },
     tiffinServices: Array,
     assignments: Array,
+    temporary_password: { type: String, default: null },
+    reset_for: { type: Object, default: null },
 });
 
 const activeTab = ref('companies');
+
+const resetAdminPassword = (admin) => {
+    if (!confirm(`Reset the password for ${admin.name} (${admin.email})? Their current password stops working immediately.`)) {
+        return;
+    }
+    router.post(`/super-admin/users/${admin.id}/reset-password`, {}, { preserveScroll: true });
+};
 
 const rotateHrmsSecret = (companyId, companyName, hasSecret) => {
     const verb = hasSecret ? 'Rotate' : 'Generate';
@@ -114,6 +123,21 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                 </form>
             </section>
 
+            <!-- Shown exactly once, straight after a reset: the plaintext is
+                 never stored, so this render is the only copy. -->
+            <div v-if="temporary_password" class="bg-amber-500/10 border border-amber-500/40 rounded-xl p-5 space-y-3">
+                <div>
+                    <h4 class="font-bold text-amber-300">
+                        🔑 Temporary password<span v-if="reset_for"> for {{ reset_for.name }}</span>
+                    </h4>
+                    <p class="text-xs text-amber-200/80">
+                        <span v-if="reset_for" class="font-mono">{{ reset_for.email }}</span>
+                        <span v-if="reset_for"> — </span>share it now; it is not shown again. They must change it on first sign-in.
+                    </p>
+                </div>
+                <code class="block bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-emerald-300 break-all">{{ temporary_password }}</code>
+            </div>
+
             <!-- Tabs -->
             <div class="flex space-x-4 border-b border-slate-800">
             <!-- Shown exactly once: the plaintext is never stored and cannot be recovered -->
@@ -209,6 +233,25 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                                 <span v-if="c.hrms?.has_secret" class="text-emerald-400 font-semibold">Connected</span>
                                 <span v-else class="text-slate-500 italic">No secret</span>
                             </div>
+                            <div class="mt-2 space-y-1">
+                                <p class="text-[11px] uppercase font-semibold text-slate-500">Admin accounts</p>
+                                <div v-for="admin in c.admins" :key="admin.id" class="flex items-center gap-2 text-xs">
+                                    <span class="text-slate-300">{{ admin.name }}</span>
+                                    <span class="text-slate-500 font-mono">{{ admin.email }}</span>
+                                    <span v-if="admin.must_change_password" class="text-amber-400/80 text-[10px]" title="Has not changed their temporary password yet">
+                                        pending first sign-in
+                                    </span>
+                                    <button
+                                        @click="resetAdminPassword(admin)"
+                                        class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded transition font-medium"
+                                    >
+                                        Reset password
+                                    </button>
+                                </div>
+                                <p v-if="!c.admins || !c.admins.length" class="text-xs text-slate-500 italic">
+                                    No company admin account.
+                                </p>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button
@@ -271,6 +314,25 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                         <div>
                             <h4 class="text-lg font-bold text-white">{{ t.name }}</h4>
                             <p class="text-xs text-slate-400">{{ t.address || 'No address' }} | {{ t.contact_phone || 'No phone' }}</p>
+                            <div class="mt-2 space-y-1">
+                                <p class="text-[11px] uppercase font-semibold text-slate-500">Admin accounts</p>
+                                <div v-for="admin in t.admins" :key="admin.id" class="flex items-center gap-2 text-xs">
+                                    <span class="text-slate-300">{{ admin.name }}</span>
+                                    <span class="text-slate-500 font-mono">{{ admin.email }}</span>
+                                    <span v-if="admin.must_change_password" class="text-amber-400/80 text-[10px]" title="Has not changed their temporary password yet">
+                                        pending first sign-in
+                                    </span>
+                                    <button
+                                        @click="resetAdminPassword(admin)"
+                                        class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded transition font-medium"
+                                    >
+                                        Reset password
+                                    </button>
+                                </div>
+                                <p v-if="!t.admins || !t.admins.length" class="text-xs text-slate-500 italic">
+                                    No tiffin admin account.
+                                </p>
+                            </div>
                         </div>
                         <button @click="deleteTiffin(t.id, t.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
                             Delete
