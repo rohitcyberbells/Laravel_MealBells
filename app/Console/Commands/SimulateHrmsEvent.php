@@ -2,17 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Hrms\SendTestHrmsEvent;
 use App\Models\Company;
-use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
-use App\Services\Hrms\HrmsConnectionResolver;
-use App\Services\MealCalendar;
-use App\Services\MealCutoff;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 /**
  * Sends a correctly signed webhook to this application, as the vendor would.
@@ -20,6 +13,9 @@ use Illuminate\Support\Str;
  * Useful for two things: demonstrating the integration without a live HRMS, and
  * onboarding a real one - `--print` emits the exact request to hand over, built
  * from that company's own payload_map rather than a hardcoded shape.
+ *
+ * The building and signing live in SendTestHrmsEvent, shared with the company
+ * admin connect screen so both exercise identical rules.
  */
 class SimulateHrmsEvent extends Command
 {
@@ -37,7 +33,7 @@ class SimulateHrmsEvent extends Command
 
     protected $description = 'Send a signed HRMS webhook to this application for demos and vendor onboarding';
 
-    public function handle(HrmsConnectionResolver $connections): int
+    public function handle(SendTestHrmsEvent $sender): int
     {
         $company = $this->resolveCompany();
 
@@ -45,51 +41,47 @@ class SimulateHrmsEvent extends Command
             return self::FAILURE;
         }
 
-        // Same resolver the middleware uses, so the simulator signs with
-        // whatever the endpoint will actually verify against.
-        $webhook = $connections->webhookFor($company);
-
-        if (! $webhook) {
-            $this->error("Company {$company->id} ({$company->code}) has no webhook secret in the database or config/hrms.php.");
-
-            return self::FAILURE;
-        }
-
-        $eventString = (string) $this->option('event');
-        $isCancellation = ($this->verbFor($company, $eventString)['action'] ?? null) === 'cancelled';
-
-        if (! $isCancellation && ! $this->option('employee')) {
-            $this->error('--employee is required for an approval event.');
-
-            return self::FAILURE;
-        }
-
-        $payload = $this->buildPayload($company, $eventString, $isCancellation);
-        $body = json_encode($payload);
-        $timestamp = (string) now()->timestamp;
-        $headers = $this->buildHeaders($webhook, $timestamp, $body);
-
-        $url = rtrim($this->option('url') ?: config('app.url'), '/')."/api/hrms/{$company->code}/events";
+        $result = $sender->execute($company, [
+            'event' => (string) $this->option('event'),
+            'employee' => $this->option('employee'),
+            'from' => $this->option('from'),
+            'to' => $this->option('to'),
+            'leave_type' => $this->option('leave-type'),
+            'leave_id' => $this->option('leave-id'),
+            'event_id' => $this->option('event-id'),
+            'url' => $this->option('url'),
+            'send' => ! $this->option('print'),
+        ]);
 
         if ($this->option('print')) {
-            $this->printRequest($url, $headers, $body);
+            if (! $result['ok']) {
+                $this->error($result['error']);
+
+                return self::FAILURE;
+            }
+
+            $this->printRequest($result);
 
             return self::SUCCESS;
         }
 
-        $this->warnAboutUnknownEmployee($company, $isCancellation);
+        if (! $result['employee_matched']) {
+            $this->warn("No employee in this company matches '{$this->option('employee')}'; the event will be recorded as blocked.");
+        }
 
-        $response = Http::withHeaders($headers)
-            ->withBody($body, 'application/json')
-            ->post($url);
+        if ($result['status'] === null) {
+            $this->error($result['error']);
 
-        $this->line("HTTP {$response->status()} {$response->body()}");
-
-        if ($response->failed()) {
             return self::FAILURE;
         }
 
-        $this->reportOutcome($company, (string) Arr::get($payload, $this->paths($company)['event_id']));
+        $this->line("HTTP {$result['status']} {$result['body']}");
+
+        if (! $result['ok']) {
+            return self::FAILURE;
+        }
+
+        $this->reportOutcome($company, (string) $result['event_id']);
 
         return self::SUCCESS;
     }
@@ -119,99 +111,6 @@ class SimulateHrmsEvent extends Command
             : 'Several companies are configured; pass --company=CODE.');
 
         return null;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function buildPayload(Company $company, string $eventString, bool $isCancellation): array
-    {
-        $paths = $this->paths($company);
-        $payload = [];
-
-        Arr::set($payload, $paths['event_id'], $this->option('event-id') ?: 'sim_'.Str::lower(Str::random(10)));
-        Arr::set($payload, $paths['event_type'], $eventString);
-        Arr::set($payload, $paths['occurred_at'], now()->toIso8601String());
-        Arr::set($payload, $paths['leave_id'], $this->option('leave-id') ?: 'SIM-'.Str::upper(Str::random(6)));
-
-        // A cancellation only needs the leave reference: the skips it released
-        // are found through skips.external_ref.
-        if ($isCancellation) {
-            return $payload;
-        }
-
-        $from = $this->option('from') ?: $this->nextOpenMealDay($company);
-        $to = $this->option('to') ?: $from;
-
-        Arr::set($payload, $paths['employee_ref'], (string) $this->option('employee'));
-        Arr::set($payload, $paths['from_date'], $from);
-        Arr::set($payload, $paths['to_date'], $to);
-        Arr::set($payload, $paths['reason'], 'Simulated via hrms:simulate');
-
-        if ($leaveType = $this->option('leave-type')) {
-            Arr::set($payload, $paths['leave_type'], $leaveType);
-        }
-
-        return $payload;
-    }
-
-    /**
-     * @param  array<string, mixed>  $webhook
-     * @return array<string, string>
-     */
-    protected function buildHeaders(array $webhook, string $timestamp, string $body): array
-    {
-        if (($webhook['auth'] ?? 'signature') === 'token') {
-            return ['Authorization' => 'Bearer '.$webhook['secret']];
-        }
-
-        return [
-            $webhook['signature_header'] => hash_hmac('sha256', $timestamp.'.'.$body, (string) $webhook['secret']),
-            $webhook['timestamp_header'] => $timestamp,
-        ];
-    }
-
-    /**
-     * The first day whose count the engine will still accept: today if its
-     * cutoff has not passed, otherwise the next meal day. Keeps a demo from
-     * landing on a weekend and reporting nothing happened.
-     */
-    protected function nextOpenMealDay(Company $company): string
-    {
-        $timezone = $company->setting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
-        $cursor = Carbon::today($timezone);
-
-        if (MealCutoff::hasCutoffPassed($company, $cursor->toDateString())) {
-            $cursor->addDay();
-        }
-
-        for ($i = 0; $i < 14; $i++) {
-            if (MealCalendar::isMealDay($company, $cursor->toDateString())) {
-                return $cursor->toDateString();
-            }
-
-            $cursor->addDay();
-        }
-
-        return $cursor->toDateString();
-    }
-
-    protected function warnAboutUnknownEmployee(Company $company, bool $isCancellation): void
-    {
-        if ($isCancellation) {
-            return;
-        }
-
-        $reference = (string) $this->option('employee');
-
-        $exists = Employee::where('company_id', $company->id)
-            ->where(fn ($q) => $q->where('external_id', $reference)
-                ->orWhereRaw('UPPER(employee_code) = ?', [strtoupper(trim($reference))]))
-            ->exists();
-
-        if (! $exists) {
-            $this->warn("No employee in this company matches '{$reference}'; the event will be recorded as blocked.");
-        }
     }
 
     protected function reportOutcome(Company $company, string $eventId): void
@@ -250,13 +149,15 @@ class SimulateHrmsEvent extends Command
     }
 
     /**
-     * @param  array<string, string>  $headers
+     * @param  array<string, mixed>  $result
      */
-    protected function printRequest(string $url, array $headers, string $body): void
+    protected function printRequest(array $result): void
     {
-        $this->line("POST {$url}");
+        $body = json_encode($result['payload']);
 
-        foreach ($headers as $name => $value) {
+        $this->line("POST {$result['url']}");
+
+        foreach ($result['headers'] as $name => $value) {
             $this->line("{$name}: {$value}");
         }
 
@@ -265,34 +166,10 @@ class SimulateHrmsEvent extends Command
         $this->line($body);
         $this->newLine();
 
-        $headerFlags = collect($headers)
+        $headerFlags = collect($result['headers'])
             ->map(fn ($value, $name) => "-H '{$name}: {$value}'")
             ->implode(" \\\n  ");
 
-        $this->line("curl -X POST '{$url}' \\\n  -H 'Content-Type: application/json' \\\n  {$headerFlags} \\\n  -d '{$body}'");
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected function paths(Company $company): array
-    {
-        return array_merge(
-            config('hrms.payload_defaults', []),
-            config("hrms.companies.{$company->id}.payload_map") ?? []
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function verbFor(Company $company, string $eventString): array
-    {
-        $map = array_merge(
-            config('hrms.event_type_defaults', []),
-            config("hrms.companies.{$company->id}.event_type_map") ?? []
-        );
-
-        return $map[$eventString] ?? [];
+        $this->line("curl -X POST '{$result['url']}' \\\n  -H 'Content-Type: application/json' \\\n  {$headerFlags} \\\n  -d '{$body}'");
     }
 }

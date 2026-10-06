@@ -5,6 +5,8 @@ namespace App\Services\Hrms;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Skip;
+use App\Services\Hrms\Adapters\GenericHrmsAdapter;
+use App\Services\Hrms\Adapters\HrmsVendorAdapter;
 use App\Services\MealCalendar;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
@@ -30,6 +32,10 @@ class HrmsEventMapper
      */
     public function map(Company $company, array $payload): HrmsEventPlan
     {
+        // Shape first, then field names: the adapter handles structures config
+        // cannot describe, payload_map handles naming.
+        $payload = $this->adapterFor($company)->toGeneric($payload);
+
         $paths = $this->paths($company);
 
         $rawEventType = trim((string) Arr::get($payload, $paths['event_type'], ''));
@@ -275,6 +281,14 @@ class HrmsEventMapper
             config('hrms.type_defaults', []),
             config("hrms.companies.{$company->id}.type_map") ?? []
         );
+    }
+
+    protected function adapterFor(Company $company): HrmsVendorAdapter
+    {
+        $class = config("hrms.companies.{$company->id}.adapter")
+            ?? config('hrms.default_adapter', GenericHrmsAdapter::class);
+
+        return app($class);
     }
 
     protected function timezone(Company $company): string

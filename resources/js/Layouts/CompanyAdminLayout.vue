@@ -86,6 +86,17 @@ const isCurrent = (path) => currentRoute.value.startsWith(path);
                                 📈 Adoption Report
                             </Link>
 
+                            <Link
+                                href="/company-admin/hrms"
+                                :class="[
+                                    'px-3.5 py-2 rounded-lg text-sm font-medium transition-colors',
+                                    isCurrent('/company-admin/hrms')
+                                        ? 'bg-slate-800 text-cyan-400 border border-slate-700'
+                                        : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+                                ]"
+                            >
+                                🔗 HRMS
+                            </Link>
                         </nav>
                     </div>
 

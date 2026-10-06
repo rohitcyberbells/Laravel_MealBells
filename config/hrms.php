@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\Hrms\Adapters\GenericHrmsAdapter;
+
 return [
     /*
      * Per-company HRMS connections, keyed by companies.id.
@@ -95,6 +97,12 @@ return [
         'leave' => 'leave',
         'wfh' => 'wfh',
     ],
+
+    /*
+     * Adapter used when a company does not name its own. Most vendors fit the
+     * generic one, because differing field names are handled by 'payload_map'.
+     */
+    'default_adapter' => GenericHrmsAdapter::class,
 
     /*
      * Largest webhook body accepted, checked before the signature is verified.
