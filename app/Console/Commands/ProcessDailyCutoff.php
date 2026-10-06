@@ -79,7 +79,10 @@ class ProcessDailyCutoff extends Command
                     }
                 }
             } catch (\Throwable $e) {
-                $todayDate = isset($timezone) ? Carbon::today($timezone)->toDateString() : date('Y-m-d');
+                // Resolved from $company, not a leaked loop variable, and through
+                // Carbon rather than date() so it follows the application clock.
+                $errorTimezone = $company->setting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+                $todayDate = Carbon::today($errorTimezone)->toDateString();
                 $this->handleCompanyError($company, $todayDate, 'ProcessCutoff', $e);
             }
         }
