@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../Layouts/AppLayout.vue';
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 
@@ -17,33 +18,12 @@ const changeDate = (newDate) => {
     router.get('/tiffin-admin/preparation', { date: newDate }, { preserveState: true });
 };
 
-const logout = () => {
-    router.post('/logout');
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-white p-6">
+    <AppLayout>
+    <div class="p-6">
         <!-- Header -->
-        <header class="max-w-7xl mx-auto flex justify-between items-center pb-6 border-b border-slate-800 mb-8">
-            <div>
-                <div class="flex items-center space-x-3">
-                    <h1 class="text-3xl font-bold text-amber-400">{{ tiffinService?.name || 'Tiffin Vendor Dashboard' }}</h1>
-                    <span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-3 py-1 rounded-full font-semibold">
-                        Vendor Preparation View
-                    </span>
-                </div>
-                <p class="text-slate-400 text-sm mt-1">Real-time & Locked Demand Planning Engine</p>
-            </div>
-            <div class="flex items-center space-x-4">
-                <a href="/tiffin-admin/dashboard" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm px-4 py-2 rounded-lg transition font-semibold">
-                    ← Back to Menu Builder
-                </a>
-                <button @click="logout" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-sm px-4 py-2 rounded-lg transition">
-                    Logout
-                </button>
-            </div>
-        </header>
 
         <main class="max-w-7xl mx-auto space-y-8">
             <!-- 📅 Date Navigation & Overall Summary Bar -->
@@ -137,4 +117,5 @@ const logout = () => {
             </section>
         </main>
     </div>
+    </AppLayout>
 </template>

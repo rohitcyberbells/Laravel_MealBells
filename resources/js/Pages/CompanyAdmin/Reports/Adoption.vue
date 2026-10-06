@@ -1,5 +1,5 @@
 <script setup>
-import CompanyAdminLayout from '@/Layouts/CompanyAdminLayout.vue';
+import AppLayout from '../../../Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -19,7 +19,7 @@ const changeRange = (newRange) => {
 </script>
 
 <template>
-    <CompanyAdminLayout>
+    <AppLayout>
         <div class="space-y-6">
             <!-- Header & Range Selection -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -63,10 +63,18 @@ const changeRange = (newRange) => {
                     <div class="absolute -right-4 -bottom-4 text-7xl opacity-10">🚀</div>
                     <span class="text-xs font-semibold uppercase tracking-wider text-cyan-400">Self-Service Skip Rate</span>
                     <div class="text-4xl font-extrabold text-white mt-2">
-                        {{ report.self_service_pct }}%
+                        <!-- Null means there were no skips to divide by, so there is
+                             no rate yet. Rendering it raw printed a bare "%". -->
+                        <template v-if="report.self_service_pct !== null">{{ report.self_service_pct }}%</template>
+                        <span v-else class="text-slate-500">—</span>
                     </div>
                     <p class="text-xs text-slate-400 mt-2">
-                        (Self + Recurring) / Total Skips ({{ report.total_active_skips }} total skips)
+                        <template v-if="report.self_service_pct !== null">
+                            (Self + Recurring) / Total Skips ({{ report.total_active_skips }} total skips)
+                        </template>
+                        <template v-else>
+                            No skips recorded in this period yet
+                        </template>
                     </p>
                 </div>
 
@@ -166,5 +174,5 @@ const changeRange = (newRange) => {
                 </div>
             </div>
         </div>
-    </CompanyAdminLayout>
+    </AppLayout>
 </template>

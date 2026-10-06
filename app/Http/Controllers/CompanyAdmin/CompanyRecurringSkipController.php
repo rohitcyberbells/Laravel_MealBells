@@ -53,7 +53,13 @@ class CompanyRecurringSkipController extends Controller
             abort(404, 'Rule not found.');
         }
 
-        $action->execute($rule, Auth::user());
+        // Explicit state, not a toggle: a double submit must not switch the rule
+        // back on and quietly resume skipping this employee's meals.
+        $validated = $request->validate([
+            'active' => ['required', 'boolean'],
+        ]);
+
+        $action->execute($rule, Auth::user(), $validated['active']);
 
         return back()->with('message', 'Recurring skip rule updated for employee.');
     }

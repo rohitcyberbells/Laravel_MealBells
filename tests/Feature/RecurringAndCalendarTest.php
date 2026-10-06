@@ -75,6 +75,9 @@ class RecurringAndCalendarTest extends TestCase
             'company_id' => $this->companyA->id,
             'tiffin_service_id' => $this->tiffinService->id,
             'is_active' => true,
+            // Explicit: assigned_at defaults to useCurrent(), which would make
+            // scopeActiveOn() exclude this company for any earlier test date.
+            'assigned_at' => '2026-09-01',
         ]);
 
         $this->adminA = User::create([

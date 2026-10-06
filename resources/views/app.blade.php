@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- The skip-import endpoints answer with JSON rather than an Inertia
+         response, so that modal posts with fetch and needs the token here. --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title inertia>{{ config('app.name', 'MEALBELLS') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead

@@ -11,9 +11,22 @@ use Carbon\Carbon;
 
 class PauseRecurringSkip
 {
-    public function execute(RecurringSkip $rule, ?User $updatedBy = null): RecurringSkip
+    /**
+     * Set a rule's active state, or toggle it when $active is not given.
+     *
+     * Callers acting on a user's request should always pass $active explicitly:
+     * toggling makes the operation depend on current state, so a repeated or
+     * double-submitted request flips the rule back on and silently resumes
+     * skipping that person's meals.
+     */
+    public function execute(RecurringSkip $rule, ?User $updatedBy = null, ?bool $active = null): RecurringSkip
     {
-        $newActiveState = ! $rule->active;
+        $newActiveState = $active ?? ! $rule->active;
+
+        if ($rule->active === $newActiveState) {
+            return $rule;
+        }
+
         $rule->update(['active' => $newActiveState]);
 
         // If rule is paused, cancel future unlocked recurring skips for this employee

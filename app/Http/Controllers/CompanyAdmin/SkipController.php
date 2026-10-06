@@ -30,7 +30,7 @@ class SkipController extends Controller
             ->firstOrFail();
 
         try {
-            $action->execute($company, $employee, $validated['date'], $validated['source'], $validated['reason'], Auth::user());
+            $action->execute($company, $employee, $validated['date'], $validated['source'], $validated['reason'] ?? null, Auth::user());
         } catch (Exception $e) {
             return back()->withErrors(['skip' => $e->getMessage()]);
         }
@@ -74,7 +74,7 @@ class SkipController extends Controller
                 $validated['employee_ids'],
                 $validated['dates'],
                 $validated['source'],
-                $validated['reason'],
+                $validated['reason'] ?? null,
                 Auth::user()
             );
         } catch (Exception $e) {

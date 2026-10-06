@@ -1,9 +1,10 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
-import CompanyAdminLayout from '../../../Layouts/CompanyAdminLayout.vue';
+import AppLayout from '../../../Layouts/AppLayout.vue';
 import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
+import SkipImportModal from './SkipImportModal.vue';
 
 const props = defineProps({
     company: Object,
@@ -17,6 +18,7 @@ const status = ref(props.filters?.status || '');
 const showFormModal = ref(false);
 const selectedEmployee = ref(null);
 const showCsvModal = ref(false);
+const showSkipImportModal = ref(false);
 
 const openCreateModal = () => {
     selectedEmployee.value = null;
@@ -47,7 +49,7 @@ watch([search, status], () => {
 </script>
 
 <template>
-    <CompanyAdminLayout>
+    <AppLayout>
         <div class="space-y-6">
             <!-- Top Action Banner & Stats -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl backdrop-blur-md shadow-xl">
@@ -66,6 +68,13 @@ watch([search, status], () => {
                     >
                         <span>📥</span>
                         <span>Bulk CSV Import</span>
+                    </button>
+                    <button
+                        @click="showSkipImportModal = true"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition shadow-sm cursor-pointer"
+                    >
+                        <span>🗓️</span>
+                        <span>Leave / WFH Import</span>
                     </button>
                     <button
                         @click="openCreateModal"
@@ -236,6 +245,11 @@ watch([search, status], () => {
                 :show="showCsvModal"
                 @close="showCsvModal = false"
             />
+
+            <SkipImportModal
+                :show="showSkipImportModal"
+                @close="showSkipImportModal = false"
+            />
         </div>
-    </CompanyAdminLayout>
+    </AppLayout>
 </template>

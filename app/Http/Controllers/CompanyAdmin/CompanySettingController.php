@@ -39,6 +39,13 @@ class CompanySettingController extends Controller
             'primary_admin_id' => $setting?->primary_admin_id,
             'backup_admin_id' => $setting?->backup_admin_id,
             'company_admins' => $companyAdmins,
+            // Read-only context. The advance limit is a platform setting rather
+            // than a company one, and attendance_source lives on each employee,
+            // so neither belongs in this form - but the screen explains where
+            // they come from instead of leaving them unexplained.
+            'advance_limit_days' => (int) config('mealbells.advance_limit_days', 60),
+            'attendance_sources' => config('mealbells.attendance_sources', ['manual', 'integrated', 'none']),
+            'temporary_password' => session('temporary_password'),
         ]);
     }
 
