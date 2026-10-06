@@ -35,6 +35,7 @@ class HealthController extends Controller
 
         // Detect missing snapshots for today
         $missingSnapshotsToday = [];
+        $unconfiguredCompanies = [];
         $companies = Company::with('setting', 'activeAssignment')->get();
 
         foreach ($companies as $company) {
@@ -42,14 +43,27 @@ class HealthController extends Controller
                 continue;
             }
 
-            $timezone = $company->setting?->timezone ?? 'Asia/Kolkata';
+            // ProcessDailyCutoff skips a company with no settings row outright,
+            // so it will never produce a snapshot. Reporting that as a missing
+            // snapshot was a false alarm that could never clear - the real
+            // problem is the missing configuration, so it is surfaced as that.
+            if (! $company->setting) {
+                $unconfiguredCompanies[] = [
+                    'company_id' => $company->id,
+                    'company_name' => $company->name,
+                ];
+
+                continue;
+            }
+
+            $timezone = $company->setting->timezone ?? 'Asia/Kolkata';
             $todayDate = Carbon::today($timezone)->toDateString();
 
             if (! MealCalendar::isMealDay($company, $todayDate)) {
                 continue;
             }
 
-            $cutoffStr = $company->setting?->cutoff_time ?? '11:00';
+            $cutoffStr = $company->setting->cutoff_time ?? '11:00';
             $parts = explode(':', $cutoffStr);
             $cutoffDateTime = Carbon::createFromFormat('Y-m-d', $todayDate, $timezone)
                 ->setTime((int) ($parts[0] ?? 11), (int) ($parts[1] ?? 0), 0);
@@ -82,6 +96,7 @@ class HealthController extends Controller
             'failed_jobs_count' => $failedJobsCount,
             'snapshots_last_24h' => $snapshotsLast24h,
             'missing_snapshots_today' => $missingSnapshotsToday,
+            'unconfigured_companies' => $unconfiguredCompanies,
         ]);
     }
 }

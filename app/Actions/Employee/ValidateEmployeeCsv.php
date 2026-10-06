@@ -2,8 +2,62 @@
 
 namespace App\Actions\Employee;
 
+use Illuminate\Http\UploadedFile;
+
 class ValidateEmployeeCsv
 {
+    /**
+     * Read an uploaded CSV into rows keyed by its header.
+     *
+     * Kept separate from execute() so the action still takes plain rows, which
+     * is what the import confirm step posts back.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function parse(UploadedFile $file): array
+    {
+        $handle = fopen($file->getRealPath(), 'r');
+
+        if (! $handle) {
+            return [];
+        }
+
+        $headers = fgetcsv($handle);
+
+        if (! $headers) {
+            fclose($handle);
+
+            return [];
+        }
+
+        // Excel writes a BOM onto the first header, which would otherwise make
+        // 'employee_code' unmatchable and fail every row.
+        $headers[0] = str_replace("\xEF\xBB\xBF", '', (string) ($headers[0] ?? ''));
+        $headers = array_map(fn ($header) => strtolower(trim((string) $header)), $headers);
+
+        $rows = [];
+
+        while (($data = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($data, fn ($value) => trim((string) $value) !== ''))) {
+                continue;
+            }
+
+            $row = [];
+
+            foreach ($headers as $index => $header) {
+                if ($header !== '') {
+                    $row[$header] = $data[$index] ?? '';
+                }
+            }
+
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
     /**
      * Validate employee CSV rows without changing the database.
      *

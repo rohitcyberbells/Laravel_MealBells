@@ -14,6 +14,23 @@ class CompanyTiffinAssignment extends Model
         'unassigned_at',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        /*
+         * assigned_at is declared useCurrent() in the migration, which lets the
+         * DATABASE clock set it. Defaulting it here instead keeps the value on
+         * application time, so it honours Carbon's clock (including a frozen one
+         * under test) rather than drifting away from it.
+         */
+        static::creating(function ($assignment) {
+            if (empty($assignment->assigned_at)) {
+                $assignment->assigned_at = now();
+            }
+        });
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);

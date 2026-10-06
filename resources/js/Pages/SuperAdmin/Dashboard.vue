@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../Layouts/AppLayout.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 
@@ -70,22 +71,14 @@ const deleteTiffin = (tiffinId, tiffinName) => {
     }
 };
 
-const logout = () => {
-    router.post('/logout');
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-white p-6">
-        <!-- Header -->
-        <header class="max-w-7xl mx-auto flex justify-between items-center pb-6 border-b border-slate-800 mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-emerald-400">Super Admin Dashboard</h1>
-            </div>
-            <button @click="logout" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-sm px-4 py-2 rounded-lg transition">
-                Logout
-            </button>
-        </header>
+    <AppLayout>
+    <div class="p-6">
+        <div class="max-w-7xl mx-auto pb-6 border-b border-slate-800 mb-8">
+            <h1 class="text-3xl font-bold text-emerald-400">Super Admin Dashboard</h1>
+        </div>
 
         <main class="max-w-7xl mx-auto space-y-8">
             <!-- Pairing Tool Card -->
@@ -262,4 +255,5 @@ const logout = () => {
             </section>
         </main>
     </div>
+    </AppLayout>
 </template>

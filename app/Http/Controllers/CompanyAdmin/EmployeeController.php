@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class EmployeeController extends Controller
@@ -100,8 +101,11 @@ class EmployeeController extends Controller
             'file' => 'required|file|mimes:csv,txt|max:2048',
         ]);
 
-        $company = Auth::user()->company;
-        $result = $action->execute($request->file('file'), $company);
+        // The action takes rows, not a file: an UploadedFile and a Company were
+        // being handed to execute(array $rows), which was a TypeError on every
+        // preview.
+        $rows = $action->parse($request->file('file'));
+        $result = $action->execute($rows);
 
         return back()->with('csvPreview', $result);
     }
@@ -127,14 +131,21 @@ class EmployeeController extends Controller
     {
         $company = Auth::user()->company;
 
+        // 'nullable' still let an empty call through, and the action treats an
+        // empty list as "everyone" - so a malformed request silently provisioned
+        // logins, and temporary passwords, for every active employee. Selecting
+        // is now explicit.
         $validated = $request->validate([
-            'employee_ids' => 'nullable|array',
-            'employee_ids.*' => 'exists:employees,id',
+            'employee_ids' => ['required', 'array', 'min:1'],
+            'employee_ids.*' => [
+                'integer',
+                // Scoped to this company: another tenant's id is a validation
+                // error rather than something quietly dropped by the action.
+                Rule::exists('employees', 'id')->where('company_id', $company->id),
+            ],
         ]);
 
-        $employeeIds = $validated['employee_ids'] ?? null;
-
-        $credentials = $action->execute($company, $employeeIds, Auth::user());
+        $credentials = $action->execute($company, $validated['employee_ids'], Auth::user());
 
         return back()->with([
             'message' => 'Generated logins for '.count($credentials).' employees.',

@@ -32,7 +32,10 @@ class CompanyDailyController extends Controller
 
         $timezone = $company->setting?->timezone ?? 'Asia/Kolkata';
         $today = Carbon::today($timezone)->toDateString();
-        $advanceLimitDays = $company->setting?->advance_limit_days ?? 14;
+        // company_settings has no advance_limit_days column, so this silently
+        // fell back to 14 and the date picker refused days MealGuard would have
+        // accepted. Reading the same config the guard reads keeps the two in step.
+        $advanceLimitDays = (int) config('mealbells.advance_limit_days', 60);
 
         $minDate = Carbon::today($timezone)->subDays(7)->toDateString();
         $maxDate = Carbon::today($timezone)->addDays($advanceLimitDays)->toDateString();
@@ -50,11 +53,14 @@ class CompanyDailyController extends Controller
 
         $isMealDay = MealCalendar::isMealDay($company, $date);
 
-        // Fetch locked snapshot if present
-        $lockedSnapshot = MealCount::where('company_id', $company->id)
+        // Any snapshot for the date, locked or still a draft: the review stamp
+        // lives on the draft too, so the screen can tell draft from reviewed.
+        $snapshot = MealCount::where('company_id', $company->id)
             ->where('date', $date)
-            ->whereNotNull('locked_at')
+            ->with('reviewedBy:id,name')
             ->first();
+
+        $lockedSnapshot = $snapshot?->locked_at ? $snapshot : null;
 
         $calculator = new CalculateExpectedMeals;
         $calculatedData = $calculator->execute($company, $date);
@@ -115,7 +121,7 @@ class CompanyDailyController extends Controller
         // Extra Meals for date
         $extraMeals = MealAdjustment::where('company_id', $company->id)
             ->where('date', $date)
-            ->with('requestedBy:id,name')
+            ->with('creator:id,name')
             ->orderBy('id', 'desc')
             ->get();
 
@@ -137,6 +143,13 @@ class CompanyDailyController extends Controller
             'skips' => $skips,
             'extra_meals' => $extraMeals,
             'employees_for_search' => $employeesForSearch,
+            'snapshot' => $snapshot ? [
+                'status' => $snapshot->status,
+                'locked_at' => $snapshot->locked_at?->toDateTimeString(),
+                'lock_type' => $snapshot->lock_type,
+                'reviewed_at' => $snapshot->reviewed_at?->toDateTimeString(),
+                'reviewed_by' => $snapshot->reviewedBy?->name,
+            ] : null,
         ]);
     }
 

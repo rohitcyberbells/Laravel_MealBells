@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
-import CompanyAdminLayout from '../../../Layouts/CompanyAdminLayout.vue';
+import AppLayout from '../../../Layouts/AppLayout.vue';
 
 const props = defineProps({
     month: String,
@@ -45,7 +45,7 @@ const removeDay = (dayId) => {
 </script>
 
 <template>
-    <CompanyAdminLayout>
+    <AppLayout>
         <div class="space-y-6">
             <!-- Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
@@ -160,5 +160,5 @@ const removeDay = (dayId) => {
                 </div>
             </div>
         </div>
-    </CompanyAdminLayout>
+    </AppLayout>
 </template>

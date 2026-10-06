@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../Layouts/AppLayout.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -22,47 +23,18 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    unconfigured_companies: {
+        type: Array,
+        default: () => [],
+    },
 });
 
-const logout = () => {
-    router.post('/logout');
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <AppLayout>
+    <div>
         <!-- Top Navigation -->
-        <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    <div class="flex items-center space-x-6">
-                        <Link href="/super-admin/dashboard" class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center font-black text-xl text-white shadow-md">
-                                🛡️
-                            </div>
-                            <span class="font-bold text-lg bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
-                                MealBells Platform
-                            </span>
-                        </Link>
-                        <nav class="hidden md:flex items-center space-x-2 pl-6 border-l border-slate-800">
-                            <Link href="/super-admin/dashboard" class="px-3 py-1.5 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800">
-                                🏢 Dashboard
-                            </Link>
-                            <Link href="/super-admin/health" class="px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-800 text-purple-400 border border-slate-700">
-                                🩺 System Health
-                            </Link>
-                        </nav>
-                    </div>
-
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm font-semibold text-slate-300">{{ user?.email }}</span>
-                        <button @click="logout" class="px-3.5 py-1.5 text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg border border-red-500/30 cursor-pointer">
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
 
         <!-- Main Body -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -121,6 +93,18 @@ const logout = () => {
                 </div>
             </div>
 
+            <!-- Paired but never configured: the cutoff job skips these entirely -->
+            <div v-if="unconfigured_companies.length > 0" class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/40">
+                <h2 class="text-sm font-bold text-amber-300">
+                    ⚠️ {{ unconfigured_companies.length }} paired company(ies) have no settings yet
+                </h2>
+                <p class="text-xs text-amber-200/80 mt-1">
+                    The cutoff job skips a company with no settings row, so it will never produce a snapshot.
+                    Set a cutoff time, timezone and meal days for:
+                    <span class="font-semibold">{{ unconfigured_companies.map(c => c.company_name).join(', ') }}</span>
+                </p>
+            </div>
+
             <!-- Missing Snapshots Table -->
             <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
                 <h2 class="text-base font-bold text-slate-200 mb-4">Missing Today Snapshots (Cutoff Passed)</h2>
@@ -154,4 +138,5 @@ const logout = () => {
             </div>
         </main>
     </div>
+    </AppLayout>
 </template>
