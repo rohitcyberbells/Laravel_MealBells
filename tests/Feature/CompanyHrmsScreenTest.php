@@ -168,12 +168,16 @@ class CompanyHrmsScreenTest extends TestCase
         $this->assertEquals('evt-25', $events[0]['external_event_id']);
     }
 
-    public function test_the_test_button_sends_a_signature_the_endpoint_would_accept(): void
+    public function test_the_test_button_is_accepted_by_the_real_endpoint(): void
     {
         $this->actingAs($this->adminA)->post('/company-admin/hrms/secret');
-        $secret = CompanyHrmsConnection::where('company_id', $this->companyA->id)->sole()->webhook_secret;
 
-        Http::fake(['*' => Http::response(['message' => 'Event accepted.'], 202)]);
+        // The button used to post to its own URL over HTTP, which deadlocks a
+        // single-threaded server. It now hands the request to the application,
+        // so there is no outgoing request to assert on - what matters is that
+        // the receiver, signature check included, accepted it.
+        config()->set('inertia.ssr.enabled', false);
+        Http::preventStrayRequests();
 
         $this->actingAs($this->adminA)->post('/company-admin/hrms/test-event', [
             'event' => 'leave_approved',
@@ -181,17 +185,14 @@ class CompanyHrmsScreenTest extends TestCase
             'from' => '2026-10-06',
         ])->assertRedirect();
 
-        Http::assertSent(function ($request) use ($secret) {
-            $timestamp = $request->header('X-Hrms-Timestamp')[0];
-
-            return $request->url() === 'http://mealbells.test/api/hrms/ALPHA1/events'
-                && $request->header('X-Hrms-Signature')[0]
-                    === hash_hmac('sha256', $timestamp.'.'.$request->body(), $secret);
-        });
-
         $result = session('test_result');
-        $this->assertTrue($result['ok']);
+
+        $this->assertTrue($result['ok'], $result['error'] ?? '');
+        $this->assertEquals(202, $result['status']);
         $this->assertTrue($result['employee_matched']);
+
+        $event = HrmsWebhookEvent::where('external_event_id', $result['event_id'])->sole();
+        $this->assertEquals(HrmsWebhookEvent::STATUS_APPLIED, $event->status);
     }
 
     public function test_the_test_button_reports_an_unmatched_employee(): void
