@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HrmsWebhookEvent extends Model
 {
+    use Prunable;
+
     /** Accepted, not yet processed. */
     public const STATUS_RECEIVED = 'received';
 
@@ -55,5 +59,37 @@ class HrmsWebhookEvent extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Events whose raw payload has outlived its usefulness.
+     *
+     * Rows that have already been redacted are excluded, so a daily prune does
+     * not keep rewriting the same history.
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        $days = (int) config('hrms.retention.payload_days', 30);
+
+        return static::query()
+            ->whereNotNull('payload')
+            ->where('created_at', '<=', now()->subDays($days));
+    }
+
+    /**
+     * Redacts instead of deleting, which is why prune() is overridden rather
+     * than left to the trait.
+     *
+     * The payload carries PII - employee identifiers and leave reasons, which can
+     * be medical - but status, result and timings are the audit trail for what
+     * the integration did to someone's meals, so those are kept.
+     */
+    public function prune(): bool
+    {
+        $this->pruning();
+
+        return $this->forceFill(['payload' => null])->save();
     }
 }
