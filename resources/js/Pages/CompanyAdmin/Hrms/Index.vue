@@ -88,6 +88,10 @@ const hasEvents = computed(() => props.events.length > 0);
                 <p v-if="test_result.ok && !test_result.employee_matched" class="text-xs mt-1">
                     No employee matched that reference, so the event will be recorded as blocked.
                 </p>
+                <p v-if="test_result.event_status" class="text-xs mt-1">
+                    Outcome: <span class="font-bold uppercase">{{ test_result.event_status }}</span>
+                    <span v-if="test_result.summary"> — {{ test_result.summary }}</span>
+                </p>
                 <p v-if="test_result.event_id" class="text-xs mt-1 font-mono">Event ID: {{ test_result.event_id }}</p>
             </div>
 

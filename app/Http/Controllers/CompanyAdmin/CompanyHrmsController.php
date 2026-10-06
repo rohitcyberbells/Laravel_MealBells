@@ -11,6 +11,7 @@ use App\Services\Hrms\Adapters\GenericHrmsAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Throwable;
 
 class CompanyHrmsController extends Controller
 {
@@ -79,12 +80,40 @@ class CompanyHrmsController extends Controller
             'to' => 'nullable|date_format:Y-m-d',
         ]);
 
-        $result = $sender->execute($company, [
-            'event' => $validated['event'] ?? 'leave_approved',
-            'employee' => $validated['employee'] ?? null,
-            'from' => $validated['from'] ?? null,
-            'to' => $validated['to'] ?? null,
-        ]);
+        try {
+            $result = $sender->execute($company, [
+                'event' => $validated['event'] ?? 'leave_approved',
+                'employee' => $validated['employee'] ?? null,
+                'from' => $validated['from'] ?? null,
+                'to' => $validated['to'] ?? null,
+                // In-process, because this runs inside the web server: calling
+                // our own endpoint over HTTP deadlocks a single-threaded server
+                // until it times out.
+                'transport' => 'in_process',
+            ]);
+        } catch (Throwable $e) {
+            // Nothing should reach here - the action already converts a failed
+            // delivery into a result - but the page must not break if it does.
+            report($e);
+
+            return back()->with('test_result', [
+                'ok' => false,
+                'error' => 'No response from the test event (detail: '.$e->getMessage().').',
+                'status' => null,
+                'event_id' => null,
+                'employee_matched' => false,
+                'event_status' => null,
+                'summary' => null,
+            ]);
+        }
+
+        // What the event actually did, so the message can say applied, blocked
+        // or still queued rather than only that it was accepted.
+        $event = $result['event_id']
+            ? HrmsWebhookEvent::where('company_id', $company->id)
+                ->where('external_event_id', $result['event_id'])
+                ->first()
+            : null;
 
         return back()->with('test_result', [
             'ok' => $result['ok'],
@@ -92,6 +121,8 @@ class CompanyHrmsController extends Controller
             'status' => $result['status'],
             'event_id' => $result['event_id'],
             'employee_matched' => $result['employee_matched'],
+            'event_status' => $event?->status,
+            'summary' => $event ? $this->summarise($event) : null,
         ]);
     }
 
@@ -123,6 +154,32 @@ class CompanyHrmsController extends Controller
                 'error' => $event->error,
             ])
             ->all();
+    }
+
+    /**
+     * A one-line account of what the event did, for the message above the list.
+     */
+    protected function summarise(HrmsWebhookEvent $event): string
+    {
+        $result = $event->result ?? [];
+
+        $parts = [];
+
+        foreach (['applied_days' => 'applied', 'already_days' => 'already skipped', 'released_days' => 'released'] as $key => $label) {
+            if ($days = $result[$key] ?? []) {
+                $parts[] = count($days).' '.$label.' ('.implode(', ', $days).')';
+            }
+        }
+
+        foreach (collect($result['blocked_days'] ?? [])->merge($result['release_blocked'] ?? []) as $blocked) {
+            $parts[] = "{$blocked['date']} blocked ({$blocked['reason']})";
+        }
+
+        foreach ($result['notes'] ?? [] as $note) {
+            $parts[] = $note;
+        }
+
+        return $parts ? implode(' · ', $parts) : 'Nothing to change.';
     }
 
     protected function company()
