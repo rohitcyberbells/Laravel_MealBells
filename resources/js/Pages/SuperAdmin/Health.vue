@@ -22,6 +22,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    unconfigured_companies: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const logout = () => {
@@ -119,6 +123,18 @@ const logout = () => {
                         Confirmed meal count records locked across all companies
                     </p>
                 </div>
+            </div>
+
+            <!-- Paired but never configured: the cutoff job skips these entirely -->
+            <div v-if="unconfigured_companies.length > 0" class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/40">
+                <h2 class="text-sm font-bold text-amber-300">
+                    ⚠️ {{ unconfigured_companies.length }} paired company(ies) have no settings yet
+                </h2>
+                <p class="text-xs text-amber-200/80 mt-1">
+                    The cutoff job skips a company with no settings row, so it will never produce a snapshot.
+                    Set a cutoff time, timezone and meal days for:
+                    <span class="font-semibold">{{ unconfigured_companies.map(c => c.company_name).join(', ') }}</span>
+                </p>
             </div>
 
             <!-- Missing Snapshots Table -->
