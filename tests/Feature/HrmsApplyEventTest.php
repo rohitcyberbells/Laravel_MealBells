@@ -226,6 +226,77 @@ class HrmsApplyEventTest extends TestCase
         $this->assertEquals('2026-10-06', $event->result['blocked_days'][0]['date']);
     }
 
+    public function test_locked_day_blocks_only_its_own_release(): void
+    {
+        $this->deliver($this->approval(from: '2026-10-06', to: '2026-10-07'))->assertStatus(202);
+        $this->assertEquals(2, Skip::whereNull('cancelled_at')->count());
+
+        // The count for 10-06 is snapshotted after the skips were created.
+        MealCount::create([
+            'company_id' => $this->companyA->id,
+            'tiffin_service_id' => $this->tiffin->id,
+            'date' => '2026-10-06',
+            'base_eligible_count' => 1, 'skip_count' => 1, 'extra_count' => 0,
+            'final_expected_count' => 0, 'breakdown' => [],
+            'status' => 'auto_confirmed', 'locked_at' => now(),
+        ]);
+
+        $this->deliver($this->cancellation(occurredAt: '2026-10-05T06:00:00Z'))->assertStatus(202);
+
+        $event = $this->eventFor('evt-c');
+
+        // One day released, the locked one logged - and no crash.
+        $this->assertEquals(HrmsWebhookEvent::STATUS_APPLIED, $event->status);
+        $this->assertEquals(['2026-10-07'], $event->result['released_days']);
+        $this->assertEquals(
+            [['date' => '2026-10-06', 'reason' => 'count_locked']],
+            $event->result['release_blocked']
+        );
+
+        // The locked day's skip is still standing, because the vendor has no
+        // right to change a count the company already committed to.
+        $this->assertNull(Skip::where('date', '2026-10-06')->sole()->cancelled_at);
+        $this->assertNotNull(Skip::where('date', '2026-10-07')->sole()->cancelled_at);
+    }
+
+    public function test_release_after_the_cutoff_is_blocked_and_does_not_crash(): void
+    {
+        // Created while the cutoff was still open.
+        $this->deliver($this->approval(from: '2026-10-05'))->assertStatus(202);
+        $this->assertEquals(1, Skip::whereNull('cancelled_at')->count());
+
+        // The leave is revoked after the 11:00 cutoff has passed.
+        Carbon::setTestNow(Carbon::parse('2026-10-05 12:00:00', 'Asia/Kolkata'));
+
+        $this->deliver($this->cancellation(occurredAt: '2026-10-05T07:00:00Z'))->assertStatus(202);
+
+        $event = $this->eventFor('evt-c');
+        $this->assertEquals(HrmsWebhookEvent::STATUS_BLOCKED, $event->status);
+        $this->assertEmpty($event->result['released_days']);
+        $this->assertEquals(
+            [['date' => '2026-10-05', 'reason' => 'cutoff_passed']],
+            $event->result['release_blocked']
+        );
+
+        $this->assertNull(Skip::sole()->cancelled_at);
+    }
+
+    public function test_release_is_blocked_when_the_company_has_no_admin_to_attribute_it_to(): void
+    {
+        $this->deliver($this->approval())->assertStatus(202);
+
+        // Remove every admin, so CancelSkip has no actor.
+        CompanySetting::where('company_id', $this->companyA->id)->update(['primary_admin_id' => null]);
+        User::where('company_id', $this->companyA->id)->delete();
+
+        $this->deliver($this->cancellation(occurredAt: '2026-10-05T06:00:00Z'))->assertStatus(202);
+
+        $event = $this->eventFor('evt-c');
+        $this->assertEquals(HrmsWebhookEvent::STATUS_BLOCKED, $event->status);
+        $this->assertEquals('no_actor', $event->result['release_blocked'][0]['reason']);
+        $this->assertNull(Skip::sole()->cancelled_at);
+    }
+
     public function test_unknown_employee_is_blocked_not_failed(): void
     {
         $this->deliver($this->approval(employee: 'HR-NOBODY'))->assertStatus(202);
