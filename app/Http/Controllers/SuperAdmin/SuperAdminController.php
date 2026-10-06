@@ -26,19 +26,41 @@ class SuperAdminController extends Controller
             ->get()
             ->keyBy('company_id');
 
+        $tiffinServices = TiffinService::all();
+
+        // The admin accounts this screen can reset a password for. Employees are
+        // deliberately absent: their own company admin resets those, and listing
+        // every employee here would bury the handful of accounts that matter.
+        $admins = User::whereIn('role', ['company_admin', 'tiffin_admin'])
+            ->select('id', 'name', 'email', 'role', 'company_id', 'tiffin_service_id', 'must_change_password')
+            ->orderBy('name')
+            ->get();
+
+        $companyAdmins = $admins->where('role', 'company_admin')->groupBy('company_id');
+        $tiffinAdmins = $admins->where('role', 'tiffin_admin')->groupBy('tiffin_service_id');
+
         return Inertia::render('SuperAdmin/Dashboard', [
             'companies' => $companies->map(fn (Company $company) => [
                 ...$company->toArray(),
+                'admins' => $companyAdmins->get($company->id, collect())->values(),
                 'hrms' => [
                     'webhook_url' => url("/api/hrms/{$company->code}/events"),
                     'has_secret' => (bool) $connections->get($company->id)?->webhook_secret,
                     'secret_rotated_at' => $connections->get($company->id)?->secret_rotated_at?->toDateTimeString(),
                 ],
             ]),
-            'tiffinServices' => TiffinService::all(),
+            'tiffinServices' => $tiffinServices->map(fn (TiffinService $tiffin) => [
+                ...$tiffin->toArray(),
+                'admins' => $tiffinAdmins->get($tiffin->id, collect())->values(),
+            ]),
             'assignments' => CompanyTiffinAssignment::with(['company', 'tiffinService'])->latest()->get(),
             // Flash data, so it survives exactly one render after rotation.
             'hrms_secret' => session('hrms_secret'),
+            // Likewise for a password reset. Without this the reset flashed a
+            // password that no render ever read, so the only copy was lost and
+            // the account was locked behind a password nobody knew.
+            'temporary_password' => session('temporary_password'),
+            'reset_for' => session('reset_for'),
         ]);
     }
 
@@ -176,6 +198,10 @@ class SuperAdminController extends Controller
         return back()->with([
             'message' => "Password reset successfully for {$user->name}.",
             'temporary_password' => $newTempPassword,
+            // Which account the password above belongs to. Resetting two admins
+            // in a row otherwise leaves a password on screen with nothing
+            // tying it to a person.
+            'reset_for' => ['name' => $user->name, 'email' => $user->email],
         ]);
     }
 
