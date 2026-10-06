@@ -57,6 +57,13 @@ class HandleInertiaRequests extends Middleware
                 // the preview was computed, flashed, and never reached the page,
                 // so the modal could not leave its first step.
                 'csvPreview' => $request->session()->get('csvPreview'),
+                // Generated logins are shown once, right after provisioning. The
+                // plaintext exists only in this flash and in the mail that was
+                // sent; it is never persisted.
+                'credentials' => $request->session()->get('credentials'),
+                // Per-employee outcome of a bulk skip, so the Daily page can say
+                // what actually happened rather than just "processed".
+                'bulkSummary' => $request->session()->get('bulkSummary'),
             ],
         ];
     }

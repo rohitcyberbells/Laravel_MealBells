@@ -1,10 +1,11 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { router, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '../../../Layouts/AppLayout.vue';
 import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
 import SkipImportModal from './SkipImportModal.vue';
+import LoginCredentialsPanel from './LoginCredentialsPanel.vue';
 
 const props = defineProps({
     company: Object,
@@ -19,6 +20,33 @@ const showFormModal = ref(false);
 const selectedEmployee = ref(null);
 const showCsvModal = ref(false);
 const showSkipImportModal = ref(false);
+
+const page = usePage();
+
+// Shown once, straight after provisioning; it is flash data, so a reload clears
+// it on its own.
+const credentials = computed(() => page.props.flash?.credentials ?? null);
+const dismissedCredentials = ref(false);
+
+// Only employees who have no account yet can be provisioned.
+const selectedForLogins = ref([]);
+
+const toggleForLogins = (id) => {
+    const at = selectedForLogins.value.indexOf(id);
+    at === -1 ? selectedForLogins.value.push(id) : selectedForLogins.value.splice(at, 1);
+};
+
+const createLogins = () => {
+    if (!selectedForLogins.value.length) return;
+
+    router.post('/company-admin/employees/logins', { employee_ids: selectedForLogins.value }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedForLogins.value = [];
+            dismissedCredentials.value = false;
+        },
+    });
+};
 
 const openCreateModal = () => {
     selectedEmployee.value = null;
@@ -70,6 +98,14 @@ watch([search, status], () => {
                         <span>Bulk CSV Import</span>
                     </button>
                     <button
+                        v-if="selectedForLogins.length"
+                        @click="createLogins"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 transition shadow-sm cursor-pointer"
+                    >
+                        <span>🔑</span>
+                        <span>Create logins ({{ selectedForLogins.length }})</span>
+                    </button>
+                    <button
                         @click="showSkipImportModal = true"
                         class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition shadow-sm cursor-pointer"
                     >
@@ -114,12 +150,19 @@ watch([search, status], () => {
                 </div>
             </div>
 
+            <LoginCredentialsPanel
+                v-if="credentials && !dismissedCredentials"
+                :credentials="credentials"
+                @dismiss="dismissedCredentials = true"
+            />
+
             <!-- Employee Data Table -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs border-collapse">
                         <thead class="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
                             <tr>
+                                <th class="p-4 w-10"></th>
                                 <th class="p-4">Employee Code</th>
                                 <th class="p-4">Name & Email</th>
                                 <th class="p-4">Attendance Source</th>
@@ -134,6 +177,19 @@ watch([search, status], () => {
                                 :key="emp.id"
                                 class="hover:bg-slate-800/40 transition-colors group"
                             >
+                                <td class="p-4">
+                                    <!-- Only employees without an account can be
+                                         provisioned; the rest show a tick. -->
+                                    <input
+                                        v-if="!emp.user_id"
+                                        type="checkbox"
+                                        :checked="selectedForLogins.includes(emp.id)"
+                                        @change="toggleForLogins(emp.id)"
+                                        class="accent-cyan-500 cursor-pointer"
+                                        :aria-label="`Select ${emp.name} for a login`"
+                                    />
+                                    <span v-else class="text-emerald-400 text-xs" title="Already has a login">✓</span>
+                                </td>
                                 <td class="p-4 whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-cyan-500/30 text-cyan-400 font-mono font-bold tracking-wide">
                                         {{ emp.employee_code }}
@@ -190,7 +246,7 @@ watch([search, status], () => {
 
                             <!-- Empty State -->
                             <tr v-if="!employees.data || !employees.data.length">
-                                <td colspan="6" class="p-12 text-center">
+                                <td colspan="7" class="p-12 text-center">
                                     <div class="max-w-xs mx-auto space-y-3">
                                         <div class="text-4xl">🔍</div>
                                         <h3 class="text-base font-bold text-white">No Employees Found</h3>
