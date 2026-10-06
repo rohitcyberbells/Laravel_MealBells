@@ -156,6 +156,15 @@ class DemoSeederTest extends TestCase
         );
 
         $this->assertEquals(0, HrmsWebhookEvent::where('company_id', $northwind->id)->count());
+
+        // The applied event must have a real skip behind it, or the screen shows
+        // an outcome with nothing to back it up.
+        $applied = $events->firstWhere('external_event_id', 'evt_demo_applied');
+        $skip = Skip::where('external_ref', $applied->leave_external_id)->sole();
+
+        $this->assertEquals($applied->result['applied_days'][0], Carbon::parse($skip->date)->toDateString());
+        $this->assertEquals('leave', $skip->source);
+        $this->assertNull($skip->cancelled_at);
     }
 
     public function test_employees_carry_an_hrms_reference(): void
