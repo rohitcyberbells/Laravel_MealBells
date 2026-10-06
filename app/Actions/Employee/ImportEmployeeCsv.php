@@ -95,6 +95,10 @@ class ImportEmployeeCsv
                          * Only update fields that actually
                          * existed in the CSV.
                          */
+                        if (array_key_exists('external_id', $row)) {
+                            $data['external_id'] = $row['external_id'];
+                        }
+
                         if (array_key_exists('email', $row)) {
                             $data['email'] = $row['email'];
                         }
@@ -130,6 +134,8 @@ class ImportEmployeeCsv
                         'company_id' => $company->id,
                         'employee_code' => $employeeCode,
                         'name' => $row['name'],
+
+                        'external_id' => $row['external_id'] ?? null,
 
                         'email' => $row['email'] ?? null,
 

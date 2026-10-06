@@ -2,21 +2,82 @@
 
 namespace App\Actions\Employee;
 
+use App\Models\Company;
+use App\Models\Employee;
+use Illuminate\Http\UploadedFile;
+
 class ValidateEmployeeCsv
 {
     /**
+     * Read an uploaded CSV into rows keyed by its header.
+     *
+     * Kept separate from execute() so the action still takes plain rows, which
+     * is what the import confirm step posts back.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function parse(UploadedFile $file): array
+    {
+        $handle = fopen($file->getRealPath(), 'r');
+
+        if (! $handle) {
+            return [];
+        }
+
+        $headers = fgetcsv($handle);
+
+        if (! $headers) {
+            fclose($handle);
+
+            return [];
+        }
+
+        // Excel writes a BOM onto the first header, which would otherwise make
+        // 'employee_code' unmatchable.
+        $headers[0] = str_replace("\xEF\xBB\xBF", '', (string) ($headers[0] ?? ''));
+        $headers = array_map(fn ($header) => strtolower(trim((string) $header)), $headers);
+
+        $rows = [];
+
+        while (($data = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($data, fn ($value) => trim((string) $value) !== ''))) {
+                continue;
+            }
+
+            $row = [];
+
+            foreach ($headers as $index => $header) {
+                if ($header !== '') {
+                    $row[$header] = $data[$index] ?? '';
+                }
+            }
+
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
+    /**
      * Validate employee CSV rows without changing the database.
+     *
+     * $company is optional so the action can still be used on rows alone. When
+     * given, external_id is additionally checked against employees already in
+     * that company.
      *
      * @return array{
      *     valid_rows: array,
      *     errors: array
      * }
      */
-    public function execute(array $rows): array
+    public function execute(array $rows, ?Company $company = null): array
     {
         $validRows = [];
         $errors = [];
         $seenEmployeeCodes = [];
+        $seenExternalIds = [];
 
         foreach ($rows as $index => $row) {
             // +2 because CSV row 1 is the header.
@@ -79,6 +140,42 @@ class ValidateEmployeeCsv
                 'employee_code' => $employeeCode,
                 'name' => $name,
             ];
+
+            /*
+             * External id (the HRMS reference). Optional, and blank is allowed:
+             * only a non-empty value has to be unique.
+             */
+            if (array_key_exists('external_id', $row)) {
+                $externalId = trim((string) $row['external_id']);
+
+                if ($externalId !== '') {
+                    if (isset($seenExternalIds[$externalId])) {
+                        $errors[] = [
+                            'row' => $rowNumber,
+                            'field' => 'external_id',
+                            'message' => "Duplicate external id '{$externalId}' found in CSV.",
+                        ];
+
+                        continue;
+                    }
+
+                    // Already held by a DIFFERENT employee in this company. The
+                    // same code keeping its own id is an update, not a clash.
+                    if ($company && $this->externalIdTakenByAnother($company, $externalId, $employeeCode)) {
+                        $errors[] = [
+                            'row' => $rowNumber,
+                            'field' => 'external_id',
+                            'message' => "External id '{$externalId}' already belongs to another employee in this company.",
+                        ];
+
+                        continue;
+                    }
+
+                    $seenExternalIds[$externalId] = true;
+                }
+
+                $normalizedRow['external_id'] = $externalId !== '' ? $externalId : null;
+            }
 
             /*
              * Email
@@ -188,5 +285,13 @@ class ValidateEmployeeCsv
             'valid_rows' => $validRows,
             'errors' => $errors,
         ];
+    }
+
+    protected function externalIdTakenByAnother(Company $company, string $externalId, string $employeeCode): bool
+    {
+        return Employee::where('company_id', $company->id)
+            ->where('external_id', $externalId)
+            ->whereRaw('UPPER(employee_code) != ?', [strtoupper($employeeCode)])
+            ->exists();
     }
 }
