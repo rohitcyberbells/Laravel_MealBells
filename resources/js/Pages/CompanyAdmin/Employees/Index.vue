@@ -4,6 +4,7 @@ import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '../../../Layouts/AppLayout.vue';
 import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
+import SkipImportModal from './SkipImportModal.vue';
 
 const props = defineProps({
     company: Object,
@@ -17,6 +18,7 @@ const status = ref(props.filters?.status || '');
 const showFormModal = ref(false);
 const selectedEmployee = ref(null);
 const showCsvModal = ref(false);
+const showSkipImportModal = ref(false);
 
 const openCreateModal = () => {
     selectedEmployee.value = null;
@@ -66,6 +68,13 @@ watch([search, status], () => {
                     >
                         <span>📥</span>
                         <span>Bulk CSV Import</span>
+                    </button>
+                    <button
+                        @click="showSkipImportModal = true"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition shadow-sm cursor-pointer"
+                    >
+                        <span>🗓️</span>
+                        <span>Leave / WFH Import</span>
                     </button>
                     <button
                         @click="openCreateModal"
@@ -235,6 +244,11 @@ watch([search, status], () => {
             <CsvImportModal
                 :show="showCsvModal"
                 @close="showCsvModal = false"
+            />
+
+            <SkipImportModal
+                :show="showSkipImportModal"
+                @close="showSkipImportModal = false"
             />
         </div>
     </AppLayout>
