@@ -108,6 +108,15 @@ return [
      */
     'rate_limit_per_minute' => env('HRMS_RATE_LIMIT', 300),
 
+    'retention' => [
+        /*
+         * Days before a received payload is redacted. The row survives: status,
+         * result and timings remain as the audit trail of what the integration
+         * did, while the vendor's raw PII does not.
+         */
+        'payload_days' => env('HRMS_PAYLOAD_RETENTION_DAYS', 30),
+    ],
+
     'reconcile' => [
         /*
          * How long an event may sit unfinished before the backstop picks it up.
