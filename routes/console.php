@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('mealbells:process-cutoff')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('mealbells:generate-recurring-skips')->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('hrms:reconcile')->everyFiveMinutes()->withoutOverlapping()->onOneServer();

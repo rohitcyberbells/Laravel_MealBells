@@ -39,6 +39,8 @@ class HrmsWebhookEvent extends Model
         'result',
         'error',
         'processed_at',
+        'reconcile_attempts',
+        'last_reconciled_at',
     ];
 
     protected $casts = [
@@ -46,6 +48,8 @@ class HrmsWebhookEvent extends Model
         'result' => 'array',
         'occurred_at' => 'datetime',
         'processed_at' => 'datetime',
+        'last_reconciled_at' => 'datetime',
+        'reconcile_attempts' => 'integer',
     ];
 
     public function company(): BelongsTo

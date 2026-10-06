@@ -100,4 +100,20 @@ return [
      * Requests per minute per company on the webhook endpoint.
      */
     'rate_limit_per_minute' => env('HRMS_RATE_LIMIT', 300),
+
+    'reconcile' => [
+        /*
+         * How long an event may sit unfinished before the backstop picks it up.
+         * Doubles as the per-event cooldown, so one event is re-dispatched at
+         * most once per this window however often the scheduler runs.
+         */
+        'stale_after_minutes' => env('HRMS_RECONCILE_STALE_MINUTES', 10),
+
+        /*
+         * Reconciliation passes allowed on a FAILED event before it is left for
+         * a human. Does not apply to events stuck in 'received', whose job has
+         * not run even once.
+         */
+        'max_attempts' => env('HRMS_RECONCILE_MAX_ATTEMPTS', 3),
+    ],
 ];
