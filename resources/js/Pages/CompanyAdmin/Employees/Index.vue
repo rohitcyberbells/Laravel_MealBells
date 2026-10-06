@@ -48,6 +48,17 @@ const createLogins = () => {
     });
 };
 
+const resetPassword = (employee) => {
+    if (!confirm(`Reset the password for ${employee.name} (${employee.employee_code})? Their current password stops working immediately.`)) {
+        return;
+    }
+
+    router.post(`/company-admin/employees/${employee.id}/reset-password`, {}, {
+        preserveScroll: true,
+        onSuccess: () => { dismissedCredentials.value = false; },
+    });
+};
+
 const openCreateModal = () => {
     selectedEmployee.value = null;
     showFormModal.value = true;
@@ -234,7 +245,16 @@ watch([search, status], () => {
                                         {{ emp.status === 'active' ? '🟢 Active' : '🔴 Inactive' }}
                                     </span>
                                 </td>
-                                <td class="p-4 whitespace-nowrap text-right">
+                                <td class="p-4 whitespace-nowrap text-right space-x-2">
+                                    <!-- Only offered where an account exists; the
+                                         rest are provisioned via Create logins. -->
+                                    <button
+                                        v-if="emp.user_id"
+                                        @click="resetPassword(emp)"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition cursor-pointer"
+                                    >
+                                        Reset password
+                                    </button>
                                     <button
                                         @click="openEditModal(emp)"
                                         class="px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-400 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition cursor-pointer"
