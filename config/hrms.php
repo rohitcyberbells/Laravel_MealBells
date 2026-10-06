@@ -97,6 +97,13 @@ return [
     ],
 
     /*
+     * Largest webhook body accepted, checked before the signature is verified.
+     * A leave event is a couple of kilobytes; 256KB leaves generous headroom for
+     * a verbose vendor while keeping the pre-auth work bounded.
+     */
+    'max_body_bytes' => env('HRMS_MAX_BODY_BYTES', 262144),
+
+    /*
      * Requests per minute per company on the webhook endpoint.
      */
     'rate_limit_per_minute' => env('HRMS_RATE_LIMIT', 300),

@@ -21,6 +21,18 @@ class VerifyHrmsSignature
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Size is checked before anything else, and deliberately before the
+        // signature. A leave event is a couple of kilobytes, so without this an
+        // unauthenticated caller could make us HMAC whatever PHP's post_max_size
+        // allows, once per request.
+        $maxBytes = (int) config('hrms.max_body_bytes', 262144);
+
+        if (strlen($request->getContent()) > $maxBytes) {
+            Log::warning("HRMS webhook rejected: body exceeds {$maxBytes} bytes.");
+
+            return response()->json(['message' => 'Payload too large.'], 413);
+        }
+
         $company = $request->route('company');
 
         if (! $company instanceof Company) {

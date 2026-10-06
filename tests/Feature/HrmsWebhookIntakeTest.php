@@ -208,6 +208,39 @@ class HrmsWebhookIntakeTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_body_within_the_size_limit_is_accepted(): void
+    {
+        $payload = $this->payload();
+        $payload['leave']['reason'] = str_repeat('a', 1000);
+
+        $this->send($payload)->assertStatus(202);
+    }
+
+    public function test_oversized_body_is_rejected_with_413_and_nothing_is_stored(): void
+    {
+        config()->set('hrms.max_body_bytes', 512);
+
+        $payload = $this->payload();
+        $payload['leave']['reason'] = str_repeat('a', 2000);
+
+        $this->send($payload)->assertStatus(413);
+
+        $this->assertEquals(0, HrmsWebhookEvent::count());
+        Queue::assertNotPushed(ProcessHrmsLeaveEvent::class);
+    }
+
+    public function test_oversized_body_is_rejected_before_the_signature_is_checked(): void
+    {
+        config()->set('hrms.max_body_bytes', 512);
+
+        $payload = $this->payload();
+        $payload['leave']['reason'] = str_repeat('a', 2000);
+
+        // Wrong secret as well: a 413 rather than a 401 is what proves the size
+        // guard runs first and no HMAC was computed over this body.
+        $this->send($payload, secret: 'whsec_wrong')->assertStatus(413);
+    }
+
     public function test_payload_without_event_id_is_unprocessable(): void
     {
         $payload = $this->payload();
