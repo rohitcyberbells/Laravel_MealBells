@@ -35,23 +35,32 @@ class EmployeeImportTest extends TestCase
 
         $valResult = $validator->execute($rawRows);
 
-        $this->assertCount(2, $valResult['valid_rows']);
-        $this->assertCount(3, $valResult['errors']);
+        // emp101 appears twice, so BOTH of its rows are rejected rather than the
+        // first one winning. That leaves emp102 as the only importable row, and
+        // four errors: the blank code, the bad email, and one per emp101 row.
+        $this->assertCount(1, $valResult['valid_rows']);
+        $this->assertEquals('EMP102', $valResult['valid_rows'][0]['employee_code']);
+        $this->assertCount(4, $valResult['errors']);
 
         // Persist valid rows
         $importResult = $importer->execute($company, $valResult['valid_rows']);
 
-        $this->assertEquals(2, $importResult['imported']);
+        $this->assertEquals(1, $importResult['imported']);
         $this->assertEquals(0, $importResult['updated']);
         $this->assertEquals(0, $importResult['unchanged']);
 
         $this->assertDatabaseHas('employees', [
             'company_id' => $company->id,
-            'employee_code' => 'EMP101',
-            'name' => 'Amit Kumar',
-            'email' => 'amit@acme.com',
+            'employee_code' => 'EMP102',
+            'name' => 'Suresh Verma',
             'status' => 'active',
             'is_meal_eligible' => true,
+        ]);
+
+        // The ambiguous code landed nowhere, so no guess was persisted.
+        $this->assertDatabaseMissing('employees', [
+            'company_id' => $company->id,
+            'employee_code' => 'EMP101',
         ]);
     }
 

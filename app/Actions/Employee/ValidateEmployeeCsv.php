@@ -76,8 +76,20 @@ class ValidateEmployeeCsv
     {
         $validRows = [];
         $errors = [];
-        $seenEmployeeCodes = [];
         $seenExternalIds = [];
+
+        // Counted up front: a duplicated code makes EVERY row carrying it
+        // ambiguous, so accepting the first and rejecting the rest would import
+        // whichever one happened to come first in the file.
+        $codeCounts = [];
+
+        foreach ($rows as $row) {
+            $code = strtoupper(trim((string) ($row['employee_code'] ?? '')));
+
+            if ($code !== '') {
+                $codeCounts[$code] = ($codeCounts[$code] ?? 0) + 1;
+            }
+        }
 
         foreach ($rows as $index => $row) {
             // +2 because CSV row 1 is the header.
@@ -115,9 +127,10 @@ class ValidateEmployeeCsv
             }
 
             /*
-             * Duplicate employee code inside CSV
+             * Duplicate employee code inside CSV. Reported on every row holding
+             * that code, so none of them is imported.
              */
-            if (isset($seenEmployeeCodes[$employeeCode])) {
+            if (($codeCounts[$employeeCode] ?? 0) > 1) {
                 $errors[] = [
                     'row' => $rowNumber,
                     'field' => 'employee_code',
@@ -126,8 +139,6 @@ class ValidateEmployeeCsv
 
                 continue;
             }
-
-            $seenEmployeeCodes[$employeeCode] = true;
 
             /*
              * Build normalized row.

@@ -72,10 +72,14 @@ class EmployeeCsvPreviewTest extends TestCase
         $response->assertRedirect();
 
         $preview = session('csvPreview');
-        $this->assertCount(1, $preview['valid_rows']);
+
+        // Both EMP101 rows are rejected, not just the second: a duplicated code
+        // makes every row carrying it ambiguous. With the blank-code row that
+        // leaves nothing importable here.
+        $this->assertCount(0, $preview['valid_rows']);
 
         $fields = collect($preview['errors'])->pluck('field')->all();
-        $this->assertContains('employee_code', $fields);
-        $this->assertCount(2, $preview['errors']);
+        $this->assertEquals(['employee_code', 'employee_code', 'employee_code'], $fields);
+        $this->assertCount(3, $preview['errors']);
     }
 }
