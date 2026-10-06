@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessHrmsLeaveEvent;
 use App\Models\Company;
 use App\Models\HrmsWebhookEvent;
 use Carbon\Carbon;
@@ -16,10 +17,9 @@ class HrmsWebhookController extends Controller
     /**
      * Receive one HRMS leave event.
      *
-     * Step 1 only authenticates, de-duplicates and records. No meal logic runs
-     * here by design: vendors time out after a few seconds and retry anything
-     * slow, so the event is stored as 'received' and acknowledged immediately.
-     * Step 2 adds the payload mapper and Step 3 the queued job that applies it.
+     * Authenticates, de-duplicates and records, then hands off. No meal logic
+     * runs here by design: the event is stored as 'received', queued, and
+     * acknowledged, so a slow apply can never cost us the delivery.
      */
     public function store(Request $request, Company $company): JsonResponse
     {
@@ -63,6 +63,10 @@ class HrmsWebhookController extends Controller
                 'duplicate' => true,
             ], 200);
         }
+
+        // All the work happens in the job: vendors time out after a few seconds
+        // and retry anything slow, so the delivery is acknowledged immediately.
+        ProcessHrmsLeaveEvent::dispatch($event->id);
 
         return response()->json([
             'message' => 'Event accepted.',

@@ -2,14 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessHrmsLeaveEvent;
 use App\Models\Company;
 use App\Models\HrmsWebhookEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
- * Step 1 covers intake only: authentication, replay protection and dedupe.
- * Nothing is applied to skips yet, so every accepted event stays 'received'.
+ * Intake only: authentication, replay protection and dedupe.
+ *
+ * The queue is faked so the job never runs here. That keeps these tests about
+ * the endpoint's contract, and lets them assert the row is left at 'received'
+ * with the work handed off rather than done inline. Applying events is covered
+ * by HrmsApplyEventTest.
  */
 class HrmsWebhookIntakeTest extends TestCase
 {
@@ -26,6 +32,8 @@ class HrmsWebhookIntakeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Queue::fake();
 
         $this->companyA = Company::create(['name' => 'Alpha Corp', 'code' => 'ALPHA1']);
         $this->companyB = Company::create(['name' => 'Beta Corp', 'code' => 'BETA1']);
@@ -93,6 +101,9 @@ class HrmsWebhookIntakeTest extends TestCase
         $this->assertEquals('received', $event->status);
         $this->assertNotNull($event->occurred_at);
         $this->assertEquals('HR-1', $event->payload['leave']['employee_id']);
+
+        // The endpoint hands off rather than applying inline.
+        Queue::assertPushed(ProcessHrmsLeaveEvent::class, fn ($job) => $job->eventId === $event->id);
     }
 
     public function test_wrong_signature_is_rejected_and_nothing_is_recorded(): void
@@ -100,6 +111,7 @@ class HrmsWebhookIntakeTest extends TestCase
         $this->send($this->payload(), secret: 'whsec_wrong')->assertStatus(401);
 
         $this->assertEquals(0, HrmsWebhookEvent::count());
+        Queue::assertNotPushed(ProcessHrmsLeaveEvent::class);
     }
 
     public function test_missing_signature_headers_are_rejected(): void
@@ -147,6 +159,9 @@ class HrmsWebhookIntakeTest extends TestCase
         $this->send($payload)->assertStatus(200)->assertJson(['duplicate' => true]);
 
         $this->assertEquals(1, HrmsWebhookEvent::count());
+
+        // The repeat delivery must not queue a second apply.
+        Queue::assertPushed(ProcessHrmsLeaveEvent::class, 1);
     }
 
     public function test_same_event_id_from_a_different_company_is_not_a_duplicate(): void
