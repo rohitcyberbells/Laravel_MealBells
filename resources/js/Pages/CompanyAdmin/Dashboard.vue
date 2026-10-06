@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -17,15 +18,12 @@ const getPlannedMeal = (day) => {
     return props.weeklyMenu.items.find(i => i.day_of_week.toLowerCase() === day.toLowerCase());
 };
 
-const logout = () => {
-    router.post('/logout');
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-white p-6">
-        <!-- Header -->
-        <header class="max-w-7xl mx-auto flex justify-between items-center pb-6 border-b border-slate-800 mb-8">
+    <AppLayout>
+    <div class="p-6">
+        <div class="max-w-7xl mx-auto pb-6 border-b border-slate-800 mb-8">
             <div>
                 <div class="flex items-center space-x-3">
                     <h1 class="text-3xl font-bold text-cyan-400">{{ company?.name || 'Company Dashboard' }}</h1>
@@ -38,10 +36,7 @@ const logout = () => {
                 </div>
                 <p class="text-slate-400 text-sm mt-1">Employee Meal Portal & Daily Menu Overview</p>
             </div>
-            <button @click="logout" class="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-sm px-4 py-2 rounded-lg transition">
-                Logout
-            </button>
-        </header>
+        </div>
 
         <main class="max-w-7xl mx-auto space-y-8">
             <!-- Unassigned Banner -->
@@ -123,5 +118,6 @@ const logout = () => {
             </template>
         </main>
     </div>
+    </AppLayout>
 </template>
 

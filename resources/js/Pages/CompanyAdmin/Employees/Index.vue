@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
-import CompanyAdminLayout from '../../../Layouts/CompanyAdminLayout.vue';
+import AppLayout from '../../../Layouts/AppLayout.vue';
 import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
 
@@ -47,7 +47,7 @@ watch([search, status], () => {
 </script>
 
 <template>
-    <CompanyAdminLayout>
+    <AppLayout>
         <div class="space-y-6">
             <!-- Top Action Banner & Stats -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl backdrop-blur-md shadow-xl">
@@ -237,5 +237,5 @@ watch([search, status], () => {
                 @close="showCsvModal = false"
             />
         </div>
-    </CompanyAdminLayout>
+    </AppLayout>
 </template>
