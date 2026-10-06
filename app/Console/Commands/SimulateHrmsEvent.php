@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
+use App\Services\Hrms\HrmsConnectionResolver;
 use App\Services\MealCalendar;
 use App\Services\MealCutoff;
 use Carbon\Carbon;
@@ -36,7 +37,7 @@ class SimulateHrmsEvent extends Command
 
     protected $description = 'Send a signed HRMS webhook to this application for demos and vendor onboarding';
 
-    public function handle(): int
+    public function handle(HrmsConnectionResolver $connections): int
     {
         $company = $this->resolveCompany();
 
@@ -44,13 +45,12 @@ class SimulateHrmsEvent extends Command
             return self::FAILURE;
         }
 
-        $webhook = array_merge(
-            config('hrms.webhook_defaults', []),
-            config("hrms.companies.{$company->id}.webhook") ?? []
-        );
+        // Same resolver the middleware uses, so the simulator signs with
+        // whatever the endpoint will actually verify against.
+        $webhook = $connections->webhookFor($company);
 
-        if (empty($webhook['secret'])) {
-            $this->error("Company {$company->id} ({$company->code}) has no webhook secret in config/hrms.php.");
+        if (! $webhook) {
+            $this->error("Company {$company->id} ({$company->code}) has no webhook secret in the database or config/hrms.php.");
 
             return self::FAILURE;
         }

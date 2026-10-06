@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Services\Hrms\HrmsConnectionResolver;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class VerifyHrmsSignature
 {
+    public function __construct(protected HrmsConnectionResolver $connections) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         // Size is checked before anything else, and deliberately before the
@@ -39,13 +42,11 @@ class VerifyHrmsSignature
             return $this->deny('Route is missing a resolved company.');
         }
 
-        $webhook = config("hrms.companies.{$company->id}.webhook");
+        $webhook = $this->connections->webhookFor($company);
 
-        if (! is_array($webhook) || empty($webhook['secret'])) {
+        if (! $webhook) {
             return $this->deny("No webhook secret configured for company {$company->id}.");
         }
-
-        $webhook = array_merge(config('hrms.webhook_defaults', []), $webhook);
 
         return match ($webhook['auth']) {
             'token' => $this->verifyToken($request, $next, $webhook),

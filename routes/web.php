@@ -14,6 +14,7 @@ use App\Http\Controllers\CompanyAdmin\SkipImportController;
 use App\Http\Controllers\Employee\EmployeeDashboardController;
 use App\Http\Controllers\Employee\RecurringSkipController;
 use App\Http\Controllers\SuperAdmin\HealthController;
+use App\Http\Controllers\SuperAdmin\HrmsConnectionController;
 use App\Http\Controllers\SuperAdmin\SuperAdminController;
 use App\Http\Controllers\TiffinAdmin\TiffinAdminController;
 use App\Http\Controllers\TiffinAdmin\VendorPreparationController;
@@ -58,6 +59,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/assign', [SuperAdminController::class, 'assign'])->name('super-admin.assign');
         Route::post('/unpair', [SuperAdminController::class, 'unpair'])->name('super-admin.unpair');
         Route::post('/users/{user}/reset-password', [SuperAdminController::class, 'resetPassword'])->name('super-admin.users.reset-password');
+        Route::post('/companies/{company}/hrms-secret', [HrmsConnectionController::class, 'rotate'])->name('super-admin.companies.hrms-secret');
     });
 
     // Tiffin Admin Routes
