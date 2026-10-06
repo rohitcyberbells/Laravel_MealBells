@@ -6,9 +6,11 @@ use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Meal\CalculateExpectedMeals;
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
+use App\Models\CompanyHrmsConnection;
 use App\Models\CompanySetting;
 use App\Models\CompanyTiffinAssignment;
 use App\Models\Employee;
+use App\Models\HrmsWebhookEvent;
 use App\Models\MealAdjustment;
 use App\Models\MealCount;
 use App\Models\MealCountChange;
@@ -38,6 +40,9 @@ class DemoSeeder extends Seeder
 {
     protected const PASSWORD = 'demo1234';
 
+    /** Known so a demo can sign a webhook by hand or with hrms:simulate. */
+    protected const HRMS_SECRET = 'whsec_demo_acme_0123456789';
+
     protected string $timezone = 'Asia/Kolkata';
 
     /** @var array<int, array{role: string, company: string, login: string, password: string, note: string}> */
@@ -60,6 +65,10 @@ class DemoSeeder extends Seeder
 
         $this->seedActivity($acme);
         $this->seedActivity($northwind, lighter: true);
+
+        // Only Acme is wired to an HR system, so the connect screen has
+        // something to show while Northwind demonstrates the unconnected state.
+        $this->seedHrmsConnection($acme);
 
         $this->printLogins();
     }
@@ -189,6 +198,9 @@ class DemoSeeder extends Seeder
             $employee = Employee::create([
                 'company_id' => $company->id,
                 'employee_code' => $employeeCode,
+                // The HR system's own reference, so the connect screen can
+                // suggest one and hrms:simulate has something to aim at.
+                'external_id' => "HR-{$employeeCode}",
                 'name' => $name,
                 // One obvious domain for every employee, so a demo login is
                 // recognisable at a glance.
@@ -436,6 +448,133 @@ class DemoSeeder extends Seeder
         return $cursor->toDateString();
     }
 
+    /**
+     * An HRMS connection with a known secret, plus one event of each outcome, so
+     * the connect screen and the health page are not blank on a fresh demo.
+     *
+     * The events are written directly rather than delivered, because a real
+     * delivery needs a running server and a queue worker - `hrms:simulate` is
+     * there for showing the live path.
+     */
+    protected function seedHrmsConnection(Company $company): void
+    {
+        CompanyHrmsConnection::create([
+            'company_id' => $company->id,
+            'webhook_secret' => self::HRMS_SECRET,
+            'auth' => 'signature',
+            'secret_rotated_at' => now()->subDays(3),
+        ]);
+
+        $employee = Employee::where('company_id', $company->id)
+            ->whereNotNull('external_id')
+            ->orderBy('id')
+            ->first();
+
+        $reference = $employee?->external_id ?? 'HR-1';
+        $appliedDay = $this->nextMealDay(3);
+
+        HrmsWebhookEvent::create([
+            'company_id' => $company->id,
+            'external_event_id' => 'evt_demo_applied',
+            'event_type' => 'approved',
+            'leave_external_id' => 'LV-9001',
+            'occurred_at' => now()->subHours(5),
+            'payload' => $this->hrmsPayload('evt_demo_applied', 'leave_approved', 'LV-9001', $reference, $appliedDay),
+            'status' => HrmsWebhookEvent::STATUS_APPLIED,
+            'processed_at' => now()->subHours(5),
+            'result' => [
+                'applied_days' => [$appliedDay],
+                'already_days' => [],
+                'blocked_days' => [],
+                'released_days' => [],
+                'release_blocked' => [],
+                'non_meal_days' => [],
+                'outside_window_days' => [],
+                'notes' => [],
+            ],
+        ]);
+
+        HrmsWebhookEvent::create([
+            'company_id' => $company->id,
+            'external_event_id' => 'evt_demo_blocked',
+            'event_type' => 'approved',
+            'leave_external_id' => 'LV-9002',
+            'occurred_at' => now()->subHours(4),
+            'payload' => $this->hrmsPayload('evt_demo_blocked', 'leave_approved', 'LV-9002', 'HR-NOT-MAPPED', $appliedDay),
+            'status' => HrmsWebhookEvent::STATUS_BLOCKED,
+            'processed_at' => now()->subHours(4),
+            'result' => [
+                'applied_days' => [],
+                'already_days' => [],
+                'blocked_days' => [],
+                'released_days' => [],
+                'release_blocked' => [],
+                'non_meal_days' => [],
+                'outside_window_days' => [],
+                'notes' => ["No employee in this company matches 'HR-NOT-MAPPED'."],
+            ],
+        ]);
+
+        // Older than the cancellation below, so it reads as genuinely superseded.
+        HrmsWebhookEvent::create([
+            'company_id' => $company->id,
+            'external_event_id' => 'evt_demo_stale',
+            'event_type' => 'approved',
+            'leave_external_id' => 'LV-9003',
+            'occurred_at' => now()->subHours(3),
+            'payload' => $this->hrmsPayload('evt_demo_stale', 'leave_approved', 'LV-9003', $reference, $appliedDay),
+            'status' => HrmsWebhookEvent::STATUS_STALE,
+            'processed_at' => now()->subHours(2),
+            'result' => ['notes' => ['A newer applied event for this leave already superseded it.']],
+        ]);
+
+        HrmsWebhookEvent::create([
+            'company_id' => $company->id,
+            'external_event_id' => 'evt_demo_cancelled',
+            'event_type' => 'cancelled',
+            'leave_external_id' => 'LV-9003',
+            'occurred_at' => now()->subHours(2),
+            'payload' => [
+                'event_id' => 'evt_demo_cancelled',
+                'event_type' => 'leave_cancelled',
+                'occurred_at' => now()->subHours(2)->toIso8601String(),
+                'leave' => ['id' => 'LV-9003'],
+            ],
+            'status' => HrmsWebhookEvent::STATUS_APPLIED,
+            'processed_at' => now()->subHours(2),
+            'result' => [
+                'applied_days' => [],
+                'already_days' => [],
+                'blocked_days' => [],
+                'released_days' => [],
+                'release_blocked' => [],
+                'non_meal_days' => [],
+                'outside_window_days' => [],
+                'notes' => [],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function hrmsPayload(string $eventId, string $eventType, string $leaveId, string $employeeRef, string $date): array
+    {
+        return [
+            'event_id' => $eventId,
+            'event_type' => $eventType,
+            'occurred_at' => now()->toIso8601String(),
+            'leave' => [
+                'id' => $leaveId,
+                'employee_id' => $employeeRef,
+                'from_date' => $date,
+                'to_date' => $date,
+                'type' => 'Casual Leave',
+                'reason' => 'Seeded demo event',
+            ],
+        ];
+    }
+
     protected function printLogins(): void
     {
         if (! $this->command) {
@@ -455,6 +594,7 @@ class DemoSeeder extends Seeder
 
         $this->command->newLine();
         $this->command->line('Employees sign in with their email, or with the company code and their employee code.');
+        $this->command->line('Acme HRMS webhook secret: '.self::HRMS_SECRET);
         $this->command->line('Run `php artisan queue:work` for notifications, and `php artisan schedule:work` for the cutoff.');
         $this->command->newLine();
     }

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
+use App\Models\CompanyHrmsConnection;
 use App\Models\Employee;
+use App\Models\HrmsWebhookEvent;
 use App\Models\MealAdjustment;
 use App\Models\MealCount;
 use App\Models\MealCountChange;
@@ -17,8 +19,6 @@ use App\Models\WeeklyMenu;
 use Carbon\Carbon;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class DemoSeederTest extends TestCase
@@ -135,29 +135,34 @@ class DemoSeederTest extends TestCase
         }
     }
 
-    public function test_no_hrms_data_is_seeded(): void
+    public function test_it_seeds_an_hrms_connection_and_sample_events_for_acme_only(): void
     {
-        // The column check is guarded because this branch has no external_id, and
-        // SQLite reads an unknown quoted identifier as a string literal - so
-        // whereNotNull on a missing column silently matches every row rather than
-        // failing. Counted into a variable so the assertion always runs.
-        $employeesWithExternalId = Schema::hasColumn('employees', 'external_id')
-            ? Employee::whereNotNull('external_id')->count()
-            : 0;
+        $acme = Company::where('name', 'Acme Industries')->sole();
+        $northwind = Company::where('name', 'Northwind Traders')->sole();
 
-        $this->assertEquals(0, $employeesWithExternalId);
+        // One company connected, one not, so the screen shows both states.
+        $this->assertNotNull(
+            CompanyHrmsConnection::where('company_id', $acme->id)->first()?->webhook_secret
+        );
+        $this->assertNull(CompanyHrmsConnection::where('company_id', $northwind->id)->first());
 
-        // The HRMS tables only exist on the integration branch; if they are ever
-        // merged in, they must still come up empty from this seeder.
-        $hrmsRows = 0;
+        $events = HrmsWebhookEvent::where('company_id', $acme->id)->get();
+        $this->assertCount(4, $events);
 
-        foreach (['hrms_webhook_events', 'company_hrms_connections'] as $table) {
-            if (Schema::hasTable($table)) {
-                $hrmsRows += DB::table($table)->count();
-            }
-        }
+        // One of each outcome, so the connect screen and health page are not blank.
+        $this->assertEqualsCanonicalizing(
+            ['applied', 'blocked', 'stale', 'applied'],
+            $events->pluck('status')->all()
+        );
 
-        $this->assertEquals(0, $hrmsRows);
+        $this->assertEquals(0, HrmsWebhookEvent::where('company_id', $northwind->id)->count());
+    }
+
+    public function test_employees_carry_an_hrms_reference(): void
+    {
+        $employee = Employee::where('employee_code', 'ACME001')->sole();
+
+        $this->assertEquals('HR-ACME001', $employee->external_id);
     }
 
     public function test_every_demo_login_can_actually_sign_in(): void
