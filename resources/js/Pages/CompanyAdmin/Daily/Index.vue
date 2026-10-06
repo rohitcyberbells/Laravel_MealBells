@@ -19,6 +19,38 @@ const props = defineProps({
 const page = usePage();
 const errors = computed(() => page.props.errors ?? {});
 
+// Per-employee outcome of the last bulk skip. Flash data, so it clears itself.
+const bulkSummary = computed(() => page.props.flash?.bulkSummary ?? null);
+const dismissedBulk = ref(false);
+
+const employeeLabel = (id) => {
+    const match = props.employees_for_search.find((e) => e.id === id);
+
+    return match ? `${match.name} (${match.employee_code})` : `Employee #${id}`;
+};
+
+const bulkApplied = computed(() => {
+    const s = bulkSummary.value;
+
+    return s ? s.created_count + s.reactivated_count : 0;
+});
+
+// Everything the engine did not newly apply, with the reason it gave.
+const bulkNotApplied = computed(() => {
+    const s = bulkSummary.value;
+
+    if (!s) return [];
+
+    return (s.results ?? [])
+        .filter((r) => !['created', 'reactivated'].includes(r.status))
+        .map((r) => ({
+            who: employeeLabel(r.employee_id),
+            date: r.date,
+            // A refusal carries a reason; an already-skipped day does not.
+            why: r.reason ?? r.status.replace(/_/g, ' '),
+        }));
+});
+
 const isLocked = computed(() => props.status === 'locked');
 
 /* ---------- status badge ---------- */
@@ -178,6 +210,44 @@ const sourceTone = (source) => ({
 
             <div v-if="!is_meal_day" class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
                 This is not a meal day for your company, so no count is produced.
+            </div>
+
+            <!-- Outcome of the last bulk skip -->
+            <div
+                v-if="bulkSummary && !dismissedBulk"
+                class="p-4 rounded-2xl bg-slate-900 border border-slate-700 space-y-3"
+            >
+                <div class="flex items-start justify-between gap-4">
+                    <p class="text-sm font-bold text-slate-200">
+                        Bulk skip:
+                        <span class="text-emerald-400">{{ bulkApplied }} applied</span>
+                        <span v-if="bulkNotApplied.length" class="text-amber-400">
+                            · {{ bulkNotApplied.length }} not applied
+                        </span>
+                        <span class="text-slate-500 font-normal">
+                            (of {{ bulkSummary.total_processed }} attempted)
+                        </span>
+                    </p>
+                    <button
+                        @click="dismissedBulk = true"
+                        class="text-slate-500 hover:text-slate-300 text-lg leading-none cursor-pointer"
+                        aria-label="Dismiss"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div v-if="bulkNotApplied.length" class="space-y-1">
+                    <div
+                        v-for="(row, index) in bulkNotApplied"
+                        :key="`${row.who}-${row.date}-${index}`"
+                        class="flex flex-wrap items-baseline gap-x-2 text-xs p-2 rounded-lg bg-slate-800/40"
+                    >
+                        <span class="font-semibold text-slate-200">{{ row.who }}</span>
+                        <span class="font-mono text-slate-500">{{ row.date }}</span>
+                        <span class="text-amber-400">{{ row.why }}</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Count card -->
