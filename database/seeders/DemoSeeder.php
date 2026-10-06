@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Meal\CalculateExpectedMeals;
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
@@ -181,11 +182,17 @@ class DemoSeeder extends Seeder
             $isInactive = $index === $count;
             $isIneligible = $index === $count - 1;
 
+            // One employee with no address, so the demo also covers the company
+            // code route and the admin notice that goes with it.
+            $hasEmail = $index !== 2;
+
             $employee = Employee::create([
                 'company_id' => $company->id,
                 'employee_code' => $employeeCode,
                 'name' => $name,
-                'email' => strtolower($employeeCode)."@{$domain}",
+                // One obvious domain for every employee, so a demo login is
+                // recognisable at a glance.
+                'email' => $hasEmail ? strtolower($employeeCode).'@demo.test' : null,
                 'attendance_source' => 'manual',
                 'is_meal_eligible' => ! $isIneligible,
                 'status' => $isInactive ? 'inactive' : 'active',
@@ -196,7 +203,9 @@ class DemoSeeder extends Seeder
             if ($index <= 3) {
                 $user = User::create([
                     'name' => $name,
-                    'email' => $employee->email,
+                    // The employee with no address still needs an account, so it
+                    // gets the same stand-in the provisioning action would use.
+                    'email' => $employee->email ?: CreateEmployeeLogins::placeholderEmail($company, $employeeCode),
                     'password' => Hash::make(self::PASSWORD),
                     'role' => 'employee',
                     'company_id' => $company->id,
@@ -210,8 +219,11 @@ class DemoSeeder extends Seeder
 
                 $this->logins[] = [
                     'role' => 'employee', 'company' => $company->name,
-                    'login' => "{$company->code} / {$employeeCode}", 'password' => self::PASSWORD,
-                    'note' => $index === 1 ? 'Has a recurring Monday skip' : 'Employee portal',
+                    'login' => $employee->email ?: "{$company->code} / {$employeeCode}",
+                    'password' => self::PASSWORD,
+                    'note' => $employee->email
+                        ? ($index === 1 ? 'Has a recurring Monday skip' : 'Employee portal')
+                        : 'No email: company code + employee code only',
                 ];
             }
         }
@@ -442,7 +454,7 @@ class DemoSeeder extends Seeder
         );
 
         $this->command->newLine();
-        $this->command->line('Employees sign in with the company code and their employee code, not an email.');
+        $this->command->line('Employees sign in with their email, or with the company code and their employee code.');
         $this->command->line('Run `php artisan queue:work` for notifications, and `php artisan schedule:work` for the cutoff.');
         $this->command->newLine();
     }

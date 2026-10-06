@@ -17,9 +17,24 @@ class LoginController extends Controller
         return Inertia::render('Auth/Login');
     }
 
+    /**
+     * One form, three accepted shapes.
+     *
+     * The page posts a single 'identifier': an address signs in by email, and
+     * anything else is treated as an employee code and paired with the company
+     * code. The two older shapes - explicit company_code + login_code, and a
+     * plain email field - still work, so existing clients keep going.
+     */
     public function store(Request $request)
     {
-        // 1. Employee Login Flow (company_code + login_code)
+        if ($request->filled('identifier')) {
+            $identifier = trim((string) $request->input('identifier'));
+
+            return str_contains($identifier, '@')
+                ? $this->attemptEmailLogin($request, $identifier, 'identifier')
+                : $this->attemptCodeLogin($request, (string) $request->input('company_code'), $identifier);
+        }
+
         if ($request->filled('company_code') || $request->filled('login_code')) {
             $validated = $request->validate([
                 'company_code' => ['required', 'string'],
@@ -27,58 +42,116 @@ class LoginController extends Controller
                 'password' => ['required'],
             ]);
 
-            $company = Company::where('code', strtoupper(trim($validated['company_code'])))->first();
-            if (! $company) {
-                return back()->withErrors(['company_code' => 'Invalid Company Code.'])->onlyInput('company_code', 'login_code');
-            }
-
-            $user = User::where('company_id', $company->id)
-                ->where('login_code', strtoupper(trim($validated['login_code'])))
-                ->where('role', 'employee')
-                ->first();
-
-            if (! $user) {
-                return back()->withErrors(['login_code' => 'Invalid Employee Code or Account.'])->onlyInput('company_code', 'login_code');
-            }
-
-            // Inactive employee login rejection
-            if ($user->employee && $user->employee->status !== 'active') {
-                return back()->withErrors(['login_code' => 'Your employee account is inactive.'])->onlyInput('company_code', 'login_code');
-            }
-
-            if (Auth::attempt(['id' => $user->id, 'password' => $validated['password']], $request->boolean('remember'))) {
-                $user->update(['last_login_at' => now()]);
-                $request->session()->regenerate();
-
-                return redirect()->intended('/employee/dashboard');
-            }
-
-            return back()->withErrors(['password' => 'Invalid Password.'])->onlyInput('company_code', 'login_code');
+            return $this->attemptCodeLogin($request, $validated['company_code'], $validated['login_code']);
         }
 
-        // 2. Standard Email Login Flow
-        $credentials = $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $user = Auth::user();
-            $user->update(['last_login_at' => now()]);
-            $request->session()->regenerate();
+        return $this->attemptEmailLogin($request, $validated['email'], 'email');
+    }
 
-            return match ($user->role) {
-                'super_admin' => redirect()->intended('/super-admin/dashboard'),
-                'tiffin_admin' => redirect()->intended('/tiffin-admin/dashboard'),
-                'company_admin' => redirect()->intended('/company-admin/dashboard'),
-                'employee' => redirect()->intended('/employee/dashboard'),
-                default => redirect('/'),
-            };
+    /**
+     * Email and password, for every role including employees.
+     *
+     * Every failure returns the same message on purpose: a different response
+     * for "no such address" would turn this form into a way to find out which
+     * employees are registered.
+     */
+    protected function attemptEmailLogin(Request $request, string $email, string $field)
+    {
+        $request->validate(['password' => ['required']]);
+
+        $user = User::where('email', $email)->first();
+
+        // Status is checked before the password so an inactive employee never
+        // gets a session, and the refusal is indistinguishable from a wrong
+        // address. The code path already refused these; email did not.
+        if (! $user || ! $this->employeeIsActive($user)) {
+            return $this->genericFailure($request, $field);
         }
 
-        return back()->withErrors([
-            'email' => 'Invalid Email or Password.',
-        ])->onlyInput('email');
+        if (! Auth::attempt(['id' => $user->id, 'password' => $request->input('password')], $request->boolean('remember'))) {
+            return $this->genericFailure($request, $field);
+        }
+
+        return $this->completeLogin($request, $user);
+    }
+
+    /**
+     * Company code plus employee code. Messages here stay specific, because an
+     * employee code is only meaningful to someone who already holds it.
+     */
+    protected function attemptCodeLogin(Request $request, string $companyCode, string $loginCode)
+    {
+        $request->validate(['password' => ['required']]);
+
+        if (trim($companyCode) === '') {
+            return back()
+                ->withErrors(['company_code' => 'Company code is required when signing in with an employee code.'])
+                ->onlyInput('identifier', 'company_code', 'login_code');
+        }
+
+        $company = Company::where('code', strtoupper(trim($companyCode)))->first();
+
+        if (! $company) {
+            return back()->withErrors(['company_code' => 'Invalid Company Code.'])
+                ->onlyInput('identifier', 'company_code', 'login_code');
+        }
+
+        $user = User::where('company_id', $company->id)
+            ->where('login_code', strtoupper(trim($loginCode)))
+            ->where('role', 'employee')
+            ->first();
+
+        if (! $user) {
+            return back()->withErrors(['login_code' => 'Invalid Employee Code or Account.'])
+                ->onlyInput('identifier', 'company_code', 'login_code');
+        }
+
+        if (! $this->employeeIsActive($user)) {
+            return back()->withErrors(['login_code' => 'Your employee account is inactive.'])
+                ->onlyInput('identifier', 'company_code', 'login_code');
+        }
+
+        if (! Auth::attempt(['id' => $user->id, 'password' => $request->input('password')], $request->boolean('remember'))) {
+            return back()->withErrors(['password' => 'Invalid Password.'])
+                ->onlyInput('identifier', 'company_code', 'login_code');
+        }
+
+        return $this->completeLogin($request, $user);
+    }
+
+    protected function employeeIsActive(User $user): bool
+    {
+        if ($user->role !== 'employee') {
+            return true;
+        }
+
+        return ! $user->employee || $user->employee->status === 'active';
+    }
+
+    protected function genericFailure(Request $request, string $field)
+    {
+        return back()
+            ->withErrors([$field => 'These credentials do not match our records.'])
+            ->onlyInput('identifier', 'email', 'company_code');
+    }
+
+    protected function completeLogin(Request $request, User $user)
+    {
+        $user->update(['last_login_at' => now()]);
+        $request->session()->regenerate();
+
+        return redirect()->intended(match ($user->role) {
+            'super_admin' => '/super-admin/dashboard',
+            'tiffin_admin' => '/tiffin-admin/dashboard',
+            'company_admin' => '/company-admin/dashboard',
+            'employee' => '/employee/dashboard',
+            default => '/',
+        });
     }
 
     public function showChangePassword()
