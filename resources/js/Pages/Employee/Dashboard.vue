@@ -16,6 +16,12 @@ const form = useForm({
     reason: '',
 });
 
+const rangeForm = useForm({
+    from_date: '',
+    to_date: '',
+    reason: '',
+});
+
 const recurringForm = useForm({
     weekday: 1,
     starts_on: '',
@@ -37,6 +43,18 @@ const submitSkip = () => {
         onSuccess: () => form.reset(),
     });
 };
+
+// Only the meal days inside the range are skipped, so a weekend or a holiday
+// in the middle is left alone rather than rejecting the whole request.
+const submitRange = () => {
+    rangeForm.post('/employee/skips/range', {
+        preserveScroll: true,
+        onSuccess: () => rangeForm.reset(),
+    });
+};
+
+// A single date is the common case, so the range form starts closed.
+const showRangeForm = ref(false);
 
 const submitRecurring = () => {
     recurringForm.post('/employee/recurring-skips', {
@@ -188,6 +206,47 @@ const cancelSkip = (skipId) => {
                             Skip Meal
                         </button>
                     </div>
+                </form>
+
+                <p v-if="form.errors.skip" class="text-xs text-red-400">{{ form.errors.skip }}</p>
+
+                <div class="pt-2 border-t border-slate-800">
+                    <button
+                        @click="showRangeForm = !showRangeForm"
+                        class="text-xs font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                    >
+                        {{ showRangeForm ? '− Hide date range' : '📅 Away for several days? Skip a date range' }}
+                    </button>
+                </div>
+
+                <form v-if="showRangeForm" @submit.prevent="submitRange" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">From</label>
+                            <input v-model="rangeForm.from_date" type="date" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">To</label>
+                            <input v-model="rangeForm.to_date" type="date" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Reason (Optional)</label>
+                            <input v-model="rangeForm.reason" type="text" placeholder="e.g. Annual Leave" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500" />
+                        </div>
+                        <div>
+                            <button type="submit" :disabled="rangeForm.processing" class="w-full px-4 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950 font-bold text-xs rounded-xl transition cursor-pointer">
+                                Skip Range
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-[10px] text-slate-500">
+                        Only meal days in the range are skipped — weekends and holidays are left alone. Up to 31 days at a time.
+                    </p>
+
+                    <p v-if="rangeForm.errors.from_date" class="text-xs text-red-400">{{ rangeForm.errors.from_date }}</p>
+                    <p v-if="rangeForm.errors.to_date" class="text-xs text-red-400">{{ rangeForm.errors.to_date }}</p>
+                    <p v-if="rangeForm.errors.skip" class="text-xs text-red-400">{{ rangeForm.errors.skip }}</p>
                 </form>
             </div>
 

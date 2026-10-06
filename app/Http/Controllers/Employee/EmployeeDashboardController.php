@@ -229,6 +229,15 @@ class EmployeeDashboardController extends Controller
             $current->addDay();
         }
 
+        // Days the engine refused are passed over rather than failing the whole
+        // range, so nothing at all can come back - and a green "recorded for 0
+        // meal days" reads as success when the request did nothing.
+        if ($count === 0) {
+            return back()->withErrors([
+                'skip' => 'Nothing was skipped: that range has no meal day still open for a change.',
+            ]);
+        }
+
         return back()->with('message', "Skips recorded for {$count} meal days.");
     }
 

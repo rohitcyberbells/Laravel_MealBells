@@ -277,6 +277,46 @@ class EmployeePortalTest extends TestCase
         ]);
     }
 
+    /**
+     * Refused days are passed over rather than failing the whole range, so a
+     * range made entirely of them used to report success having done nothing.
+     */
+    public function test_a_range_with_no_open_meal_day_says_so(): void
+    {
+        // Saturday and Sunday: neither is a meal day for this company.
+        $this->actingAs($this->empUserA1)->post('/employee/skips/range', [
+            'from_date' => '2026-10-10',
+            'to_date' => '2026-10-11',
+        ])->assertSessionHasErrors('skip');
+
+        $this->assertDatabaseCount('skips', 0);
+    }
+
+    public function test_a_range_reports_how_many_meal_days_it_skipped(): void
+    {
+        $this->actingAs($this->empUserA1)->post('/employee/skips/range', [
+            'from_date' => '2026-10-12',
+            'to_date' => '2026-10-16',
+        ])->assertSessionHas('message', 'Skips recorded for 5 meal days.');
+
+        $this->assertDatabaseCount('skips', 5);
+    }
+
+    /**
+     * The route, its 31-day cap and its meal-day filter were all covered and no
+     * page could reach it, so "I am away next week" meant one click per day.
+     */
+    public function test_the_portal_offers_the_range_form(): void
+    {
+        $dashboard = file_get_contents(resource_path('js/Pages/Employee/Dashboard.vue'));
+
+        $this->assertStringContainsString("rangeForm.post('/employee/skips/range'", $dashboard);
+        // The fields the endpoint validates.
+        $this->assertStringContainsString('rangeForm.from_date', $dashboard);
+        $this->assertStringContainsString('rangeForm.to_date', $dashboard);
+        $this->assertStringContainsString('rangeForm.errors.skip', $dashboard);
+    }
+
     public function test_employee_dashboard_props_strictly_isolated(): void
     {
         // Create skip for empA2
