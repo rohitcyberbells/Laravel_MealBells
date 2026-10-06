@@ -165,4 +165,19 @@ class RecurringSkipUpdateIdempotentTest extends TestCase
 
         $this->assertTrue($rule->fresh()->active);
     }
+
+    /**
+     * The endpoint being explicit is only half of it: the page sent a bare
+     * patch, so the Active/Paused button failed validation every time and
+     * pausing a rule from the portal did nothing at all.
+     */
+    public function test_the_employee_portal_sends_the_state_the_endpoint_requires(): void
+    {
+        $dashboard = file_get_contents(resource_path('js/Pages/Employee/Dashboard.vue'));
+
+        $this->assertMatchesRegularExpression(
+            '/router\.patch\(`\/employee\/recurring-skips\/\$\{rule\.id\}`,\s*\{\s*active:\s*!rule\.active\s*\}/',
+            $dashboard
+        );
+    }
 }
