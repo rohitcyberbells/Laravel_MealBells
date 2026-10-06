@@ -100,8 +100,11 @@ class EmployeeController extends Controller
             'file' => 'required|file|mimes:csv,txt|max:2048',
         ]);
 
-        $company = Auth::user()->company;
-        $result = $action->execute($request->file('file'), $company);
+        // The action takes rows, not a file: an UploadedFile and a Company were
+        // being handed to execute(array $rows), which was a TypeError on every
+        // preview.
+        $rows = $action->parse($request->file('file'));
+        $result = $action->execute($rows);
 
         return back()->with('csvPreview', $result);
     }
