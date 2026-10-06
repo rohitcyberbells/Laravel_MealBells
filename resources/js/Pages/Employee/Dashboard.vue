@@ -44,8 +44,10 @@ const submitRecurring = () => {
     });
 };
 
-const toggleRule = (ruleId) => {
-    router.patch(`/employee/recurring-skips/${ruleId}`);
+// The state is sent explicitly, because the endpoint requires it: a bare patch
+// failed validation, so pausing a rule never actually did anything.
+const toggleRule = (rule) => {
+    router.patch(`/employee/recurring-skips/${rule.id}`, { active: !rule.active }, { preserveScroll: true });
 };
 
 const deleteRule = (ruleId) => {
@@ -226,7 +228,7 @@ const cancelSkip = (skipId) => {
                             <span class="text-xs text-slate-400 ml-2">(Starts: {{ rule.starts_on }} {{ rule.ends_on ? 'Ends: ' + rule.ends_on : 'Indefinite' }})</span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button @click="toggleRule(rule.id)" :class="['px-3 py-1 rounded-lg text-xs font-semibold border', rule.active ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700']">
+                            <button @click="toggleRule(rule)" :title="rule.active ? 'Pause this rule' : 'Resume this rule'" :class="['px-3 py-1 rounded-lg text-xs font-semibold border cursor-pointer', rule.active ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700']">
                                 {{ rule.active ? 'Active' : 'Paused' }}
                             </button>
                             <button @click="deleteRule(rule.id)" class="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold">
