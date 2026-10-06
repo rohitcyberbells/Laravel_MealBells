@@ -56,7 +56,13 @@ class RecurringSkipController extends Controller
             abort(404, 'Recurring rule not found.');
         }
 
-        $action->execute($rule, $user);
+        // Explicit state, not a toggle: a double submit must not switch the rule
+        // back on and quietly resume skipping meals.
+        $validated = $request->validate([
+            'active' => ['required', 'boolean'],
+        ]);
+
+        $action->execute($rule, $user, $validated['active']);
 
         return back()->with('message', 'Recurring rule updated successfully.');
     }

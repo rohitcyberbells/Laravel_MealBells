@@ -23,7 +23,8 @@ class EmployeeObserver
             $user = Auth::user();
 
             foreach ($rules as $rule) {
-                $pauseAction->execute($rule, $user);
+                // Explicitly off, rather than relying on a toggle.
+                $pauseAction->execute($rule, $user, false);
             }
         }
     }
