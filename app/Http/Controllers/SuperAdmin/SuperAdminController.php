@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyHrmsConnection;
 use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
 use App\Models\TiffinService;
@@ -18,10 +19,26 @@ class SuperAdminController extends Controller
 {
     public function index()
     {
+        $companies = Company::with('assignments.tiffinService')->get();
+
+        // Never the secret itself - only whether one exists and when it changed.
+        $connections = CompanyHrmsConnection::whereIn('company_id', $companies->pluck('id'))
+            ->get()
+            ->keyBy('company_id');
+
         return Inertia::render('SuperAdmin/Dashboard', [
-            'companies' => Company::with('assignments.tiffinService')->get(),
+            'companies' => $companies->map(fn (Company $company) => [
+                ...$company->toArray(),
+                'hrms' => [
+                    'webhook_url' => url("/api/hrms/{$company->code}/events"),
+                    'has_secret' => (bool) $connections->get($company->id)?->webhook_secret,
+                    'secret_rotated_at' => $connections->get($company->id)?->secret_rotated_at?->toDateTimeString(),
+                ],
+            ]),
             'tiffinServices' => TiffinService::all(),
             'assignments' => CompanyTiffinAssignment::with(['company', 'tiffinService'])->latest()->get(),
+            // Flash data, so it survives exactly one render after rotation.
+            'hrms_secret' => session('hrms_secret'),
         ]);
     }
 

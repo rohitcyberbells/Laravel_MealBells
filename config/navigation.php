@@ -26,6 +26,7 @@ return [
             ['label' => 'Employees', 'href' => '/company-admin/employees', 'icon' => '👥'],
             ['label' => 'Calendar', 'href' => '/company-admin/calendar', 'icon' => '📅'],
             ['label' => 'Adoption Report', 'href' => '/company-admin/reports/adoption', 'icon' => '📈'],
+            ['label' => 'HRMS', 'href' => '/company-admin/hrms', 'icon' => '🔗'],
             ['label' => 'Settings', 'href' => '/company-admin/settings', 'icon' => '⚙️'],
         ],
 
