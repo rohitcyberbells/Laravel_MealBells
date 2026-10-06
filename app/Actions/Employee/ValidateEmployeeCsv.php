@@ -24,7 +24,9 @@ class ValidateEmployeeCsv
             return [];
         }
 
-        $headers = fgetcsv($handle);
+        // escape: '' is explicit because PHP 8.4 deprecates the default, and
+        // disabling backslash escaping is the correct reading of CSV anyway.
+        $headers = fgetcsv($handle, escape: '');
 
         if (! $headers) {
             fclose($handle);
@@ -39,7 +41,7 @@ class ValidateEmployeeCsv
 
         $rows = [];
 
-        while (($data = fgetcsv($handle)) !== false) {
+        while (($data = fgetcsv($handle, escape: '')) !== false) {
             if (empty(array_filter($data, fn ($value) => trim((string) $value) !== ''))) {
                 continue;
             }

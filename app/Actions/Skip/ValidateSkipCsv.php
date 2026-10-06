@@ -69,7 +69,9 @@ class ValidateSkipCsv
         }
 
         // Read header & strip BOM
-        $headers = fgetcsv($handle);
+        // escape: '' is explicit because PHP 8.4 deprecates the default, and
+        // disabling backslash escaping is the correct reading of CSV anyway.
+        $headers = fgetcsv($handle, escape: '');
         if (! $headers) {
             fclose($handle);
             $errors[] = [
@@ -94,7 +96,7 @@ class ValidateSkipCsv
 
         $rowNumber = 1; // 1 is header, data starts at row 2
 
-        while (($data = fgetcsv($handle)) !== false) {
+        while (($data = fgetcsv($handle, escape: '')) !== false) {
             $rowNumber++;
 
             // Skip empty rows
