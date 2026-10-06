@@ -30,7 +30,7 @@ class MealAdjustmentController extends Controller
                 $validated['date'],
                 $validated['quantity'],
                 $validated['type'],
-                $validated['reason']
+                $validated['reason'] ?? null
             );
         } catch (Exception $e) {
             return back()->withErrors(['extra_meal' => $e->getMessage()]);
