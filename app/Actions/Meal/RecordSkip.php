@@ -20,7 +20,8 @@ class RecordSkip
         string $date,
         string $source = 'hr',
         ?string $reason = null,
-        ?User $createdBy = null
+        ?User $createdBy = null,
+        ?string $externalRef = null
     ): SkipResult {
         // Strict Order of Guards
         MealGuard::assertCompanyOwns($company->id, $employee->company_id, 'Employee does not belong to this company.');
@@ -28,7 +29,7 @@ class RecordSkip
         MealGuard::assertValidSource($source);
         MealGuard::assertEditable($company, $date, ['meal_day', 'past', 'advance', 'locked', 'cutoff'], 'record skip');
 
-        return DB::transaction(function () use ($company, $employee, $date, $source, $reason, $createdBy) {
+        return DB::transaction(function () use ($company, $employee, $date, $source, $reason, $createdBy, $externalRef) {
             $existingSkip = Skip::where('employee_id', $employee->id)
                 ->where('date', $date)
                 ->first();
@@ -48,6 +49,7 @@ class RecordSkip
                         'source' => $source,
                         'reason' => $reason,
                         'created_by' => $createdBy?->id,
+                        'external_ref' => $externalRef,
                         'cancelled_at' => null,
                         'cancelled_by' => null,
                     ]);
@@ -68,6 +70,7 @@ class RecordSkip
                     'source' => $source,
                     'reason' => $reason,
                     'created_by' => $createdBy?->id,
+                    'external_ref' => $externalRef,
                     'cancelled_at' => null,
                     'cancelled_by' => null,
                 ]);
