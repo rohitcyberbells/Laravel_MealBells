@@ -35,9 +35,54 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
-            //
+            'auth' => [
+                'user' => $user?->only(['id', 'name', 'email', 'role']),
+            ],
+            // Kept as its own prop because pages already read it; the layout uses
+            // workspace for the subtitle so a vendor or the platform reads well
+            // too.
+            'company' => $this->company($request),
+            'workspace' => $this->workspace($request),
+            // The sidebar renders exactly this, so a role can never be handed
+            // another role's links.
+            'navigation' => $user ? config("navigation.items.{$user->role}", []) : [],
+            'flash' => [
+                'message' => $request->session()->get('message'),
+                'error' => $request->session()->get('error'),
+            ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function company(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $company = $user->company ?? $user->employee?->company;
+
+        return $company?->only(['id', 'name', 'code']);
+    }
+
+    protected function workspace(Request $request): ?string
+    {
+        $user = $request->user();
+
+        return match ($user?->role) {
+            'super_admin' => 'Platform',
+            'tiffin_admin' => $user->tiffinService?->name,
+            'company_admin' => $user->company?->name,
+            'employee' => $user->employee?->company?->name,
+            default => null,
+        };
     }
 }

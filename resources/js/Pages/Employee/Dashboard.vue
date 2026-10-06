@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../Layouts/AppLayout.vue';
 import { useForm, router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -54,26 +55,12 @@ const cancelSkip = (skipId) => {
     router.delete(`/employee/skips/${skipId}`);
 };
 
-const logout = () => {
-    router.post('/logout');
-};
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 space-y-6 font-sans">
+    <AppLayout>
+    <div class="p-4 sm:p-6 space-y-6">
         <!-- Top Navbar -->
-        <header class="max-w-5xl mx-auto flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
-            <div class="flex items-center space-x-3">
-                <span class="text-2xl">🍱</span>
-                <div>
-                    <h1 class="text-lg font-bold text-white">Employee Meal Portal</h1>
-                    <p class="text-xs text-slate-400">Manage daily meal preferences & recurring skips</p>
-                </div>
-            </div>
-            <button @click="logout" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition">
-                Logout
-            </button>
-        </header>
 
         <main class="max-w-5xl mx-auto space-y-6">
             <!-- Today's Status Card -->
@@ -172,4 +159,5 @@ const logout = () => {
             </div>
         </main>
     </div>
+    </AppLayout>
 </template>

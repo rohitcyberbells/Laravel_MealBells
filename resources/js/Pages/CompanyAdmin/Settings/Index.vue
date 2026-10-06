@@ -1,4 +1,5 @@
 <script setup>
+import AppLayout from '../../../Layouts/AppLayout.vue';
 defineProps({
     cutoff_time: String,
     timezone: String,
@@ -11,7 +12,9 @@ defineProps({
 </script>
 
 <template>
-    <div class="p-6">
+    <AppLayout>
+        <div class="p-6">
         <h1 class="text-xl font-bold">Company Settings Page</h1>
-    </div>
+        </div>
+    </AppLayout>
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import CompanyAdminLayout from '@/Layouts/CompanyAdminLayout.vue';
+import AppLayout from '../../../Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -19,7 +19,7 @@ const changeRange = (newRange) => {
 </script>
 
 <template>
-    <CompanyAdminLayout>
+    <AppLayout>
         <div class="space-y-6">
             <!-- Header & Range Selection -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -174,5 +174,5 @@ const changeRange = (newRange) => {
                 </div>
             </div>
         </div>
-    </CompanyAdminLayout>
+    </AppLayout>
 </template>
