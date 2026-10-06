@@ -473,13 +473,34 @@ class DemoSeeder extends Seeder
         $reference = $employee?->external_id ?? 'HR-1';
         $appliedDay = $this->nextMealDay(3);
 
+        // The applied event claims it created a skip, so it has to have one -
+        // otherwise the connect screen shows an outcome with nothing behind it.
+        // A later employee is used so the simulator demo has a clean subject.
+        $appliedFor = Employee::where('company_id', $company->id)
+            ->where('status', 'active')
+            ->where('is_meal_eligible', true)
+            ->orderBy('id')
+            ->skip(5)
+            ->first() ?? $employee;
+
+        if ($appliedFor) {
+            Skip::create([
+                'company_id' => $company->id,
+                'employee_id' => $appliedFor->id,
+                'date' => $appliedDay,
+                'source' => 'leave',
+                'reason' => 'Approved in the HR system',
+                'external_ref' => 'LV-9001',
+            ]);
+        }
+
         HrmsWebhookEvent::create([
             'company_id' => $company->id,
             'external_event_id' => 'evt_demo_applied',
             'event_type' => 'approved',
             'leave_external_id' => 'LV-9001',
             'occurred_at' => now()->subHours(5),
-            'payload' => $this->hrmsPayload('evt_demo_applied', 'leave_approved', 'LV-9001', $reference, $appliedDay),
+            'payload' => $this->hrmsPayload('evt_demo_applied', 'leave_approved', 'LV-9001', $appliedFor?->external_id ?? $reference, $appliedDay),
             'status' => HrmsWebhookEvent::STATUS_APPLIED,
             'processed_at' => now()->subHours(5),
             'result' => [
