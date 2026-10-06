@@ -21,7 +21,6 @@ class RecurringSkip extends Model
         'weekday' => 'integer',
         'active' => 'boolean',
     ];
-   
 
     public function company(): BelongsTo
     {
