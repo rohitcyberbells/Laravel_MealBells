@@ -143,6 +143,100 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
         $this->assertCount(1, $credentials);
         $this->assertEquals('ACME001', $credentials[0]['employee_code']);
         $this->assertNotEmpty($credentials[0]['temporary_password']);
+
+        // Same shape as provisioning, so the panel can show a login ID that
+        // actually works rather than a bare employee code.
+        $this->assertEquals('acme001@demo.test', $credentials[0]['email']);
+        $this->assertTrue($credentials[0]['can_login_with_email']);
+        $this->assertEquals('ACME01', $credentials[0]['company_code']);
+        $this->assertFalse($credentials[0]['mail_sent']);
+    }
+
+    public function test_a_reset_password_is_the_one_that_now_works(): void
+    {
+        $this->createLogins([$this->withEmail->id]);
+        $first = $this->employeesProps()['flash']['credentials'][0]['temporary_password'];
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post("/company-admin/employees/{$this->withEmail->id}/reset-password");
+
+        $second = $this->employeesProps()['flash']['credentials'][0]['temporary_password'];
+
+        $this->assertNotEquals($first, $second);
+
+        $stored = DB::table('users')->where('login_code', 'ACME001')->value('password');
+        $this->assertTrue(password_verify($second, $stored));
+        $this->assertFalse(password_verify($first, $stored));
+    }
+
+    public function test_a_reset_forces_a_password_change_on_next_sign_in(): void
+    {
+        $this->createLogins([$this->withEmail->id]);
+        DB::table('users')->where('login_code', 'ACME001')->update(['must_change_password' => false]);
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post("/company-admin/employees/{$this->withEmail->id}/reset-password");
+
+        $this->assertEquals(1, DB::table('users')->where('login_code', 'ACME001')->value('must_change_password'));
+    }
+
+    /**
+     * An employee with no address has no account email to use, and users.email
+     * is NOT NULL - so this path used to fail the insert outright.
+     */
+    public function test_a_reset_provisions_an_account_for_an_employee_with_no_email(): void
+    {
+        $this->assertNull($this->withoutEmail->user_id);
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post("/company-admin/employees/{$this->withoutEmail->id}/reset-password")
+            ->assertRedirect('/company-admin/employees');
+
+        $credential = $this->employeesProps()['flash']['credentials'][0];
+
+        $this->assertEquals('ACME002', $credential['employee_code']);
+        $this->assertNotEmpty($credential['temporary_password']);
+        // No usable address, so the panel shows the company code and the
+        // employee code instead.
+        $this->assertNull($credential['email']);
+        $this->assertFalse($credential['can_login_with_email']);
+        $this->assertEquals('ACME01', $credential['company_code']);
+
+        $this->assertNotNull($this->withoutEmail->fresh()->user_id);
+    }
+
+    /**
+     * The address is taken by another account, so it cannot be reused: the
+     * column is unique and the other user would own the login.
+     */
+    public function test_a_reset_falls_back_when_the_address_belongs_to_someone_else(): void
+    {
+        User::create([
+            'name' => 'Someone Else', 'email' => 'acme001@demo.test',
+            'password' => bcrypt('password'), 'role' => 'employee', 'company_id' => $this->company->id,
+        ]);
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post("/company-admin/employees/{$this->withEmail->id}/reset-password")
+            ->assertRedirect('/company-admin/employees');
+
+        $credential = $this->employeesProps()['flash']['credentials'][0];
+
+        $this->assertFalse($credential['can_login_with_email']);
+        $this->assertNotNull($this->withEmail->fresh()->user_id);
+    }
+
+    /**
+     * The route existed, was tested, and no page could reach it - so in practice
+     * no admin could reset an employee's password.
+     */
+    public function test_the_page_offers_a_reset_for_an_employee_who_has_a_login(): void
+    {
+        $index = file_get_contents(resource_path('js/Pages/CompanyAdmin/Employees/Index.vue'));
+
+        $this->assertStringContainsString('/reset-password', $index);
+        // Offered only where an account exists.
+        $this->assertMatchesRegularExpression('/v-if="emp\.user_id"\s*\n\s*@click="resetPassword\(emp\)"/', $index);
     }
 
     public function test_the_employee_rows_say_who_already_has_a_login(): void
