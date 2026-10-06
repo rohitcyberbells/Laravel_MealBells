@@ -121,8 +121,11 @@ class EmployeeController extends Controller
             'rows.*.name' => 'required|string',
             'rows.*.external_id' => 'nullable|string|max:255',
             'rows.*.email' => 'nullable|email',
-            'rows.*.is_meal_eligible' => 'required|boolean',
-            'rows.*.status' => 'required|in:active,inactive',
+            // Optional, because the preview only emits these when the CSV has
+            // those columns and ImportEmployeeCsv already defaults them. Requiring
+            // them here rejected the very rows the preview had just produced.
+            'rows.*.is_meal_eligible' => 'sometimes|boolean',
+            'rows.*.status' => 'sometimes|in:active,inactive',
         ]);
 
         $company = Auth::user()->company;
