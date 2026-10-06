@@ -11,6 +11,7 @@ class Employee extends Model
         'company_id',
         'user_id',
         'employee_code',
+        'external_id',
         'name',
         'email',
         'attendance_source',
