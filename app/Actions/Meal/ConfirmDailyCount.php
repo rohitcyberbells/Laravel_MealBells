@@ -46,9 +46,13 @@ class ConfirmDailyCount
 
         $status = $isAutoConfirmed ? 'auto_confirmed' : 'confirmed';
 
+        // Recorded alongside the status so an audit can tell a cutoff lock from
+        // one a person triggered. It was left null before, which said nothing.
+        $lockType = $isAutoConfirmed ? 'auto' : 'manual';
+
         // Lock & Save Immutable Snapshot inside DB transaction with unique constraint race handling
         try {
-            return DB::transaction(function () use ($company, $date, $activeAssignment, $calculatedData, $status, $confirmedBy) {
+            return DB::transaction(function () use ($company, $date, $activeAssignment, $calculatedData, $status, $lockType, $confirmedBy) {
                 $snapshot = MealCount::updateOrCreate(
                     [
                         'company_id' => $company->id,
@@ -62,6 +66,7 @@ class ConfirmDailyCount
                         'final_expected_count' => $calculatedData['final_expected_count'],
                         'breakdown' => $calculatedData['breakdown'],
                         'status' => $status,
+                        'lock_type' => $lockType,
                         'confirmed_by' => $confirmedBy?->id,
                         'locked_at' => now(),
                     ]
