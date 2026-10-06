@@ -53,6 +53,10 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'message' => $request->session()->get('message'),
                 'error' => $request->session()->get('error'),
+                // The employee CSV modal reads flash.csvPreview. Without it here
+                // the preview was computed, flashed, and never reached the page,
+                // so the modal could not leave its first step.
+                'csvPreview' => $request->session()->get('csvPreview'),
             ],
         ];
     }
