@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
+import { computed, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
     today: Object,
@@ -51,6 +52,32 @@ const deleteRule = (ruleId) => {
     router.delete(`/employee/recurring-skips/${ruleId}`);
 };
 
+// today.seconds_left was already supplied by the controller and never used.
+const remaining = ref(props.today.seconds_left ?? 0);
+
+const ticker = setInterval(() => {
+    if (remaining.value > 0) remaining.value -= 1;
+}, 1000);
+
+onUnmounted(() => clearInterval(ticker));
+
+const countdown = computed(() => {
+    if (remaining.value <= 0) return null;
+    const h = Math.floor(remaining.value / 3600);
+    const m = Math.floor((remaining.value % 3600) / 60);
+    const s = remaining.value % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+});
+
+// One tap per day in the strip: skip it, or take it back when the engine allows.
+const toggleDay = (day) => {
+    if (day.status === 'skipped') {
+        if (day.can_cancel) router.delete(`/employee/skips/${day.skip_id}`, { preserveScroll: true });
+        return;
+    }
+    router.post('/employee/skips', { date: day.date }, { preserveScroll: true });
+};
+
 const cancelSkip = (skipId) => {
     router.delete(`/employee/skips/${skipId}`);
 };
@@ -75,6 +102,12 @@ const cancelSkip = (skipId) => {
                     </span>
                 </div>
 
+                <p class="text-xs text-slate-400">
+                    Cutoff {{ today.cutoff_time }}
+                    <span v-if="countdown" class="text-cyan-400 font-mono font-semibold">· {{ countdown }} left to change today</span>
+                    <span v-else class="text-amber-400 font-semibold">· cutoff passed, today is fixed</span>
+                </p>
+
                 <p v-if="today.meal" class="text-sm font-semibold text-white">
                     Scheduled Meal: <span class="text-emerald-300">{{ today.meal }}</span>
                 </p>
@@ -83,6 +116,56 @@ const cancelSkip = (skipId) => {
                     <button @click="cancelSkip(today.skip_id)" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded-xl text-xs font-bold transition cursor-pointer">
                         Cancel Skip for Today
                     </button>
+                </div>
+            </div>
+
+            <!-- This week at a glance. next_7_days was already supplied and
+                 rendered nowhere. -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+                <h3 class="text-sm font-bold text-white">📅 The week ahead</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                    <div
+                        v-for="day in next_7_days"
+                        :key="day.date"
+                        :class="[
+                            'p-3 rounded-xl border text-center space-y-1',
+                            !day.is_meal_day
+                                ? 'bg-slate-950 border-slate-800 opacity-60'
+                                : day.status === 'skipped'
+                                    ? 'bg-red-500/10 border-red-500/30'
+                                    : 'bg-emerald-500/10 border-emerald-500/30'
+                        ]"
+                    >
+                        <p class="text-[11px] font-bold uppercase text-slate-400">{{ day.day_name.slice(0, 3) }}</p>
+                        <p class="text-xs font-mono text-slate-500">{{ day.date.slice(5) }}</p>
+
+                        <template v-if="day.is_meal_day">
+                            <p :class="['text-[11px] font-bold', day.status === 'skipped' ? 'text-red-300' : 'text-emerald-300']">
+                                {{ day.status === 'skipped' ? 'Skipped' : 'Taking' }}
+                            </p>
+                            <p v-if="day.skip_source" class="text-[10px] text-slate-500 capitalize">{{ day.skip_source }}</p>
+
+                            <button
+                                v-if="day.status !== 'skipped'"
+                                @click="toggleDay(day)"
+                                class="w-full px-2 py-1 rounded-lg text-[10px] font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 cursor-pointer"
+                            >
+                                Skip
+                            </button>
+                            <button
+                                v-else-if="day.can_cancel"
+                                @click="toggleDay(day)"
+                                class="w-full px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 cursor-pointer"
+                            >
+                                Take it back
+                            </button>
+                            <!-- HR and system skips are not the employee's to withdraw -->
+                            <p v-else class="text-[10px] text-slate-500 italic">Ask HR</p>
+                        </template>
+                        <p v-else class="text-[10px] text-slate-500 italic">
+                            {{ day.calendar_day?.type === 'holiday' ? 'Holiday' : 'No meal' }}
+                        </p>
+                    </div>
                 </div>
             </div>
 
