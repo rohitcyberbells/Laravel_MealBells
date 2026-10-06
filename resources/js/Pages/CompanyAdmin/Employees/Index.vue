@@ -6,11 +6,14 @@ import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
 import SkipImportModal from './SkipImportModal.vue';
 import LoginCredentialsPanel from './LoginCredentialsPanel.vue';
+import RecurringSkipModal from './RecurringSkipModal.vue';
 
 const props = defineProps({
     company: Object,
     employees: Object,
     filters: Object,
+    // Keyed by employee id, for the rows on this page only.
+    recurring_rules: { type: Object, default: () => ({}) },
 });
 
 const search = ref(props.filters?.search || '');
@@ -47,6 +50,24 @@ const createLogins = () => {
         },
     });
 };
+
+const showRecurringModal = ref(false);
+const recurringEmployee = ref(null);
+
+const rulesFor = (employeeId) => props.recurring_rules?.[employeeId] ?? [];
+
+// Count only the rules that are live, so the badge does not advertise a paused
+// or future rule as something currently skipping meals.
+const activeRuleCount = (employeeId) => rulesFor(employeeId).filter((r) => r.active).length;
+
+const openRecurringModal = (employee) => {
+    recurringEmployee.value = employee;
+    showRecurringModal.value = true;
+};
+
+// The modal reads from props, so it has to follow the reloaded page rather than
+// the employee object it was opened with.
+const recurringRules = computed(() => recurringEmployee.value ? rulesFor(recurringEmployee.value.id) : []);
 
 const resetPassword = (employee) => {
     if (!confirm(`Reset the password for ${employee.name} (${employee.employee_code})? Their current password stops working immediately.`)) {
@@ -249,6 +270,14 @@ watch([search, status], () => {
                                     <!-- Only offered where an account exists; the
                                          rest are provisioned via Create logins. -->
                                     <button
+                                        @click="openRecurringModal(emp)"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer"
+                                        :title="`Recurring skips for ${emp.name}`"
+                                    >
+                                        🔄 Recurring
+                                        <span v-if="activeRuleCount(emp.id)" class="text-amber-400 font-bold">({{ activeRuleCount(emp.id) }})</span>
+                                    </button>
+                                    <button
                                         v-if="emp.user_id"
                                         @click="resetPassword(emp)"
                                         class="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition cursor-pointer"
@@ -325,6 +354,13 @@ watch([search, status], () => {
             <SkipImportModal
                 :show="showSkipImportModal"
                 @close="showSkipImportModal = false"
+            />
+
+            <RecurringSkipModal
+                :show="showRecurringModal"
+                :employee="recurringEmployee"
+                :rules="recurringRules"
+                @close="showRecurringModal = false"
             />
         </div>
     </AppLayout>

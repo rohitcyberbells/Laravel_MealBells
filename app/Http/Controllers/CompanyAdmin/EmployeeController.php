@@ -8,6 +8,7 @@ use App\Actions\Employee\ResetEmployeePassword;
 use App\Actions\Employee\ValidateEmployeeCsv;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\RecurringSkip;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -34,9 +35,18 @@ class EmployeeController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // Only for the rows on this page, so the roster does not pull every
+        // rule in the company to render fifteen of them.
+        $recurringRules = RecurringSkip::where('company_id', $company->id)
+            ->whereIn('employee_id', $employees->getCollection()->pluck('id'))
+            ->orderBy('weekday')
+            ->get(['id', 'employee_id', 'weekday', 'starts_on', 'ends_on', 'active'])
+            ->groupBy('employee_id');
+
         return Inertia::render('CompanyAdmin/Employees/Index', [
             'company' => $company,
             'employees' => $employees,
+            'recurring_rules' => $recurringRules,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
