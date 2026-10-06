@@ -32,7 +32,10 @@ class CompanyDailyController extends Controller
 
         $timezone = $company->setting?->timezone ?? 'Asia/Kolkata';
         $today = Carbon::today($timezone)->toDateString();
-        $advanceLimitDays = $company->setting?->advance_limit_days ?? 14;
+        // company_settings has no advance_limit_days column, so this silently
+        // fell back to 14 and the date picker refused days MealGuard would have
+        // accepted. Reading the same config the guard reads keeps the two in step.
+        $advanceLimitDays = (int) config('mealbells.advance_limit_days', 60);
 
         $minDate = Carbon::today($timezone)->subDays(7)->toDateString();
         $maxDate = Carbon::today($timezone)->addDays($advanceLimitDays)->toDateString();
