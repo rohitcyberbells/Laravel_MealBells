@@ -9,6 +9,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class HrmsSimulateCommandTest extends TestCase
@@ -23,7 +24,8 @@ class HrmsSimulateCommandTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('app.url', 'http://mealbells.test');
+        // Pins url() so the asserted endpoint is deterministic.
+        URL::forceRootUrl('http://mealbells.test');
 
         $this->companyA = Company::create(['name' => 'Alpha Corp', 'code' => 'ALPHA1']);
 
