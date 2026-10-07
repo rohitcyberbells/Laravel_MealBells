@@ -69,7 +69,10 @@ const statusTone = computed(() => ({
 
 /* ---------- cutoff countdown ---------- */
 
-const remaining = ref(props.seconds_left);
+// Floored once, here. The server sends a float (Carbon's diff carries
+// fractional seconds), and `float % 60` produced "18:51:7.715735999998287" on
+// screen - the hours and minutes were fine because they go through Math.floor.
+const remaining = ref(Math.max(0, Math.floor(props.seconds_left ?? 0)));
 
 const ticker = setInterval(() => {
     if (remaining.value > 0) remaining.value -= 1;
@@ -81,7 +84,7 @@ const countdown = computed(() => {
     if (remaining.value <= 0) return null;
     const h = Math.floor(remaining.value / 3600);
     const m = Math.floor((remaining.value % 3600) / 60);
-    const s = remaining.value % 60;
+    const s = Math.floor(remaining.value % 60);
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 });
 

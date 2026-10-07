@@ -73,7 +73,9 @@ const deleteRule = (ruleId) => {
 };
 
 // today.seconds_left was already supplied by the controller and never used.
-const remaining = ref(props.today.seconds_left ?? 0);
+// Floored once, here: the server's value is a float, and `float % 60` renders
+// the seconds with their fraction attached.
+const remaining = ref(Math.max(0, Math.floor(props.today.seconds_left ?? 0)));
 
 const ticker = setInterval(() => {
     if (remaining.value > 0) remaining.value -= 1;
@@ -85,7 +87,7 @@ const countdown = computed(() => {
     if (remaining.value <= 0) return null;
     const h = Math.floor(remaining.value / 3600);
     const m = Math.floor((remaining.value % 3600) / 60);
-    const s = remaining.value % 60;
+    const s = Math.floor(remaining.value % 60);
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 });
 
