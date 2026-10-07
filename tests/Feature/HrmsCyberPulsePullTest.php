@@ -1082,6 +1082,89 @@ class HrmsCyberPulsePullTest extends TestCase
         }
     }
 
+    // ------------------------------------------------- dry run matches reality
+
+    /**
+     * A dry run exists to predict a real one, so after a real run its numbers
+     * have to equal the numbers a second real run produces - not report every
+     * already-applied leave as "would apply" with no duplicates at all.
+     */
+    public function test_a_dry_run_after_a_real_run_matches_a_second_real_run(): void
+    {
+        $this->fakeVendor();
+        $this->pull();
+
+        $dry = $this->pull(dryRun: true);
+        $second = $this->pull();
+
+        foreach (['applied', 'cancelled', 'ignored', 'unknown_employee', 'unreadable', 'duplicate'] as $key) {
+            $this->assertEquals($second[$key], $dry[$key], "dry run disagreed on '{$key}'");
+        }
+
+        // And specifically: nothing new to apply, everything already seen.
+        $this->assertEquals(0, $dry['applied']);
+        $this->assertEquals(4, $dry['duplicate']);
+    }
+
+    public function test_a_dry_run_before_anything_is_applied_still_reports_the_work(): void
+    {
+        $this->fakeVendor();
+
+        $dry = $this->pull(dryRun: true);
+
+        // Nothing recorded yet, so nothing is a duplicate.
+        $this->assertEquals(0, $dry['duplicate']);
+        $this->assertEquals(2, $dry['applied']);
+    }
+
+    /**
+     * A leave the HR system has since withdrawn: the cancellation is predicted
+     * once, and reported as already seen after it has happened.
+     */
+    public function test_a_dry_run_does_not_re_predict_a_cancellation_already_made(): void
+    {
+        $this->fakeVendor();
+        $this->pull();
+
+        $remaining = array_values(array_filter(
+            $this->fixture()['data'],
+            fn ($row) => $row['_id'] !== '66f1aa0000000000000000a1',
+        ));
+        $this->fakeVendor($remaining);
+
+        $this->assertEquals(1, $this->pull(dryRun: true)['cancelled'], 'predicted once');
+
+        $this->pull();
+
+        $after = $this->pull(dryRun: true);
+        $this->assertEquals(0, $after['cancelled'], 'not predicted again');
+        $this->assertEquals($this->pull()['cancelled'], $after['cancelled']);
+    }
+
+    /**
+     * The revision suffix gives a re-approval its own id, so a dry run must see
+     * it as new work rather than a duplicate.
+     */
+    public function test_a_dry_run_sees_a_re_approval_as_new_work(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+
+        $this->fakeVendor($leave);
+        $this->pull();
+        $this->fakeVendor($rejected);
+        $this->pull();
+
+        // Approved again: a new event id, so there is something to do.
+        $this->fakeVendor($leave);
+        $dry = $this->pull(dryRun: true);
+
+        $this->assertEquals(1, $dry['applied']);
+        $this->assertEquals(0, $dry['duplicate']);
+        $this->assertEquals($this->pull()['applied'], $dry['applied']);
+    }
+
     // ----------------------------------------------------------- health page
 
     public function test_the_health_page_reports_each_pull(): void
