@@ -18,12 +18,16 @@ Schedule::command('hrms:reconcile')->everyFiveMinutes()->withoutOverlapping()->o
 // roughly current; the second entry runs every minute but only acts inside each
 // company's pre-cutoff window, so leave approved during the morning still
 // reaches the count before it locks.
-Schedule::command('hrms:pull', ['--all' => true])
+//
+// The flags are passed as bare values, not as ['--all' => true]: that renders
+// as --all='1' and Symfony refuses a value on a boolean option, so every run
+// failed before the command started.
+Schedule::command('hrms:pull', ['--all'])
     ->cron('*/'.max(1, (int) config('hrms.cyberpulse.pull_every_minutes', 15)).' * * * *')
     ->withoutOverlapping()
     ->onOneServer();
 
-Schedule::command('hrms:pull', ['--all' => true, '--before-cutoff' => true])
+Schedule::command('hrms:pull', ['--all', '--before-cutoff'])
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
