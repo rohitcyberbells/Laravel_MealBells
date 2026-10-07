@@ -69,7 +69,7 @@ class HrmsPullConnectionScreenTest extends TestCase
             ->post('/company-admin/hrms/pull-connection', array_merge([
                 'base_url' => self::BASE,
                 'email' => 'integration@alpha.test',
-                'password' => 'vendor-secret',
+                'password' => 'vendor-secret-9',
                 'adapter' => 'cyberpulse',
             ], $overrides));
     }
@@ -97,7 +97,7 @@ class HrmsPullConnectionScreenTest extends TestCase
 
         $this->assertEquals(self::BASE, $connection->pull_base_url);
         $this->assertEquals('integration@alpha.test', $connection->pull_email);
-        $this->assertEquals('vendor-secret', $connection->pull_password);
+        $this->assertEquals('vendor-secret-9', $connection->pull_password);
         $this->assertEquals('cyberpulse', $connection->pull_adapter);
     }
 
@@ -126,7 +126,7 @@ class HrmsPullConnectionScreenTest extends TestCase
         $connection = CompanyHrmsConnection::where('company_id', $this->company->id)->sole();
 
         $this->assertEquals('https://hrms2.cyberpulse.test', $connection->pull_base_url);
-        $this->assertEquals('vendor-secret', $connection->pull_password);
+        $this->assertEquals('vendor-secret-9', $connection->pull_password);
     }
 
     public function test_the_first_save_requires_a_password(): void
@@ -228,7 +228,7 @@ class HrmsPullConnectionScreenTest extends TestCase
 
         // And the credentials themselves survived.
         $this->assertEquals(self::BASE, $connection->pull_base_url);
-        $this->assertEquals('vendor-secret', $connection->pull_password);
+        $this->assertEquals('vendor-secret-9', $connection->pull_password);
     }
 
     /**
@@ -493,7 +493,7 @@ class HrmsPullConnectionScreenTest extends TestCase
         ];
 
         foreach ($responses as $i => $body) {
-            foreach (['vendor-secret', 'jwt-from-vendor', self::BASE] as $secret) {
+            foreach (['vendor-secret-9', 'jwt-from-vendor', self::BASE] as $secret) {
                 $this->assertStringNotContainsString($secret, (string) $body, "secret '{$secret}' leaked in response #{$i}");
             }
         }
@@ -507,7 +507,7 @@ class HrmsPullConnectionScreenTest extends TestCase
 
         $raw = (array) DB::table('company_hrms_connections')->where('company_id', $this->company->id)->first();
 
-        foreach (['vendor-secret', 'integration@alpha.test', self::BASE] as $secret) {
+        foreach (['vendor-secret-9', 'integration@alpha.test', self::BASE] as $secret) {
             $this->assertStringNotContainsString($secret, json_encode($raw));
         }
     }

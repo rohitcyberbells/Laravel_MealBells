@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureMustChangePassword;
 use App\Http\Middleware\EnsureUserRole;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VerifyHrmsSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             EnsureMustChangePassword::class,
         ]);
+
+        // Every response, including the API: headers that only constrain.
+        $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([
             'role' => EnsureUserRole::class,

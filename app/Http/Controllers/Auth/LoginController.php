@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class LoginController extends Controller
@@ -163,7 +164,7 @@ class LoginController extends Controller
     {
         $request->validate([
             'current_password' => 'required|current_password',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
         ]);
 
         $user = Auth::user();
