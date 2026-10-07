@@ -78,6 +78,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/assign', [SuperAdminController::class, 'assign'])->name('super-admin.assign');
         Route::post('/unpair', [SuperAdminController::class, 'unpair'])->name('super-admin.unpair');
         Route::post('/users/{user}/reset-password', [SuperAdminController::class, 'resetPassword'])->name('super-admin.users.reset-password');
+        Route::post('/users/{user}/active', [SuperAdminController::class, 'setActive'])->name('super-admin.users.active');
         Route::post('/companies/{company}/hrms-secret', [HrmsConnectionController::class, 'rotate'])->name('super-admin.companies.hrms-secret');
     });
 

@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
-import { ref } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { useForm, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     companies: Array,
@@ -12,7 +12,20 @@ const props = defineProps({
     reset_for: { type: Object, default: null },
 });
 
+const page = usePage();
+const user = computed(() => page.props.auth?.user ?? null);
+
 const activeTab = ref('companies');
+
+const setActive = (admin) => {
+    const verb = admin.is_active ? 'Deactivate' : 'Reactivate';
+    if (!confirm(`${verb} ${admin.name} (${admin.email})? ${admin.is_active
+        ? 'They will not be able to sign in. Nothing they created is removed.'
+        : 'They will be able to sign in again.'}`)) {
+        return;
+    }
+    router.post(`/super-admin/users/${admin.id}/active`, { is_active: !admin.is_active }, { preserveScroll: true });
+};
 
 const resetAdminPassword = (admin) => {
     if (!confirm(`Reset the password for ${admin.name} (${admin.email})? Their current password stops working immediately.`)) {
@@ -241,12 +254,32 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                                     <span v-if="admin.must_change_password" class="text-amber-400/80 text-[10px]" title="Has not changed their temporary password yet">
                                         pending first sign-in
                                     </span>
+                                    <!-- A deactivated account keeps everything it
+                                         created; it simply cannot sign in. -->
+                                    <span v-if="!admin.is_active" class="text-red-400 text-[10px] font-bold uppercase" :title="`Deactivated ${admin.deactivated_at ?? ''}`">
+                                        deactivated
+                                    </span>
                                     <button
                                         @click="resetAdminPassword(admin)"
                                         class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded transition font-medium"
                                     >
                                         Reset password
                                     </button>
+                                    <button
+                                        v-if="admin.id !== user?.id"
+                                        @click="setActive(admin)"
+                                        :class="[
+                                            'text-[10px] px-2 py-0.5 rounded transition font-medium border',
+                                            admin.is_active
+                                                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
+                                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                        ]"
+                                    >
+                                        {{ admin.is_active ? 'Deactivate' : 'Reactivate' }}
+                                    </button>
+                                    <!-- Locking yourself out of the only account
+                                         that can unlock accounts is a one-way door. -->
+                                    <span v-else class="text-slate-600 text-[10px]">you</span>
                                 </div>
                                 <p v-if="!c.admins || !c.admins.length" class="text-xs text-slate-500 italic">
                                     No company admin account.
@@ -322,12 +355,32 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                                     <span v-if="admin.must_change_password" class="text-amber-400/80 text-[10px]" title="Has not changed their temporary password yet">
                                         pending first sign-in
                                     </span>
+                                    <!-- A deactivated account keeps everything it
+                                         created; it simply cannot sign in. -->
+                                    <span v-if="!admin.is_active" class="text-red-400 text-[10px] font-bold uppercase" :title="`Deactivated ${admin.deactivated_at ?? ''}`">
+                                        deactivated
+                                    </span>
                                     <button
                                         @click="resetAdminPassword(admin)"
                                         class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded transition font-medium"
                                     >
                                         Reset password
                                     </button>
+                                    <button
+                                        v-if="admin.id !== user?.id"
+                                        @click="setActive(admin)"
+                                        :class="[
+                                            'text-[10px] px-2 py-0.5 rounded transition font-medium border',
+                                            admin.is_active
+                                                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
+                                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                        ]"
+                                    >
+                                        {{ admin.is_active ? 'Deactivate' : 'Reactivate' }}
+                                    </button>
+                                    <!-- Locking yourself out of the only account
+                                         that can unlock accounts is a one-way door. -->
+                                    <span v-else class="text-slate-600 text-[10px]">you</span>
                                 </div>
                                 <p v-if="!t.admins || !t.admins.length" class="text-xs text-slate-500 italic">
                                     No tiffin admin account.

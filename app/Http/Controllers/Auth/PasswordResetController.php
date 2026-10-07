@@ -105,9 +105,17 @@ class PasswordResetController extends Controller
     /**
      * A deactivated account is not sent a link either: it could not sign in
      * with the new password anyway.
+     *
+     * Both switches are checked, because they are owned by different people -
+     * a super admin deactivates the account, an HR team stands an employee down
+     * on their employee record.
      */
     protected function isReachable(User $user): bool
     {
+        if (! $user->is_active) {
+            return false;
+        }
+
         if ($user->role === 'employee') {
             return ! $user->employee || $user->employee->status === 'active';
         }
