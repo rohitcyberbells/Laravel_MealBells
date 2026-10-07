@@ -105,6 +105,10 @@ const skipByEmployee = computed(() => {
     return map;
 });
 
+// Trimmed, so a column of empty subtext does not appear for skips that carry
+// no reason at all.
+const skipReason = (skip) => (skip?.reason ?? '').trim() || null;
+
 const skipForm = useForm({ employee_id: null, date: props.date, source: 'hr', reason: '' });
 
 const addSkip = (employeeId) => {
@@ -421,12 +425,23 @@ const sourceTone = (source) => ({
                                 <td class="py-3 px-4 font-mono text-xs text-slate-400">{{ employee.employee_code }}</td>
                                 <td class="py-3 px-4 font-semibold text-slate-200">{{ employee.name }}</td>
                                 <td class="py-3 px-4">
-                                    <span
-                                        v-if="skipByEmployee[employee.id]"
-                                        :class="['px-2 py-0.5 rounded-full text-[11px] font-bold uppercase border', sourceTone(skipByEmployee[employee.id].source)]"
-                                    >
-                                        Skipped · {{ skipByEmployee[employee.id].source }}
-                                    </span>
+                                    <template v-if="skipByEmployee[employee.id]">
+                                        <span
+                                            :class="['px-2 py-0.5 rounded-full text-[11px] font-bold uppercase border', sourceTone(skipByEmployee[employee.id].source)]"
+                                            :title="skipReason(skipByEmployee[employee.id]) || `Skipped · ${skipByEmployee[employee.id].source}`"
+                                        >
+                                            Skipped · {{ skipByEmployee[employee.id].source }}
+                                        </span>
+                                        <!-- The source alone does not say which leave
+                                             this was. Our own label only - the vendor's
+                                             reason text is never fetched or stored. -->
+                                        <span
+                                            v-if="skipReason(skipByEmployee[employee.id])"
+                                            class="block text-[11px] text-slate-500 mt-0.5 truncate max-w-[16rem]"
+                                        >
+                                            {{ skipReason(skipByEmployee[employee.id]) }}
+                                        </span>
+                                    </template>
                                     <span v-else class="text-emerald-400 text-xs font-semibold">Taking meal</span>
                                 </td>
                                 <td class="py-3 px-4 text-right">
