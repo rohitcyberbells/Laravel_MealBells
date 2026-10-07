@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     company: Object,
@@ -9,7 +10,29 @@ const props = defineProps({
     todayOverride: Object,
     todayMeal: Object,
     notifications: Array,
+    // Both were computed by the controller and read by nothing, so the
+    // dashboard ran CalculateExpectedMeals eight times a load for a forecast
+    // it threw away.
+    todayStats: { type: Object, default: null },
+    forecast: { type: Array, default: () => [] },
 });
+
+const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Parsed as a plain calendar date: `new Date('2026-10-08')` is UTC midnight,
+// which in a behind-UTC timezone renders as the previous day.
+const dayLabel = (iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return WEEKDAY[new Date(y, m - 1, d).getDay()];
+};
+
+const dayNumber = (iso) => Number(iso.split('-')[2]);
+
+// A locked day reports what the kitchen was actually told; an open one is still
+// an estimate.
+const expectedFor = (day) => (day.is_locked ? day.adjusted_total : day.final_expected_count);
+
+const forecastDays = computed(() => props.forecast.filter((d) => d.is_meal_day));
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -48,6 +71,80 @@ const getPlannedMeal = (day) => {
             </section>
 
             <template v-else>
+                <!-- 🍽️ Today's count and the week ahead -->
+                <section v-if="todayStats" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                    <div class="flex items-start justify-between flex-wrap gap-3 mb-5">
+                        <div>
+                            <h2 class="text-xl font-bold text-cyan-400">🍽️ Meal count</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Everyone eligible is counted unless a skip says otherwise.
+                            </p>
+                        </div>
+                        <span
+                            :class="[
+                                'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border',
+                                todayStats.is_locked
+                                    ? 'bg-slate-700/40 text-slate-300 border-slate-600'
+                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            ]"
+                        >
+                            {{ todayStats.is_locked ? 'Locked · sent to kitchen' : 'Open · still an estimate' }}
+                        </span>
+                    </div>
+
+                    <div v-if="!todayStats.is_meal_day" class="text-sm text-slate-400 bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        No meal today — it is not a meal day for your company.
+                    </div>
+
+                    <template v-else>
+                        <!-- Expected = base − skips + extra, the same arithmetic
+                             the engine locks at cutoff. -->
+                        <div class="flex flex-wrap items-end gap-3 text-center">
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-slate-400">Eligible</span>
+                                <div class="text-2xl font-extrabold text-slate-200">{{ todayStats.base_eligible_count }}</div>
+                            </div>
+                            <span class="text-xl text-slate-500 pb-3">−</span>
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-slate-400">Skips</span>
+                                <div class="text-2xl font-extrabold text-amber-400">{{ todayStats.skip_count }}</div>
+                            </div>
+                            <span class="text-xl text-slate-500 pb-3">+</span>
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-slate-400">Extra</span>
+                                <div class="text-2xl font-extrabold text-cyan-300">{{ todayStats.extra_count }}</div>
+                            </div>
+                            <span class="text-xl text-slate-500 pb-3">=</span>
+                            <div class="bg-cyan-500/10 border border-cyan-500/40 rounded-xl px-5 py-3 min-w-[7rem]">
+                                <span class="text-[10px] uppercase font-semibold text-cyan-300">Expected</span>
+                                <div class="text-3xl font-extrabold text-cyan-300">{{ expectedFor(todayStats) }}</div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div v-if="forecastDays.length" class="mt-6 pt-5 border-t border-slate-800">
+                        <p class="text-[11px] uppercase font-semibold text-slate-400 mb-3">Next meal days</p>
+                        <div class="flex flex-wrap gap-2">
+                            <div
+                                v-for="day in forecastDays"
+                                :key="day.date"
+                                :title="`${day.date} · ${day.base_eligible_count} eligible − ${day.skip_count} skips + ${day.extra_count} extra`"
+                                class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-center min-w-[4.5rem]"
+                            >
+                                <span class="block text-[10px] uppercase font-semibold text-slate-500">
+                                    {{ dayLabel(day.date) }} {{ dayNumber(day.date) }}
+                                </span>
+                                <span class="block text-lg font-extrabold text-slate-200">{{ expectedFor(day) }}</span>
+                                <span v-if="day.skip_count" class="block text-[10px] text-amber-400">−{{ day.skip_count }}</span>
+                                <span v-else class="block text-[10px] text-slate-600">full</span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-2">
+                            Non-meal days are left out. Figures move until each day's cutoff.
+                        </p>
+                    </div>
+                </section>
+
                 <!-- 🔔 Recent Notifications Feed -->
                 <section v-if="notifications && notifications.length" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
                     <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
