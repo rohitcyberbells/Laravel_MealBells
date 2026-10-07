@@ -40,6 +40,19 @@ return [
     'attendance_sources' => ['manual', 'integrated', 'none'],
 
     /*
+     * Suffix for the stand-in address given to an employee who has none.
+     *
+     * users.email is NOT NULL and unique, so an account needs one even when the
+     * person cannot receive mail. Anything ending in this is never written to:
+     * that employee signs in with their company code and employee code, and a
+     * password reset for them goes through their HR team instead.
+     *
+     * Shared by CreateEmployeeLogins and the reset flow so the two cannot
+     * disagree about what counts as unreachable.
+     */
+    'placeholder_email_suffix' => '.local',
+
+    /*
      * When a day's count is flagged as unusual and escalated. Worth tuning per
      * deployment: a company of 20 and one of 2,000 do not deviate alike.
      */

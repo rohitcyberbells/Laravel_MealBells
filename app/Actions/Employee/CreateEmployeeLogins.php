@@ -123,11 +123,13 @@ class CreateEmployeeLogins
         $companyCode = strtolower($company->code ?? 'cmp');
         $empCode = strtolower(preg_replace('/[^A-Za-z0-9]/', '', $employeeCode));
 
-        $email = "{$empCode}@{$companyCode}.local";
+        $suffix = config('mealbells.placeholder_email_suffix', '.local');
+
+        $email = "{$empCode}@{$companyCode}{$suffix}";
         $counter = 1;
 
         while (User::where('email', $email)->exists()) {
-            $email = "{$empCode}{$counter}@{$companyCode}.local";
+            $email = "{$empCode}{$counter}@{$companyCode}{$suffix}";
             $counter++;
         }
 

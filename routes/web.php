@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CompanyAdmin\AdoptionReportController;
 use App\Http\Controllers\CompanyAdmin\CompanyAdminController;
 use App\Http\Controllers\CompanyAdmin\CompanyCalendarController;
@@ -43,6 +44,21 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login');
+
+    // Forgotten passwords. Throttled per address as well as per place, because
+    // the response is identical either way - so without a limit this form is a
+    // way to mail-bomb one person, or to walk a list of addresses.
+    Route::get('/forgot-password', [PasswordResetController::class, 'showRequestForm'])
+        ->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
+        ->middleware('throttle:password-reset')
+        ->name('password.email');
+
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
+        ->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+        ->middleware('throttle:password-reset')
+        ->name('password.store');
 });
 
 // Authenticated Routes

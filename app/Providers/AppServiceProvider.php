@@ -88,6 +88,16 @@ class AppServiceProvider extends ServiceProvider
          * So the account gets its own slower budget as well. A request has to
          * satisfy both.
          */
+        /*
+         * The reset form answers identically whether or not an account exists,
+         * so without a limit it is a way to mail-bomb one address, or to walk a
+         * list of them. Limited per address and per place at once.
+         */
+        RateLimiter::for('password-reset', fn (Request $request) => [
+            Limit::perMinute(10)->by('ip:'.$request->ip()),
+            Limit::perHour(5)->by('email:'.strtolower(trim((string) $request->input('email')))),
+        ]);
+
         RateLimiter::for('login', function (Request $request) {
             $identifier = strtolower(trim((string) (
                 $request->input('identifier')
