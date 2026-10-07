@@ -229,4 +229,47 @@ class DemoSeederTest extends TestCase
 
         $this->assertEquals($before, Company::count());
     }
+
+    /**
+     * These reasons are shown to a company admin on the roster, and during a
+     * rehearsal they read "Leave recorded for the demo" - the word "demo" on
+     * screen in front of the audience.
+     */
+    public function test_no_seeded_reason_mentions_the_demo(): void
+    {
+        $reasons = array_merge(
+            Skip::pluck('reason')->filter()->all(),
+            MealAdjustment::pluck('reason')->filter()->all(),
+        );
+
+        $this->assertNotEmpty($reasons);
+
+        foreach ($reasons as $reason) {
+            $this->assertStringNotContainsStringIgnoringCase('demo', $reason, "reason reads: {$reason}");
+            $this->assertStringNotContainsStringIgnoringCase('seeded', $reason);
+            $this->assertStringNotContainsStringIgnoringCase('test', $reason);
+        }
+    }
+
+    /**
+     * Each source should read like that source wrote it: an HR entry must not
+     * sound like an employee's own note.
+     */
+    public function test_each_skip_source_has_its_own_wording(): void
+    {
+        $bySource = Skip::whereNotNull('reason')
+            ->get()
+            ->groupBy('source')
+            ->map(fn ($group) => $group->pluck('reason')->unique()->values()->all());
+
+        // The four hand-entered sources the seeder covers.
+        foreach (['leave', 'wfh', 'hr', 'self'] as $source) {
+            $this->assertArrayHasKey($source, $bySource->all(), "no seeded skip with source '{$source}'");
+        }
+
+        $firstOf = fn (string $s) => $bySource[$s][0];
+
+        $this->assertNotEquals($firstOf('hr'), $firstOf('self'), 'HR and self share wording');
+        $this->assertNotEquals($firstOf('leave'), $firstOf('wfh'), 'leave and WFH share wording');
+    }
 }

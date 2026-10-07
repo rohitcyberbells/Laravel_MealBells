@@ -294,10 +294,23 @@ class DemoSeeder extends Seeder
         ]);
 
         // Skips from every source the engine understands.
-        $sources = ['leave', 'wfh', 'hr', 'self'];
+        //
+        // The reason is what a company admin reads on the roster, so each source
+        // gets wording that source would plausibly produce - an HR entry does
+        // not sound like an employee's own note. Saying "recorded for the demo"
+        // put the word "demo" on screen during a demo.
+        $sources = [
+            'leave' => 'Family function',
+            'wfh' => 'Working from home today',
+            'hr' => 'Out of station for a client meeting',
+            'self' => 'Doctor appointment',
+        ];
 
-        foreach ($sources as $offset => $source) {
+        $offset = 0;
+
+        foreach ($sources as $source => $reason) {
             $employee = $employees[$offset] ?? null;
+            $offset++;
 
             if (! $employee) {
                 continue;
@@ -308,7 +321,7 @@ class DemoSeeder extends Seeder
                 'employee_id' => $employee->id,
                 'date' => $nextDay,
                 'source' => $source,
-                'reason' => ucfirst($source).' recorded for the demo',
+                'reason' => $reason,
                 'created_by' => in_array($source, ['hr', 'leave', 'wfh'], true) ? $admin->id : $employee->user_id,
             ]);
         }
@@ -341,7 +354,7 @@ class DemoSeeder extends Seeder
                 'employee_id' => $employees[4]->id,
                 'date' => $laterDay,
                 'source' => 'self',
-                'reason' => 'Changed their mind',
+                'reason' => 'Plans changed',
             ]);
 
             $cancelled->update(['cancelled_at' => now(), 'cancelled_by' => $employees[4]->user_id ?? $admin->id]);
@@ -383,7 +396,7 @@ class DemoSeeder extends Seeder
                 'employee_id' => $employees->first()->id,
                 'date' => $date,
                 'source' => 'leave',
-                'reason' => 'Was on leave',
+                'reason' => 'Travelling for work',
                 'created_by' => $admin->id,
             ]);
         }
@@ -591,7 +604,7 @@ class DemoSeeder extends Seeder
                 'from_date' => $date,
                 'to_date' => $date,
                 'type' => 'Casual Leave',
-                'reason' => 'Seeded demo event',
+                'reason' => 'Approved leave from the HR system',
             ],
         ];
     }
