@@ -21,7 +21,6 @@ use App\Http\Controllers\TiffinAdmin\TiffinAdminController;
 use App\Http\Controllers\TiffinAdmin\VendorPreparationController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -34,7 +33,10 @@ Route::get('/', function () {
         };
     }
 
-    return Inertia::render('Welcome');
+    // Guests go straight to the sign-in page. There is nothing public to show:
+    // every screen in MealBells belongs to a signed-in role, so a separate
+    // landing page was only ever a developer smoke test.
+    return redirect()->route('login');
 });
 
 // Guest Auth Routes
