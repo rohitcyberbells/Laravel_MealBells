@@ -136,11 +136,48 @@ class HrmsPullConnectionScreenTest extends TestCase
 
     /**
      * This form sends a password to a third-party host; over plain http it would
-     * travel in clear.
+     * travel in clear. SafeHrmsBaseUrl carries the detail - these prove the form
+     * is actually wired to it.
      */
     public function test_a_plain_http_url_is_refused(): void
     {
         $this->save(['base_url' => 'http://hrms.cyberpulse.test'])->assertSessionHasErrors('base_url');
+
+        $this->assertDatabaseCount('company_hrms_connections', 0);
+    }
+
+    /**
+     * The host is supplied by an admin and the server then signs in to it, so
+     * without this the form is a way to probe the private network from inside
+     * it - 169.254.169.254 being instance metadata on a cloud host.
+     */
+    public function test_a_private_address_is_refused_by_the_form(): void
+    {
+        foreach (['https://10.0.0.5/api', 'https://192.168.1.10', 'https://169.254.169.254/'] as $url) {
+            $this->save(['base_url' => $url])->assertSessionHasErrors('base_url');
+        }
+
+        $this->assertDatabaseCount('company_hrms_connections', 0);
+    }
+
+    /**
+     * A developer's stub HRMS has no certificate, and forcing one would only get
+     * the check disabled outright. The suite runs as 'testing', which is relaxed.
+     *
+     * The production half of this is asserted in SafeHrmsBaseUrlTest rather than
+     * here: flipping the app environment mid-request changes the session cookie
+     * to secure-only, the test request loses its session, and the form is never
+     * reached at all - so a test written that way would pass without proving
+     * anything.
+     */
+    public function test_a_local_stub_over_http_is_accepted_in_a_local_environment(): void
+    {
+        $this->save(['base_url' => 'http://127.0.0.1:8901'])->assertSessionHasNoErrors();
+
+        $this->assertEquals(
+            'http://127.0.0.1:8901',
+            CompanyHrmsConnection::where('company_id', $this->company->id)->sole()->pull_base_url,
+        );
     }
 
     public function test_the_adapter_must_be_one_we_configured(): void
