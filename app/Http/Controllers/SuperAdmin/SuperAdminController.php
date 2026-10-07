@@ -11,6 +11,7 @@ use App\Models\TiffinService;
 use App\Models\User;
 use App\Models\WeeklyMenu;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -50,6 +51,18 @@ class SuperAdminController extends Controller
                     'secret_rotated_at' => $connections->get($company->id)?->secret_rotated_at?->toDateTimeString(),
                 ],
             ]),
+            // Listed so an archive is visible and reversible rather than just
+            // gone from the page.
+            'archivedCompanies' => Company::onlyTrashed()
+                ->with('deletedBy:id,name')
+                ->get()
+                ->map(fn (Company $company) => [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'code' => $company->code,
+                    'deleted_at' => $company->deleted_at?->toDateTimeString(),
+                    'deleted_by' => $company->deletedBy?->name,
+                ]),
             'tiffinServices' => $tiffinServices->map(fn (TiffinService $tiffin) => [
                 ...$tiffin->toArray(),
                 'admins' => $tiffinAdmins->get($tiffin->id, collect())->values(),
@@ -178,13 +191,65 @@ class SuperAdminController extends Controller
         return back()->with('message', 'Company unpaired successfully!');
     }
 
-    public function destroyCompany(Company $company)
+    /**
+     * Archive a company. Nothing is destroyed.
+     *
+     * A hard delete cascaded across eleven tables, meal_counts among them -
+     * the record of what the kitchen was actually told, and the evidence in any
+     * billing dispute. A soft delete issues no DELETE at all, so the foreign
+     * keys stay quiet and every child row survives.
+     *
+     * Its users are deactivated rather than deleted, so their attribution on
+     * past skips and counts stays intact and the whole thing is reversible.
+     */
+    public function destroyCompany(Request $request, Company $company)
     {
-        User::where('company_id', $company->id)->delete();
-        CompanyTiffinAssignment::where('company_id', $company->id)->delete();
-        $company->delete();
+        // Typed, not clicked. A JS confirm() is one keystroke away from
+        // archiving the wrong tenant, and this is the most destructive action
+        // in the application.
+        $request->validate([
+            'confirm_name' => ['required', 'string'],
+        ]);
 
-        return back()->with('message', 'Company deleted successfully!');
+        if (trim($request->input('confirm_name')) !== $company->name) {
+            return back()->withErrors([
+                'confirm_name' => "That does not match. Type the company's name exactly: {$company->name}",
+            ]);
+        }
+
+        DB::transaction(function () use ($company, $request) {
+            User::where('company_id', $company->id)->update([
+                'is_active' => false,
+                'deactivated_at' => now(),
+                'deactivated_by' => $request->user()->id,
+            ]);
+
+            CompanyTiffinAssignment::where('company_id', $company->id)->update(['is_active' => false]);
+
+            $company->forceFill(['deleted_by' => $request->user()->id])->save();
+            $company->delete();
+        });
+
+        return back()->with('message', "{$company->name} is archived. Nothing was deleted, and it can be restored.");
+    }
+
+    public function restoreCompany(Request $request, int $companyId)
+    {
+        $company = Company::onlyTrashed()->findOrFail($companyId);
+
+        DB::transaction(function () use ($company) {
+            $company->restore();
+            $company->forceFill(['deleted_by' => null])->save();
+
+            // Their access comes back, but each account still has to be
+            // reactivated deliberately - restoring the company is not a
+            // decision about who should be able to sign in.
+            User::where('company_id', $company->id)
+                ->whereNotNull('deactivated_at')
+                ->update(['is_active' => true, 'deactivated_at' => null, 'deactivated_by' => null]);
+        });
+
+        return back()->with('message', "{$company->name} is restored, and its users can sign in again.");
     }
 
     /**
