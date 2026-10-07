@@ -102,16 +102,30 @@ class HotPathIndexesTest extends TestCase
     /**
      * The migration must be reversible, or it cannot be rolled back on a
      * deployment that goes wrong.
+     *
+     * The migration object is loaded and its down()/up() called directly rather
+     * than using `migrate:rollback --step 1`, which rolls back whatever happens
+     * to be last - so the test does not break every time a later migration is
+     * added, as it did once already.
      */
-    public function test_the_migration_rolls_back_and_forward(): void
+    public function test_the_migration_is_reversible(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 1])->assertSuccessful();
+        $file = collect(glob(database_path('migrations/*_add_hot_path_indexes.php')))->first();
+        $this->assertNotNull($file, 'the index migration was not found');
 
-        $this->assertFalse(Schema::hasIndex('skips', 'skips_company_id_date_index'));
+        $migration = require $file;
 
-        $this->artisan('migrate')->assertSuccessful();
+        $migration->down();
 
-        $this->assertTrue(Schema::hasIndex('skips', 'skips_company_id_date_index'));
+        foreach (self::expectedIndexes() as [$table, $index]) {
+            $this->assertFalse(Schema::hasIndex($table, $index), "{$index} survived down()");
+        }
+
+        $migration->up();
+
+        foreach (self::expectedIndexes() as [$table, $index]) {
+            $this->assertTrue(Schema::hasIndex($table, $index), "{$index} did not come back");
+        }
     }
 
     /** @return array<int, string> */

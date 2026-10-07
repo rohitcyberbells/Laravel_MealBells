@@ -23,7 +23,7 @@ class CompanySettingController extends Controller
             abort(404, 'Company not found.');
         }
 
-        $setting = $company->setting;
+        $setting = $company->setting()->with('updatedBy:id,name')->first();
 
         $companyAdmins = User::where('company_id', $company->id)
             ->where('role', 'company_admin')
@@ -46,6 +46,12 @@ class CompanySettingController extends Controller
             'advance_limit_days' => (int) config('mealbells.advance_limit_days', 60),
             'attendance_sources' => config('mealbells.attendance_sources', ['manual', 'integrated', 'none']),
             'temporary_password' => session('temporary_password'),
+            // So an admin can see who last moved the cutoff, which is the
+            // change most likely to need explaining afterwards.
+            'last_changed' => $setting?->settings_changed_at ? [
+                'at' => $setting->settings_changed_at->toDateTimeString(),
+                'by' => $setting->updatedBy?->name,
+            ] : null,
         ]);
     }
 
@@ -78,9 +84,13 @@ class CompanySettingController extends Controller
             }
         }
 
+        // Attributed, because this is the highest-leverage record there is:
+        // moving the cutoff or dropping a meal day changes every future count
+        // for the whole company. settings_changed_at is kept separate from
+        // updated_at, which also moves when nothing a person did was involved.
         CompanySetting::updateOrCreate(
             ['company_id' => $company->id],
-            $validated
+            [...$validated, 'updated_by' => $user->id, 'settings_changed_at' => now()],
         );
 
         return back()->with('message', 'Company settings updated successfully.');
