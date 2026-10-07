@@ -27,6 +27,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    hrms_pulls: {
+        type: Array,
+        default: () => [],
+    },
     hrms: {
         type: Object,
         default: () => ({
@@ -50,6 +54,17 @@ const hrmsMetrics = computed(() => [
     { label: 'Blocked 7d', value: props.hrms.last_7_days.blocked, tone: 'text-amber-400' },
     { label: 'Stale 7d', value: props.hrms.last_7_days.stale, tone: 'text-slate-300' },
 ]);
+
+const stalePulls = computed(() => props.hrms_pulls.filter((p) => p.is_stale));
+
+// 'suspicious' means the run finished but a safety guard stopped it acting, so
+// the data is stale rather than wrong - amber, not red.
+const pullTone = (pull) => {
+    if (pull.status === 'ok') return 'bg-emerald-500/20 text-emerald-400';
+    if (pull.status === 'suspicious') return 'bg-amber-500/20 text-amber-400';
+    if (pull.status === 'failed') return 'bg-red-500/20 text-red-400';
+    return 'bg-slate-700 text-slate-300';
+};
 
 </script>
 
@@ -125,6 +140,88 @@ const hrmsMetrics = computed(() => [
                     Set a cutoff time, timezone and meal days for:
                     <span class="font-semibold">{{ unconfigured_companies.map(c => c.company_name).join(', ') }}</span>
                 </p>
+            </div>
+
+            <!-- HRMS Pull Health: companies we poll rather than receive from -->
+            <div v-if="hrms_pulls.length" class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-5">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-200">⬇️ HRMS Pulls</h2>
+                        <p class="text-xs text-slate-400">
+                            Companies whose HRMS has no webhooks, so leave is polled instead.
+                        </p>
+                    </div>
+                    <span
+                        :class="[
+                            'px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
+                            stalePulls.length > 0
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse'
+                                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        ]"
+                    >
+                        {{ stalePulls.length > 0 ? `⚠️ ${stalePulls.length} NOT RUNNING` : '✅ ALL RUNNING' }}
+                    </span>
+                </div>
+
+                <!-- A pull that stopped looks exactly like a quiet day of no
+                     leave, so staleness is called out rather than inferred. -->
+                <div v-if="stalePulls.length > 0" class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <p class="text-sm font-semibold text-amber-300">
+                        {{ stalePulls.length }} company pull(s) have not run recently.
+                    </p>
+                    <p class="text-xs text-amber-200/80 mt-1">
+                        Leave approved in the HR system is not reaching the count. Check the scheduler and the vendor credentials.
+                    </p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-800/60 text-slate-400 uppercase text-[11px] font-semibold">
+                            <tr>
+                                <th class="py-3 px-4">Company</th>
+                                <th class="py-3 px-4">Source</th>
+                                <th class="py-3 px-4">Last run</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Applied</th>
+                                <th class="py-3 px-4 text-right">Cancelled</th>
+                                <th class="py-3 px-4 text-right">Ignored</th>
+                                <th class="py-3 px-4 text-right">Unknown</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            <template v-for="pull in hrms_pulls" :key="pull.company_id">
+                                <tr class="hover:bg-slate-800/30">
+                                    <td class="py-3 px-4 font-semibold text-slate-200">
+                                        {{ pull.company_name }}
+                                        <span class="font-mono text-[11px] text-slate-500">{{ pull.company_code }}</span>
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-400">{{ pull.adapter || '—' }}</td>
+                                    <td class="py-3 px-4 font-mono text-xs" :class="pull.is_stale ? 'text-amber-400' : 'text-slate-400'">
+                                        {{ pull.last_pull_at || 'never' }}
+                                        <span v-if="pull.minutes_ago !== null" class="text-slate-500">({{ pull.minutes_ago }} min ago)</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span :class="['px-2 py-0.5 rounded text-[11px] font-bold uppercase', pullTone(pull)]">
+                                            {{ pull.status || 'never run' }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-right font-bold text-slate-200">{{ pull.applied ?? '—' }}</td>
+                                    <td class="py-3 px-4 text-right font-bold text-slate-200">{{ pull.cancelled ?? '—' }}</td>
+                                    <td class="py-3 px-4 text-right text-slate-400">{{ pull.ignored ?? '—' }}</td>
+                                    <td class="py-3 px-4 text-right" :class="pull.unknown_employee > 0 ? 'text-amber-400 font-bold' : 'text-slate-500'">
+                                        {{ pull.unknown_employee ?? '—' }}
+                                    </td>
+                                </tr>
+                                <tr v-if="pull.error || pull.warnings.length" class="bg-slate-950/40">
+                                    <td colspan="8" class="py-2 px-4 text-xs space-y-1">
+                                        <p v-if="pull.error" class="text-red-300">{{ pull.error }}</p>
+                                        <p v-for="warning in pull.warnings" :key="warning" class="text-amber-300">{{ warning }}</p>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- HRMS Webhook Health -->
