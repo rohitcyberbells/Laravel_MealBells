@@ -265,6 +265,53 @@ class CompanyDashboardForecastTest extends TestCase
     }
 
     /**
+     * A tile showing "30" with "−4" beside it, against a base of 28, reads as
+     * arithmetic that does not add up - the extra meals were missing from the
+     * tile and only present in the tooltip.
+     */
+    public function test_a_forecast_tile_can_show_both_adjustments(): void
+    {
+        Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->employees[1]->id,
+            'date' => '2026-10-08', 'source' => 'hr',
+        ]);
+        MealAdjustment::create([
+            'company_id' => $this->company->id, 'date' => '2026-10-08',
+            'quantity' => 4, 'type' => 'guest', 'created_by' => $this->admin->id,
+        ]);
+
+        $day = collect($this->props()['forecast'])->firstWhere('date', '2026-10-08');
+
+        // Both numbers the tile needs are in the prop.
+        $this->assertEquals(1, $day['skip_count']);
+        $this->assertEquals(4, $day['extra_count']);
+        $this->assertEquals(10 - 1 + 4, $day['final_expected_count']);
+
+        $dashboard = file_get_contents(resource_path('js/Pages/CompanyAdmin/Dashboard.vue'));
+
+        // And the tile renders both, not only the skips.
+        $this->assertStringContainsString('−{{ day.skip_count }}', $dashboard);
+        $this->assertStringContainsString('+{{ day.extra_count }}', $dashboard);
+        // The tooltip spells the whole equation out.
+        $this->assertStringContainsString('= ${expectedFor(day)}', $dashboard);
+    }
+
+    /**
+     * A day that moved in neither direction says so instead of showing "−0 +0".
+     */
+    public function test_an_untouched_day_shows_no_adjustments(): void
+    {
+        $day = collect($this->props()['forecast'])->firstWhere('date', '2026-10-08');
+
+        $this->assertEquals(0, $day['skip_count']);
+        $this->assertEquals(0, $day['extra_count']);
+
+        $dashboard = file_get_contents(resource_path('js/Pages/CompanyAdmin/Dashboard.vue'));
+        $this->assertStringContainsString('dayDelta(day)', $dashboard);
+        $this->assertStringContainsString('>full<', $dashboard);
+    }
+
+    /**
      * `new Date('2026-10-08')` is UTC midnight, which renders as the 7th in any
      * behind-UTC timezone, so the strip must not parse dates that way.
      */

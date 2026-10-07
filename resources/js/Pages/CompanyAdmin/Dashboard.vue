@@ -34,6 +34,9 @@ const expectedFor = (day) => (day.is_locked ? day.adjusted_total : day.final_exp
 
 const forecastDays = computed(() => props.forecast.filter((d) => d.is_meal_day));
 
+// Whether a day moved off its base at all, in either direction.
+const dayDelta = (day) => (day.skip_count ?? 0) + (day.extra_count ?? 0) > 0;
+
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 const getPlannedMeal = (day) => {
@@ -128,14 +131,21 @@ const getPlannedMeal = (day) => {
                             <div
                                 v-for="day in forecastDays"
                                 :key="day.date"
-                                :title="`${day.date} · ${day.base_eligible_count} eligible − ${day.skip_count} skips + ${day.extra_count} extra`"
+                                :title="`${day.date} · ${day.base_eligible_count} − ${day.skip_count} + ${day.extra_count} = ${expectedFor(day)}`"
                                 class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-center min-w-[4.5rem]"
                             >
                                 <span class="block text-[10px] uppercase font-semibold text-slate-500">
                                     {{ dayLabel(day.date) }} {{ dayNumber(day.date) }}
                                 </span>
                                 <span class="block text-lg font-extrabold text-slate-200">{{ expectedFor(day) }}</span>
-                                <span v-if="day.skip_count" class="block text-[10px] text-amber-400">−{{ day.skip_count }}</span>
+                                <!-- Both adjustments, not just skips: showing
+                                     "−4" beside 30 against a base of 28 reads as
+                                     arithmetic that does not add up. -->
+                                <span v-if="dayDelta(day)" class="block text-[10px] whitespace-nowrap">
+                                    <span v-if="day.skip_count" class="text-amber-400">−{{ day.skip_count }}</span>
+                                    <span v-if="day.skip_count && day.extra_count" class="text-slate-600"> </span>
+                                    <span v-if="day.extra_count" class="text-cyan-300">+{{ day.extra_count }}</span>
+                                </span>
                                 <span v-else class="block text-[10px] text-slate-600">full</span>
                             </div>
                         </div>
