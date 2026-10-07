@@ -61,10 +61,11 @@ class CyberPulseAdapter implements HrmsVendorAdapter
      * than assumed to be full-day leave, because assuming wrongly cancels a meal
      * someone is going to eat.
      *
+     * @param  int  $revision  how many times this leave has already been cancelled
      * @param  array<string, mixed>  $leave
      * @return array<string, mixed>|null
      */
-    public function toEvent(array $leave, string $timezone): ?array
+    public function toEvent(array $leave, string $timezone, int $revision = 0): ?array
     {
         $leaveId = $this->str($leave['_id'] ?? null);
         $type = strtolower((string) $this->str($leave['leaveType'] ?? null));
@@ -85,7 +86,7 @@ class CyberPulseAdapter implements HrmsVendorAdapter
         $employee = is_array($leave['employeeId'] ?? null) ? $leave['employeeId'] : [];
 
         return [
-            'event_id' => $reference.':approved',
+            'event_id' => $this->eventId($reference, 'approved', $revision),
             'event_type' => $eventType,
             // CyberPulse records no decision timestamp, so the moment we observed
             // the state stands in for one. It only has to increase between runs,
@@ -111,12 +112,13 @@ class CyberPulseAdapter implements HrmsVendorAdapter
      * The cancellation counterpart, for a leave we applied that the vendor no
      * longer reports as approved.
      *
+     * @param  int  $revision  how many times this leave has already been cancelled
      * @return array<string, mixed>
      */
-    public function toCancellationEvent(string $leaveReference): array
+    public function toCancellationEvent(string $leaveReference, int $revision = 0): array
     {
         return [
-            'event_id' => $leaveReference.':cancelled',
+            'event_id' => $this->eventId($leaveReference, 'cancelled', $revision),
             'event_type' => 'leave_cancelled',
             'occurred_at' => now()->toIso8601String(),
             // A cancellation needs nothing but the leave reference: the skips to
@@ -135,6 +137,26 @@ class CyberPulseAdapter implements HrmsVendorAdapter
     public function reference(string $leaveId): string
     {
         return "cp:leave:{$leaveId}";
+    }
+
+    /**
+     * The event id, which is also the idempotency key.
+     *
+     * Revision 0 keeps the documented form exactly - `cp:leave:{id}:approved` -
+     * so the contract does not change for the ordinary case.
+     *
+     * A suffix only appears once a leave has been round-tripped. Without it, a
+     * leave that is approved, withdrawn and then approved again would reuse the
+     * id already consumed by the first approval: the second one would dedupe,
+     * nothing would be applied, and the person's meal would be counted while
+     * they were away. The counter is how many times the leave has been
+     * cancelled, so each state in the cycle gets its own key.
+     */
+    public function eventId(string $leaveReference, string $state, int $revision = 0): string
+    {
+        return $revision > 0
+            ? "{$leaveReference}:{$state}:r{$revision}"
+            : "{$leaveReference}:{$state}";
     }
 
     /**
