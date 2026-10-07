@@ -31,6 +31,7 @@ return [
         //         'occurred_at' => 'created_at',
         //         'leave_id' => 'data.leave_id',
         //         'employee_ref' => 'data.employee.code',
+        //         'employee_email' => 'data.employee.email',
         //         'from_date' => 'data.start',
         //         'to_date' => 'data.end',
         //         'leave_type' => 'data.category',
@@ -68,6 +69,9 @@ return [
         'occurred_at' => 'occurred_at',
         'leave_id' => 'leave.id',
         'employee_ref' => 'leave.employee_id',
+        // Optional. A secondary key for employee matching, used only when
+        // external_id and employee_code both miss.
+        'employee_email' => 'leave.employee_email',
         'from_date' => 'leave.from_date',
         'to_date' => 'leave.to_date',
         'leave_type' => 'leave.type',

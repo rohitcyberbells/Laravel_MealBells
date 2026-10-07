@@ -105,7 +105,9 @@ class HrmsEventMapper
             return HrmsEventPlan::unmappable('Payload carries no employee reference.');
         }
 
-        $employee = $this->resolveEmployee($company, $employeeReference);
+        $employeeEmail = $this->optionalString(Arr::get($payload, $paths['employee_email'] ?? ''));
+
+        [$employee, $backfillExternalId] = $this->resolveEmployee($company, $employeeReference, $employeeEmail);
 
         if (! $employee) {
             return HrmsEventPlan::unknownEmployee($employeeReference, $leaveExternalId);
@@ -140,6 +142,7 @@ class HrmsEventMapper
             nonMealDays: $expanded['non_meal_days'],
             outsideWindowDates: $expanded['outside_window'],
             actor: $this->actors->forCompany($company),
+            backfillExternalId: $backfillExternalId,
         );
     }
 
@@ -232,22 +235,60 @@ class HrmsEventMapper
     }
 
     /**
-     * external_id first, employee_code as the fallback. Both are scoped to the
+     * external_id, then employee_code, then email. Every lookup is scoped to the
      * company, so a vendor id belonging to another tenant cannot resolve here.
+     *
+     * Email is last because it is the weakest key: people change address and two
+     * systems disagree about it, whereas external_id is the vendor's own handle.
+     * An email match therefore reports the vendor id back, so the next event for
+     * this person resolves on the strong key instead.
+     *
+     * @return array{0: ?Employee, 1: ?string} the employee, and the vendor id to
+     *                                         write onto it when the match was by email
      */
-    protected function resolveEmployee(Company $company, string $reference): ?Employee
+    protected function resolveEmployee(Company $company, string $reference, ?string $email = null): array
     {
         $byExternalId = Employee::where('company_id', $company->id)
             ->where('external_id', $reference)
             ->first();
 
         if ($byExternalId) {
-            return $byExternalId;
+            return [$byExternalId, null];
         }
 
-        return Employee::where('company_id', $company->id)
+        $byCode = Employee::where('company_id', $company->id)
             ->whereRaw('UPPER(employee_code) = ?', [strtoupper(trim($reference))])
             ->first();
+
+        if ($byCode) {
+            return [$byCode, null];
+        }
+
+        // The reference itself can be an address, for a vendor that identifies
+        // people that way; an explicit email field wins when both are present.
+        $candidate = $email ?? (str_contains($reference, '@') ? $reference : null);
+
+        if ($candidate === null) {
+            return [null, null];
+        }
+
+        $byEmail = Employee::where('company_id', $company->id)
+            ->whereRaw('LOWER(email) = ?', [strtolower(trim($candidate))])
+            ->first();
+
+        if (! $byEmail) {
+            return [null, null];
+        }
+
+        // Only when empty, so a vendor id already recorded is never overwritten
+        // by a later event - and a repeat of the same event writes nothing.
+        $backfill = ($byEmail->external_id === null || trim((string) $byEmail->external_id) === '')
+            && $reference !== ''
+            && ! str_contains($reference, '@')
+                ? $reference
+                : null;
+
+        return [$byEmail, $backfill];
     }
 
     /**
