@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\Hrms\PullHrmsLeaves;
 use App\Models\Company;
+use App\Models\CompanyCalendarDay;
 use App\Models\CompanyHrmsConnection;
 use App\Models\CompanySetting;
 use App\Models\Employee;
@@ -812,6 +813,42 @@ class HrmsCyberPulsePullTest extends TestCase
         $this->assertFalse($summary['ok']);
         $this->assertStringContainsString('No CyberPulse credentials', (string) $summary['error']);
         Http::assertNothingSent();
+    }
+
+    /**
+     * The dry run exists to be pointed at a live HR system before a real one, so
+     * it has to agree with the real run. A leave falling entirely on a holiday
+     * is actionable in principle and has nothing to act on, which the apply step
+     * records as ignored.
+     */
+    public function test_a_leave_landing_only_on_a_holiday_is_reported_as_ignored_by_both_runs(): void
+    {
+        CompanyCalendarDay::create([
+            'company_id' => $this->company->id,
+            'date' => '2026-10-08',
+            'type' => 'holiday',
+            'note' => 'Founders Day',
+        ]);
+
+        $rows = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rows[0]['startDate'] = '2026-10-08T00:00:00.000Z';
+        $rows[0]['endDate'] = '2026-10-08T00:00:00.000Z';
+        $this->fakeVendor($rows);
+
+        $dry = $this->pull(dryRun: true);
+        $this->assertEquals(0, $dry['applied']);
+        $this->assertEquals(1, $dry['ignored']);
+
+        $real = $this->pull();
+        $this->assertEquals(0, $real['applied']);
+        $this->assertEquals(1, $real['ignored']);
+
+        // And the event row agrees too.
+        $this->assertEquals(
+            HrmsWebhookEvent::STATUS_IGNORED,
+            HrmsWebhookEvent::where('leave_external_id', 'cp:leave:66f1aa0000000000000000a1')->sole()->status,
+        );
+        $this->assertDatabaseCount('skips', 0);
     }
 
     // ----------------------------------------------------------- health page

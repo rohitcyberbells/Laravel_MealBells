@@ -168,8 +168,15 @@ class PullHrmsLeaves
         foreach ($approved as $reference => $event) {
             $plan = $this->mapper->map($company, $event);
 
+            // A plan can be actionable in principle and still have nothing to
+            // act on - a leave falling entirely on a weekend or a declared
+            // holiday. ApplyHrmsLeaveEvent records that as ignored, so the same
+            // judgement is made here: a dry run that reported it as "would
+            // apply" would disagree with the real run it exists to predict.
+            $nothingToDo = $plan->createDates === [] && $plan->releaseSkips()->isEmpty();
+
             $outcome = match ($plan->resolution) {
-                HrmsEventPlan::APPLY => 'apply',
+                HrmsEventPlan::APPLY => $nothingToDo ? 'ignored' : 'apply',
                 HrmsEventPlan::IGNORED => 'ignored',
                 HrmsEventPlan::UNKNOWN_EMPLOYEE => 'unknown_employee',
                 default => 'unreadable',
