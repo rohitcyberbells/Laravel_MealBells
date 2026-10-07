@@ -108,7 +108,18 @@ class CompanyCalendarController extends Controller
             }
         }
 
-        return back()->with('message', "Updated {$count} calendar days successfully.");
+        // Past and locked dates are passed over rather than failing the whole
+        // call, so a request can come back having done nothing at all - and
+        // "Updated 0 calendar days successfully" reads as if it worked.
+        if ($count === 0) {
+            return back()->withErrors([
+                'calendar' => 'Nothing was changed: none of those dates can still be edited.',
+            ]);
+        }
+
+        $noun = $count === 1 ? 'day' : 'days';
+
+        return back()->with('message', "Updated {$count} calendar {$noun} successfully.");
     }
 
     public function destroy(Request $request, CompanyCalendarDay $day, RemoveCalendarDay $action)
