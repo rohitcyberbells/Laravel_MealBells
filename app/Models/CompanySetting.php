@@ -15,9 +15,12 @@ class CompanySetting extends Model
         'meal_days',
         'primary_admin_id',
         'backup_admin_id',
+        'updated_by',
+        'settings_changed_at',
     ];
 
     protected $casts = [
+        'settings_changed_at' => 'datetime',
         'wfh_auto_skip' => 'boolean',
         'meal_days' => 'array',
     ];
@@ -46,5 +49,14 @@ class CompanySetting extends Model
     public function backupAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'backup_admin_id');
+    }
+
+    /**
+     * Who last changed these settings. Null for a row nothing has touched since
+     * the column was added, or whose user has since been deleted.
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

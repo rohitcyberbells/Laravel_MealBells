@@ -14,6 +14,7 @@ const props = defineProps({
     advance_limit_days: Number,
     attendance_sources: Array,
     temporary_password: { type: String, default: null },
+    last_changed: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -75,6 +76,12 @@ const addAdmin = () => {
                 <h1 class="text-2xl font-bold text-white">⚙️ Company Settings</h1>
                 <p class="text-sm text-slate-400">
                     These drive the daily count: when it closes, which days it runs, and who is told about it.
+                </p>
+                <!-- Moving the cutoff changes every future count, so it is worth
+                     being able to see who last did. -->
+                <p v-if="last_changed" class="text-xs text-slate-500 mt-1">
+                    Last changed <span class="font-mono text-slate-400">{{ last_changed.at }}</span>
+                    <span v-if="last_changed.by"> by {{ last_changed.by }}</span>
                 </p>
             </div>
 
