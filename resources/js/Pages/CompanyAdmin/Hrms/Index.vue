@@ -1,13 +1,15 @@
 <script setup>
 import AppLayout from '../../../Layouts/AppLayout.vue';
-import { useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     company: { type: Object, required: true },
     connection: { type: Object, required: true },
     events: { type: Array, default: () => [] },
     employee_hints: { type: Array, default: () => [] },
+    pull: { type: Object, default: () => ({ adapters: [] }) },
+    pull_test: { type: Object, default: null },
     new_secret: { type: String, default: null },
     test_result: { type: Object, default: null },
 });
@@ -26,6 +28,38 @@ const rotate = () => {
     }
     testForm.transform(() => ({})).post('/company-admin/hrms/secret', { preserveScroll: true });
 };
+
+// The password is write-only: it is never sent to this page, so the field starts
+// blank and an empty value means "keep the stored one".
+const pullForm = useForm({
+    base_url: props.pull.base_url || '',
+    email: props.pull.email || '',
+    password: '',
+    adapter: props.pull.adapter || props.pull.adapters[0] || 'cyberpulse',
+});
+
+const savePull = () => {
+    pullForm.post('/company-admin/hrms/pull-connection', {
+        preserveScroll: true,
+        onSuccess: () => pullForm.reset('password'),
+    });
+};
+
+const pullTesting = ref(false);
+
+const testPull = () => {
+    pullTesting.value = true;
+    router.post('/company-admin/hrms/pull-test', {}, {
+        preserveScroll: true,
+        onFinish: () => { pullTesting.value = false; },
+    });
+};
+
+const pullStatusTone = (status) => ({
+    ok: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    suspicious: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    failed: 'bg-red-500/15 text-red-400 border-red-500/30',
+}[status] || 'bg-slate-500/15 text-slate-300 border-slate-500/30');
 
 const sendTest = () => {
     testForm.transform((data) => data).post('/company-admin/hrms/test-event', { preserveScroll: true });
@@ -59,6 +93,114 @@ const hasEvents = computed(() => props.events.length > 0);
                 <p class="text-sm text-slate-400">
                     Point your HR system at this URL and it will record leave and WFH as meal skips automatically.
                 </p>
+            </div>
+
+            <!-- Pull connection: for an HR system that cannot push to us -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-200">⬇️ Pull from your HR system</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Use this when your HR system cannot send us webhooks. We sign in and read approved
+                            leave on a schedule — nothing is ever written back to it.
+                        </p>
+                    </div>
+                    <span v-if="pull.last_pull_status" :class="['px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border', pullStatusTone(pull.last_pull_status)]">
+                        {{ pull.last_pull_status }}
+                    </span>
+                </div>
+
+                <p v-if="pull.last_pull_at" class="text-xs text-slate-500">
+                    Last run <span class="font-mono text-slate-400">{{ pull.last_pull_at }}</span>
+                    <span v-if="pull.last_pull_error" class="text-red-400"> — {{ pull.last_pull_error }}</span>
+                </p>
+
+                <form @submit.prevent="savePull" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">HR system URL</label>
+                        <input v-model="pullForm.base_url" type="url" placeholder="https://hrms.yourcompany.com" required
+                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono" />
+                        <p class="text-[10px] text-slate-500 mt-1">Must be https — this sends a password to that host.</p>
+                        <p v-if="pullForm.errors.base_url" class="text-xs text-red-400 mt-1">{{ pullForm.errors.base_url }}</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Login email</label>
+                        <input v-model="pullForm.email" type="email" required
+                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                        <p v-if="pullForm.errors.email" class="text-xs text-red-400 mt-1">{{ pullForm.errors.email }}</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Password</label>
+                        <input v-model="pullForm.password" type="password" autocomplete="new-password"
+                               :placeholder="pull.has_password ? 'Stored — leave blank to keep it' : 'Required'"
+                               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+                        <!-- Never sent to this page, so it cannot be shown back. -->
+                        <p class="text-[10px] mt-1" :class="pull.has_password ? 'text-emerald-400' : 'text-slate-500'">
+                            {{ pull.has_password ? '✓ A password is stored. It is encrypted and never shown again.' : 'No password stored yet.' }}
+                        </p>
+                        <p v-if="pullForm.errors.password" class="text-xs text-red-400 mt-1">{{ pullForm.errors.password }}</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">HR system</label>
+                        <select v-model="pullForm.adapter" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white cursor-pointer">
+                            <option v-for="name in pull.adapters" :key="name" :value="name">{{ name }}</option>
+                        </select>
+                        <p v-if="pullForm.errors.adapter" class="text-xs text-red-400 mt-1">{{ pullForm.errors.adapter }}</p>
+                    </div>
+
+                    <div class="flex items-end gap-2">
+                        <button type="submit" :disabled="pullForm.processing"
+                                class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-slate-950 font-bold rounded-lg text-sm cursor-pointer">
+                            Save connection
+                        </button>
+                        <button type="button" @click="testPull" :disabled="pullTesting || !pull.has_password"
+                                :title="pull.has_password ? 'Fetch and report, without changing anything' : 'Save a password first'"
+                                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-bold rounded-lg text-sm border border-slate-700 cursor-pointer">
+                            {{ pullTesting ? 'Testing…' : 'Test connection' }}
+                        </button>
+                    </div>
+                </form>
+
+                <!-- A dry run: reports what a real one would do, writes nothing -->
+                <div
+                    v-if="pull_test"
+                    :class="[
+                        'rounded-xl p-4 border',
+                        pull_test.ok ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'
+                    ]"
+                >
+                    <p class="text-sm font-bold" :class="pull_test.ok ? 'text-emerald-300' : 'text-red-300'">
+                        {{ pull_test.ok ? '✅ Connected' : '❌ Could not connect' }}
+                    </p>
+                    <p v-if="pull_test.error" class="text-xs mt-1" :class="pull_test.ok ? 'text-emerald-200/80' : 'text-red-200/90'">
+                        {{ pull_test.error }}
+                    </p>
+
+                    <div v-if="pull_test.ok" class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div v-for="metric in [
+                            { label: 'Fetched', value: pull_test.fetched },
+                            { label: 'Would apply', value: pull_test.applied },
+                            { label: 'Would cancel', value: pull_test.cancelled },
+                            { label: 'Ignored', value: pull_test.ignored },
+                            { label: 'Unknown employee', value: pull_test.unknown_employee },
+                        ]" :key="metric.label" class="bg-slate-950/60 rounded-lg px-3 py-2 border border-slate-800">
+                            <span class="text-[10px] uppercase font-semibold text-slate-400">{{ metric.label }}</span>
+                            <div class="text-lg font-extrabold text-slate-100">{{ metric.value }}</div>
+                        </div>
+                    </div>
+
+                    <p v-if="pull_test.ok" class="text-[11px] text-slate-400 mt-2">
+                        Nothing was changed — this was a dry run.
+                        <span v-if="pull_test.unknown_employee > 0" class="text-amber-400">
+                            {{ pull_test.unknown_employee }} leave(s) matched no employee here; set their HR id or email on the employee.
+                        </span>
+                    </p>
+
+                    <p v-for="warning in pull_test.warnings" :key="warning" class="text-xs text-amber-300 mt-1">{{ warning }}</p>
+                </div>
             </div>
 
             <!-- One-time secret -->

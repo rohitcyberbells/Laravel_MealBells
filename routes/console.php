@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\HrmsPullRun;
 use App\Models\HrmsWebhookEvent;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -26,4 +27,6 @@ Schedule::command('hrms:pull', ['--all' => true, '--before-cutoff' => true])
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
-Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class]])->dailyAt('03:00')->onOneServer();
+Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class, HrmsPullRun::class]])
+    ->dailyAt('03:00')
+    ->onOneServer();
