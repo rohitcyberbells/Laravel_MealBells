@@ -142,6 +142,13 @@ class LoginController extends Controller
             return false;
         }
 
+        // An archived company's people cannot sign in. The company is
+        // soft-deleted, so the relation resolves to null while company_id still
+        // points at it - which is exactly the condition to refuse.
+        if ($user->company_id !== null && $user->company === null) {
+            return false;
+        }
+
         if ($user->role !== 'employee') {
             return true;
         }

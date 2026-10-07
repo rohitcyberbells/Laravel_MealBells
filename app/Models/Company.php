@@ -3,11 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Company extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
+        'deleted_by',
         'code',
         'name',
         'address',
@@ -66,5 +71,10 @@ class Company extends Model
     public function mealCounts()
     {
         return $this->hasMany(MealCount::class);
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

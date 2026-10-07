@@ -8,6 +8,7 @@ const props = defineProps({
     hrms_secret: { type: Object, default: null },
     tiffinServices: Array,
     assignments: Array,
+    archivedCompanies: { type: Array, default: () => [] },
     temporary_password: { type: String, default: null },
     reset_for: { type: Object, default: null },
 });
@@ -84,10 +85,26 @@ const submitAssign = () => {
     });
 };
 
-const deleteCompany = (companyId, companyName) => {
-    if (confirm(`Are you sure you want to delete ${companyName}? This action cannot be undone.`)) {
-        router.delete(`/super-admin/companies/${companyId}`);
-    }
+// Typed, not clicked. A confirm() is one keystroke away from archiving the
+// wrong tenant, and this is the most destructive action in the application.
+const archiveForm = useForm({ confirm_name: '' });
+const archiving = ref(null);
+
+const beginArchive = (company) => {
+    archiving.value = company;
+    archiveForm.reset('confirm_name');
+    archiveForm.clearErrors();
+};
+
+const archiveCompany = () => {
+    archiveForm.delete(`/super-admin/companies/${archiving.value.id}`, {
+        preserveScroll: true,
+        onSuccess: () => { archiving.value = null; },
+    });
+};
+
+const restoreCompany = (company) => {
+    router.post(`/super-admin/companies/${company.id}/restore`, {}, { preserveScroll: true });
 };
 
 const unpairCompany = (companyId, companyName) => {
@@ -294,13 +311,62 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                             >
                                 {{ c.hrms?.has_secret ? '🔄 Rotate HRMS secret' : '🔑 Generate HRMS secret' }}
                             </button>
-                            <button @click="deleteCompany(c.id, c.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
-                                Delete
+                            <button @click="beginArchive(c)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+                                Archive
                             </button>
                         </div>
                     </div>
                 </div>
             </section>
+
+            <!-- Archiving asks for the name, because nothing else about this
+                 action is reversible by a click. -->
+            <div v-if="archiving" class="bg-red-500/10 border border-red-500/40 rounded-xl p-5 space-y-3">
+                <div>
+                    <h4 class="font-bold text-red-300">Archive {{ archiving.name }}?</h4>
+                    <p class="text-xs text-red-200/80 mt-1">
+                        Its employees, skips and counts are all kept — nothing is deleted. Everyone at this company
+                        stops being able to sign in, and you can restore it below.
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase font-semibold text-red-200/70 mb-1">
+                        Type <span class="font-mono text-red-200">{{ archiving.name }}</span> to confirm
+                    </label>
+                    <input
+                        v-model="archiveForm.confirm_name"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                        :placeholder="archiving.name"
+                    />
+                    <p v-if="archiveForm.errors.confirm_name" class="text-xs text-red-300 mt-1">{{ archiveForm.errors.confirm_name }}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        @click="archiveCompany"
+                        :disabled="archiveForm.processing || archiveForm.confirm_name !== archiving.name"
+                        class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-lg text-sm cursor-pointer"
+                    >
+                        Archive company
+                    </button>
+                    <button @click="archiving = null" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm border border-slate-700 cursor-pointer">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="archivedCompanies.length" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                <h3 class="text-sm font-bold text-slate-300">Archived companies</h3>
+                <div v-for="c in archivedCompanies" :key="c.id" class="flex items-center justify-between gap-3 text-xs bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+                    <div>
+                        <span class="font-bold text-slate-200">{{ c.name }}</span>
+                        <span class="font-mono text-slate-500 ml-2">{{ c.code }}</span>
+                        <span class="text-slate-500 ml-2">archived {{ c.deleted_at }}<span v-if="c.deleted_by"> by {{ c.deleted_by }}</span></span>
+                    </div>
+                    <button @click="restoreCompany(c)" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded transition font-medium">
+                        Restore
+                    </button>
+                </div>
+            </div>
 
             <!-- Tiffin Services -->
             <section v-if="activeTab === 'tiffins'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
