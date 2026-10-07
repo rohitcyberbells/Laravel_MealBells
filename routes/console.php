@@ -41,3 +41,9 @@ Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class, HrmsPul
 Schedule::command('mealbells:prune-operational-data')
     ->dailyAt('03:15')
     ->onOneServer();
+
+// Before the prune, so a snapshot exists of whatever the prune is about to
+// remove. A failure is recorded and shows on the health page.
+Schedule::command('mealbells:backup')
+    ->dailyAt('02:30')
+    ->onOneServer();

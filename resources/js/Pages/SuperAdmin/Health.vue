@@ -31,6 +31,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    backup: {
+        type: Object,
+        default: () => ({ ever_run: false, ok: false, is_stale: true }),
+    },
     hrms_pulls: {
         type: Array,
         default: () => [],
@@ -165,6 +169,49 @@ const pullTone = (pull) => {
                     The cutoff job skips a company with no settings row, so it will never produce a snapshot.
                     Set a cutoff time, timezone and meal days for:
                     <span class="font-semibold">{{ unconfigured_companies.map(c => c.company_name).join(', ') }}</span>
+                </p>
+            </div>
+
+            <!-- A backup that silently stopped is only discovered when
+                 someone needs it, which is the worst possible moment. -->
+            <div
+                :class="[
+                    'p-6 rounded-2xl border shadow-xl space-y-3',
+                    backup.ok && !backup.is_stale
+                        ? 'bg-slate-900 border-slate-800'
+                        : 'bg-red-500/10 border-red-500/40'
+                ]"
+            >
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-200">💾 Database backup</h2>
+                        <p class="text-xs text-slate-400">
+                            Taken nightly. Local copies only — an off-host copy is a server-side job.
+                        </p>
+                    </div>
+                    <span
+                        :class="[
+                            'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border',
+                            backup.ok && !backup.is_stale
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                                : 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
+                        ]"
+                    >
+                        {{ !backup.ever_run ? '⚠️ never run' : (!backup.ok ? '❌ failed' : (backup.is_stale ? '⚠️ stale' : '✅ ok')) }}
+                    </span>
+                </div>
+
+                <p v-if="backup.ever_run" class="text-xs text-slate-400">
+                    Last run <span class="font-mono text-slate-300">{{ backup.at }}</span>
+                    <span v-if="backup.hours_ago !== null"> ({{ backup.hours_ago }}h ago)</span>
+                    <span v-if="backup.size_kb"> · {{ backup.size_kb }} KB</span>
+                </p>
+
+                <p v-if="backup.error" class="text-xs text-red-300">{{ backup.error }}</p>
+
+                <p v-if="!backup.ok || backup.is_stale" class="text-xs text-red-200/90">
+                    Nothing here is recoverable without one. See
+                    <span class="font-mono">docs/backup-restore.md</span>, and check the scheduler.
                 </p>
             </div>
 
