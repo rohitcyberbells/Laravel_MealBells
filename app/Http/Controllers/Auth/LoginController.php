@@ -125,8 +125,23 @@ class LoginController extends Controller
         return $this->completeLogin($request, $user);
     }
 
+    /**
+     * Whether this account may sign in at all.
+     *
+     * Two separate switches, because they are owned by different people: an
+     * employee is stood down on their employee record by their HR team, and any
+     * account can be deactivated by a super admin.
+     *
+     * Checked before the password in both login paths, so a deactivated account
+     * is refused in a way indistinguishable from a wrong address - saying
+     * "deactivated" would confirm the account exists.
+     */
     protected function employeeIsActive(User $user): bool
     {
+        if (! $user->is_active) {
+            return false;
+        }
+
         if ($user->role !== 'employee') {
             return true;
         }

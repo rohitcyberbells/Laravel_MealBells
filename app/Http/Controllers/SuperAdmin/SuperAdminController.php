@@ -33,7 +33,7 @@ class SuperAdminController extends Controller
         // deliberately absent: their own company admin resets those, and listing
         // every employee here would bury the handful of accounts that matter.
         $admins = User::whereIn('role', ['company_admin', 'tiffin_admin'])
-            ->select('id', 'name', 'email', 'role', 'company_id', 'tiffin_service_id', 'must_change_password')
+            ->select('id', 'name', 'email', 'role', 'company_id', 'tiffin_service_id', 'must_change_password', 'is_active', 'deactivated_at')
             ->orderBy('name')
             ->get();
 
@@ -185,6 +185,38 @@ class SuperAdminController extends Controller
         $company->delete();
 
         return back()->with('message', 'Company deleted successfully!');
+    }
+
+    /**
+     * Turn an account's access on or off.
+     *
+     * The alternative was deleting the row, which cascades and cannot be
+     * undone, or quietly changing the password - neither of which leaves a
+     * record of the decision.
+     */
+    public function setActive(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        // Locking yourself out of the only account that can unlock accounts is
+        // a one-way door, so it is refused rather than confirmed.
+        if ($user->id === $request->user()->id) {
+            return back()->withErrors(['is_active' => 'You cannot deactivate your own account.']);
+        }
+
+        $active = (bool) $validated['is_active'];
+
+        $user->forceFill([
+            'is_active' => $active,
+            'deactivated_at' => $active ? null : now(),
+            'deactivated_by' => $active ? null : $request->user()->id,
+        ])->save();
+
+        return back()->with('message', $active
+            ? "{$user->name} can sign in again."
+            : "{$user->name} can no longer sign in. Their records are untouched.");
     }
 
     public function resetPassword(Request $request, User $user)
