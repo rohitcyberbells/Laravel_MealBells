@@ -107,6 +107,8 @@ Every minute, as the web user. It drives:
 | `mealbells:generate-recurring-skips` | hourly | "Every Friday" rules stop producing skips |
 | `hrms:reconcile` | every 5 min | A webhook event that failed is never retried |
 | `model:prune` | 03:00 | HRMS payloads are never redacted |
+| `mealbells:backup` | 02:30 | **No backups at all.** Nothing here is recoverable without one |
+| `mealbells:prune-operational-data` | 03:15 | Sessions, notifications and failed jobs grow without limit |
 
 `process-cutoff` and `generate-recurring-skips` also write a heartbeat the
 **Health page** reads; it flags the scheduler stale after 3 minutes. If that
@@ -230,8 +232,18 @@ So: **take a database dump before every deploy that includes a migration**, and
 prefer rolling forward with a fix over rolling a schema change back.
 
 ```bash
-pg_dump -Fc mealbells > /backups/mealbells-$(date +%F-%H%M).dump
+php artisan mealbells:backup
 ```
+
+See [backup-restore.md](backup-restore.md) for the restore steps, the retention
+settings, and what the nightly backup does *not* cover (off-host copies and
+encryption are both the operator's job).
+
+> **One `down()` is known broken on SQLite.** Dropping `employees.user_id`
+> fails because a unique index still references it. It does not affect
+> PostgreSQL, but it means "every migration has a `down()`" is not the same as
+> "every rollback works" — another reason to restore from a dump rather than
+> roll a schema change back.
 
 ---
 
@@ -240,7 +252,7 @@ pg_dump -Fc mealbells > /backups/mealbells-$(date +%F-%H%M).dump
 | | |
 |---|---|
 | `GET /up` | Laravel's own endpoint. Point an uptime monitor here. It proves the app boots — it does **not** check the database, the queue or the scheduler. |
-| `/super-admin/health` | The real signals: scheduler heartbeat, failed jobs, missing snapshots, HRMS events stuck or abandoned, per-company pull status. Behind a login, so a monitor cannot read it. |
+| `/super-admin/health` | The real signals: scheduler heartbeat, the last backup, failed jobs with their oldest entry and queue breakdown, missing snapshots, HRMS events stuck or abandoned, per-company pull status. Behind a login, so a monitor cannot read it. |
 
 **Nothing alerts.** The Health page has to be opened by a person. Until that
 changes, someone needs to look at it daily — the failure that costs most (the
@@ -261,3 +273,6 @@ no leave.
 - [ ] no `:5173` in the page source
 - [ ] create a company, provision one employee login, and confirm the mail
       arrives
+- [ ] run `php artisan mealbells:backup` and confirm the Health page shows it
+- [ ] set `BACKUP_DIRECTORY` outside the release folder, and add an off-host
+      copy — see [backup-restore.md](backup-restore.md)

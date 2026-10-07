@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Console\Commands\BackupDatabase;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyHrmsConnection;
@@ -108,6 +109,7 @@ class HealthController extends Controller
         }
 
         return Inertia::render('SuperAdmin/Health', [
+            'backup' => $this->backupHealth(),
             'hrms' => $this->hrmsHealth(),
             'hrms_pulls' => $this->hrmsPullHealth(),
             'scheduler' => [
@@ -121,6 +123,50 @@ class HealthController extends Controller
             'missing_snapshots_today' => $missingSnapshotsToday,
             'unconfigured_companies' => $unconfiguredCompanies,
         ]);
+    }
+
+    /**
+     * The last backup, and whether it is recent enough to be worth anything.
+     *
+     * A backup that silently stopped is only discovered when someone needs it,
+     * which is the worst possible moment - so "never run" and "ran but failed"
+     * are both reported here as problems rather than as absence.
+     *
+     * @return array<string, mixed>
+     */
+    protected function backupHealth(): array
+    {
+        $status = Cache::get(BackupDatabase::STATUS_KEY);
+        $staleAfterHours = (int) config('backup.stale_after_hours', 36);
+
+        if (! $status) {
+            return [
+                'ever_run' => false,
+                'ok' => false,
+                'is_stale' => true,
+                'at' => null,
+                'hours_ago' => null,
+                'stale_after_hours' => $staleAfterHours,
+                'error' => 'No backup has ever been recorded.',
+                'path' => null,
+                'size_kb' => null,
+            ];
+        }
+
+        $at = Carbon::parse($status['at']);
+        $hoursAgo = (int) $at->diffInHours(now());
+
+        return [
+            'ever_run' => true,
+            'ok' => (bool) $status['ok'],
+            'is_stale' => $hoursAgo > $staleAfterHours,
+            'at' => $at->toDateTimeString(),
+            'hours_ago' => $hoursAgo,
+            'stale_after_hours' => $staleAfterHours,
+            'error' => $status['error'] ?? null,
+            'path' => $status['path'] ?? null,
+            'size_kb' => isset($status['bytes']) ? (int) round($status['bytes'] / 1024) : null,
+        ];
     }
 
     /**
