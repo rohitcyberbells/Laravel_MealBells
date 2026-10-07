@@ -13,6 +13,7 @@ use App\Models\WeeklyMenu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class SuperAdminController extends Controller
@@ -72,7 +73,7 @@ class SuperAdminController extends Controller
             'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
-            'admin_password' => 'nullable|string|min:6',
+            'admin_password' => ['nullable', 'string', Password::defaults()],
         ], [
             'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);
@@ -108,7 +109,7 @@ class SuperAdminController extends Controller
             'contact_phone' => ['required', 'string', 'regex:/^(\+?[0-9]{1,4}[\-\s]?)?[0-9]{10}$/'],
             'admin_name' => 'required|string|max:255',
             'admin_email' => 'required|email|unique:users,email',
-            'admin_password' => 'nullable|string|min:6',
+            'admin_password' => ['nullable', 'string', Password::defaults()],
         ], [
             'contact_phone.regex' => 'Please enter a valid 10-digit phone number (e.g. 9876543210 or +919876543210).',
         ]);

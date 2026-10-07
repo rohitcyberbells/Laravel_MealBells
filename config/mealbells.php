@@ -13,6 +13,12 @@ return [
      */
     'advance_limit_days' => env('MEALBELLS_ADVANCE_LIMIT_DAYS', 60),
 
+    /*
+     * Largest number of rows one CSV import may confirm. The upload itself is
+     * capped by file size, but the confirm step takes JSON rows.
+     */
+    'max_import_rows' => env('MEALBELLS_MAX_IMPORT_ROWS', 2000),
+
     'allowed_extra_types' => ['guest', 'visitor', 'other'],
 
     // 'link' is reserved, MVP mein use nahi

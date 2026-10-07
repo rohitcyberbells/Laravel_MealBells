@@ -42,7 +42,7 @@ Route::get('/', function () {
 // Guest Auth Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:5,1');
+    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login');
 });
 
 // Authenticated Routes

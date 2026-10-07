@@ -126,7 +126,11 @@ class EmployeeController extends Controller
     public function importCsv(Request $request, ImportEmployeeCsv $action)
     {
         $request->validate([
-            'rows' => 'required|array|min:1',
+            // The uploaded file is capped at 2MB, but this endpoint takes the
+            // previewed rows as JSON, not the file - so without a cap here a
+            // crafted request could hand the importer an unbounded array to
+            // process in one transaction.
+            'rows' => ['required', 'array', 'min:1', 'max:'.config('mealbells.max_import_rows', 2000)],
             'rows.*.employee_code' => 'required|string',
             'rows.*.name' => 'required|string',
             'rows.*.external_id' => 'nullable|string|max:255',

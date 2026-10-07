@@ -13,6 +13,7 @@ use App\Services\Hrms\Adapters\GenericHrmsAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Throwable;
 
@@ -103,7 +104,7 @@ class CompanyHrmsController extends Controller
             // whatever is entered here.
             'base_url' => ['required', 'string', 'max:255', new SafeHrmsBaseUrl],
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['nullable', 'string', 'min:6', 'max:255'],
+            'password' => ['nullable', 'string', 'max:255', Password::defaults()],
             // From the configured list, so a form post cannot name a class.
             'adapter' => ['required', 'string', Rule::in(array_keys(config('hrms.pull_adapters', [])))],
         ]);

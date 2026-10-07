@@ -243,8 +243,8 @@ class EmployeeEmailLoginTest extends TestCase
 
         $this->post('/change-password', [
             'current_password' => $credential['temporary_password'],
-            'password' => 'a-better-password',
-            'password_confirmation' => 'a-better-password',
+            'password' => 'a-better-password-7',
+            'password_confirmation' => 'a-better-password-7',
         ])->assertRedirect('/');
 
         $this->assertFalse($employee->fresh()->user->must_change_password);
