@@ -327,6 +327,24 @@ stored one, so changing the URL cannot silently clear it. Changing the URL,
 email or password clears the cached token, because that token was issued for the
 old identity or by the old host.
 
+**The URL is checked on scheme and host, not just a prefix.** The server signs
+in to whatever is entered, so without a host check the form would be a way to
+probe the private network from inside it:
+
+| | Production | Local / testing |
+|---|---|---|
+| `https://hrms.vendor.com` | allowed | allowed |
+| `http://hrms.vendor.com` | refused — this sends a password | refused |
+| `http://localhost:8901`, `http://127.0.0.1:8901` | refused | **allowed**, for a stub HRMS with no certificate |
+| `10.x`, `172.16-31.x`, `192.168.x`, `127.x`, `169.254.x`, `0.0.0.0`, `::1`, `fc00::/7`, `fe80::/10` | refused | refused |
+
+`169.254.169.254` is the one that matters most: on a cloud host that is the
+instance metadata endpoint.
+
+What is *not* checked is where a name resolves. A public hostname pointing at a
+private address still passes, and DNS can be re-pointed after validation, so
+that belongs at egress rather than in a form rule.
+
 From the console instead:
 
 ```bash
@@ -347,8 +365,15 @@ hidden from model serialisation.
 ### Checking it before it touches anything
 
 **Test connection** on that screen fetches and reports what a real run would
-apply, cancel, ignore and fail to match — and writes nothing. Same thing from
-the CLI:
+apply, cancel, ignore and fail to match — and writes nothing.
+
+When something did not match, it **names** the HR employee id and email behind
+each one, because a count alone cannot be acted on. Fix those by setting
+`external_id` (the HR system's own id) or the matching email on that employee in
+MealBells, then test again — after which the pull resolves them on the strong
+key by itself.
+
+Same thing from the CLI, which prints the same list:
 
 ```bash
 php artisan hrms:pull ACME01 --dry-run        # report only
@@ -404,6 +429,8 @@ Also deliberately absent:
   the request body is a password.
 - **`hrms_pull_runs`** holds counts, a status and warning strings only. No
   employee identifiers, no dates.
+- **The unmatched-employee list.** Shown on screen for one render and printed by
+  the command, never written to either stored record.
 
 What *is* kept is the canonical envelope per event in `hrms_webhook_events`,
 redacted after 30 days, and the run counts, deleted after 30 days.
