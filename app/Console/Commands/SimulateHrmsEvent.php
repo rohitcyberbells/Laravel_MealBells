@@ -35,6 +35,17 @@ class SimulateHrmsEvent extends Command
 
     public function handle(SendTestHrmsEvent $sender): int
     {
+        // This posts a real signed event through the real pipeline, so it
+        // creates real skips - someone's meal is cancelled by it. That is what
+        // makes it useful for onboarding a vendor and unacceptable in
+        // production, where there is no way to tell it from a genuine event.
+        if (app()->environment('production')) {
+            $this->error('hrms:simulate creates real skips and is refused in production.');
+            $this->line('Use `hrms:pull {company} --dry-run` to check a connection without writing.');
+
+            return self::FAILURE;
+        }
+
         $company = $this->resolveCompany();
 
         if (! $company) {
