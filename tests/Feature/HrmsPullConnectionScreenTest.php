@@ -232,6 +232,73 @@ class HrmsPullConnectionScreenTest extends TestCase
         $this->assertDatabaseCount('hrms_pull_runs', 0);
     }
 
+    /**
+     * A count alone is not actionable: an admin can only fix the mapping if they
+     * are told who failed to match.
+     */
+    public function test_the_test_button_names_the_employees_that_did_not_match(): void
+    {
+        $this->save();
+        $this->fakeVendor();
+
+        $this->actingAs($this->admin)->from('/company-admin/hrms')
+            ->post('/company-admin/hrms/pull-test');
+
+        $unmatched = collect($this->hrmsProps()['pull_test']['unmatched']);
+
+        $this->assertCount(2, $unmatched);
+
+        // Bob's WFH and the ghost leave, both naming someone we cannot place.
+        $this->assertEqualsCanonicalizing(
+            ['bob@alpha.test', 'nobody@alpha.test'],
+            $unmatched->pluck('employee_email')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['66e0bb0000000000000000e2', '66e0bb0000000000000000e9'],
+            $unmatched->pluck('employee_ref')->all(),
+        );
+
+        // Employees that DID match are not in the list.
+        $this->assertNotContains('alice@alpha.test', $unmatched->pluck('employee_email')->all());
+    }
+
+    /**
+     * These identifiers are useful on screen for one render and have no business
+     * in a stored column - the run history is deliberately free of PII.
+     */
+    public function test_the_unmatched_list_is_never_persisted(): void
+    {
+        $this->save();
+        $this->fakeVendor();
+        $this->artisan('hrms:pull', ['company' => 'ALPHA1']);
+
+        $connection = CompanyHrmsConnection::where('company_id', $this->company->id)->sole();
+
+        $this->assertArrayNotHasKey('unmatched', $connection->last_pull_summary);
+        // The count still is, so the health page can flag it.
+        $this->assertEquals(2, $connection->last_pull_summary['unknown_employee']);
+
+        $stored = json_encode([
+            (array) DB::table('company_hrms_connections')->first(),
+            (array) DB::table('hrms_pull_runs')->first(),
+        ]);
+
+        foreach (['bob@alpha.test', 'nobody@alpha.test', '66e0bb0000000000000000e2'] as $pii) {
+            $this->assertStringNotContainsString($pii, $stored);
+        }
+    }
+
+    public function test_the_command_lists_the_unmatched_employees(): void
+    {
+        $this->save();
+        $this->fakeVendor();
+
+        $this->artisan('hrms:pull', ['company' => 'ALPHA1'])
+            ->expectsOutputToContain('matched no employee in MealBells')
+            ->expectsOutputToContain('nobody@alpha.test')
+            ->assertSuccessful();
+    }
+
     public function test_the_test_button_reports_a_failure_rather_than_erroring(): void
     {
         $this->save();
@@ -461,6 +528,7 @@ class HrmsPullConnectionScreenTest extends TestCase
         $this->assertStringContainsString('/company-admin/hrms/pull-test', $page);
         $this->assertStringContainsString('pull_test', $page);
         $this->assertStringContainsString('has_password', $page);
+        $this->assertStringContainsString('pull_test.unmatched', $page);
 
         $props = $this->hrmsProps();
         $this->assertArrayHasKey('pull', $props);
