@@ -231,6 +231,17 @@ class PullHrmsLeaves
             }
 
             if ($dryRun) {
+                // The same dedupe the real run gets from the unique index. A dry
+                // run that skipped this check reported every already-applied
+                // leave as "would apply" and never reported a duplicate, so the
+                // numbers it printed were not the numbers a real run produced -
+                // which is the one thing a dry run is for.
+                if ($this->alreadyRecorded($company, $event['event_id'])) {
+                    $summary['duplicate']++;
+
+                    continue;
+                }
+
                 if ($outcome === 'apply') {
                     $summary['applied']++;
                 }
@@ -312,6 +323,12 @@ class PullHrmsLeaves
             ];
 
             if ($dryRun) {
+                if ($this->alreadyRecorded($company, $event['event_id'])) {
+                    $summary['duplicate']++;
+
+                    continue;
+                }
+
                 $summary['cancelled']++;
 
                 continue;
@@ -349,6 +366,19 @@ class PullHrmsLeaves
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * Whether this exact event state has been recorded before.
+     *
+     * Only consulted by a dry run: a real run learns the same thing from the
+     * unique index when the insert is refused.
+     */
+    protected function alreadyRecorded(Company $company, string $eventId): bool
+    {
+        return HrmsWebhookEvent::where('company_id', $company->id)
+            ->where('external_event_id', $eventId)
+            ->exists();
     }
 
     /**
