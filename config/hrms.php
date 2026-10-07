@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Hrms\Adapters\CyberPulseAdapter;
 use App\Services\Hrms\Adapters\GenericHrmsAdapter;
 
 return [
@@ -126,6 +127,17 @@ return [
     'default_adapter' => GenericHrmsAdapter::class,
 
     /*
+     * Adapters that can be driven by hrms:pull, keyed by the name stored in
+     * company_hrms_connections.pull_adapter.
+     *
+     * A company admin chooses from these on the connect screen, so the value can
+     * never be an arbitrary class name from a form post.
+     */
+    'pull_adapters' => [
+        'cyberpulse' => CyberPulseAdapter::class,
+    ],
+
+    /*
      * Largest webhook body accepted, checked before the signature is verified.
      * A leave event is a couple of kilobytes; 256KB leaves generous headroom for
      * a verbose vendor while keeping the pre-auth work bounded.
@@ -144,6 +156,12 @@ return [
          * did, while the vendor's raw PII does not.
          */
         'payload_days' => env('HRMS_PAYLOAD_RETENTION_DAYS', 30),
+
+        /*
+         * Days of pull-run history to keep. These rows hold only counts and a
+         * status, so they are deleted outright rather than redacted.
+         */
+        'pull_run_days' => env('HRMS_PULL_RUN_RETENTION_DAYS', 30),
     ],
 
     /*

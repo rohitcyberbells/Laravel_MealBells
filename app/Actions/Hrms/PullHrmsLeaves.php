@@ -5,6 +5,7 @@ namespace App\Actions\Hrms;
 use App\Jobs\ProcessHrmsLeaveEvent;
 use App\Models\Company;
 use App\Models\CompanyHrmsConnection;
+use App\Models\HrmsPullRun;
 use App\Models\HrmsWebhookEvent;
 use App\Models\Skip;
 use App\Services\Hrms\Adapters\CyberPulseAdapter;
@@ -370,6 +371,25 @@ class PullHrmsLeaves
     protected function finish(?CompanyHrmsConnection $connection, array $summary): array
     {
         if ($connection && ! $summary['dry_run']) {
+            // History, pruned after 30 days. Counts only - the per-leave detail
+            // would reintroduce employee identifiers into a table that has no
+            // need of them.
+            HrmsPullRun::create([
+                'company_id' => $connection->company_id,
+                'adapter' => $connection->pull_adapter,
+                'status' => $summary['status'],
+                'dry_run' => false,
+                'fetched' => $summary['fetched'],
+                'applied' => $summary['applied'],
+                'cancelled' => $summary['cancelled'],
+                'ignored' => $summary['ignored'],
+                'unknown_employee' => $summary['unknown_employee'],
+                'duplicate' => $summary['duplicate'],
+                'cancel_candidates' => $summary['cancel_candidates'],
+                'warnings' => $summary['warnings'],
+                'error' => $summary['error'],
+            ]);
+
             $connection->forceFill([
                 'last_pull_at' => now(),
                 'last_pull_status' => $summary['status'],

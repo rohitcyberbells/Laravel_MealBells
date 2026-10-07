@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\CompanyAdmin;
 
+use App\Actions\Hrms\PullHrmsLeaves;
 use App\Actions\Hrms\SendTestHrmsEvent;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyHrmsConnection;
@@ -10,6 +11,7 @@ use App\Models\HrmsWebhookEvent;
 use App\Services\Hrms\Adapters\GenericHrmsAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Throwable;
 
@@ -37,6 +39,18 @@ class CompanyHrmsController extends Controller
                 'tolerance_seconds' => config('hrms.webhook_defaults.tolerance_seconds'),
                 'max_body_bytes' => config('hrms.max_body_bytes'),
             ],
+            // Whether a credential exists and where it points, never the
+            // password or the cached token.
+            'pull' => [
+                'base_url' => $connection?->pull_base_url,
+                'email' => $connection?->pull_email,
+                'has_password' => (bool) $connection?->pull_password,
+                'adapter' => $connection?->pull_adapter,
+                'last_pull_at' => $connection?->last_pull_at?->toDateTimeString(),
+                'last_pull_status' => $connection?->last_pull_status,
+                'last_pull_error' => $connection?->last_pull_error,
+                'adapters' => array_keys(config('hrms.pull_adapters', [])),
+            ],
             'events' => $this->recentEvents($company->id),
             'employee_hints' => Employee::where('company_id', $company->id)
                 ->where('status', 'active')
@@ -47,6 +61,7 @@ class CompanyHrmsController extends Controller
             // Flash, so it survives exactly one render after rotating.
             'new_secret' => session('new_secret'),
             'test_result' => session('test_result'),
+            'pull_test' => session('pull_test'),
         ]);
     }
 
@@ -67,6 +82,92 @@ class CompanyHrmsController extends Controller
         // Shown once. The plaintext is never stored, so it cannot be recovered -
         // rotating again is the only way forward.
         return back()->with('new_secret', $secret);
+    }
+
+    /**
+     * Save the credentials hrms:pull signs in with.
+     *
+     * The password is write-only: it is never sent to the page, and leaving the
+     * field blank keeps the stored one rather than clearing it, so saving a
+     * change to the URL does not silently break the connection.
+     */
+    public function savePullConnection(Request $request)
+    {
+        $company = $this->company();
+
+        $validated = $request->validate([
+            // https only, because this carries a password to a third party. A
+            // plain-http endpoint would put it on the wire in clear.
+            'base_url' => ['required', 'url', 'starts_with:https://', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'password' => ['nullable', 'string', 'min:6', 'max:255'],
+            // From the configured list, so a form post cannot name a class.
+            'adapter' => ['required', 'string', Rule::in(array_keys(config('hrms.pull_adapters', [])))],
+        ]);
+
+        $connection = CompanyHrmsConnection::firstOrNew(['company_id' => $company->id]);
+
+        $urlChanged = $connection->pull_base_url !== $validated['base_url'];
+        $emailChanged = $connection->pull_email !== $validated['email'];
+
+        $connection->fill([
+            'pull_base_url' => $validated['base_url'],
+            'pull_email' => $validated['email'],
+            'pull_adapter' => $validated['adapter'],
+        ]);
+
+        if (! empty($validated['password'])) {
+            $connection->pull_password = $validated['password'];
+        }
+
+        // Any credential change invalidates the cached token: it was issued for
+        // the old identity, or by the old host.
+        if ($urlChanged || $emailChanged || ! empty($validated['password'])) {
+            $connection->pull_token = null;
+            $connection->pull_token_expires_at = null;
+        }
+
+        if (! $connection->pull_password) {
+            return back()->withErrors(['password' => 'A password is required the first time you save this connection.']);
+        }
+
+        $connection->save();
+
+        return back()->with('message', 'HRMS pull connection saved.');
+    }
+
+    /**
+     * Fetch from the HR system and report what a real run would do, writing
+     * nothing. The safe way to check credentials before letting the scheduler
+     * touch anyone's meals.
+     */
+    public function testPullConnection(PullHrmsLeaves $pull)
+    {
+        $company = $this->company();
+
+        try {
+            $summary = $pull->execute($company, dryRun: true);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->with('pull_test', [
+                'ok' => false,
+                'error' => 'The test could not complete (detail: '.$e->getMessage().').',
+            ]);
+        }
+
+        return back()->with('pull_test', [
+            'ok' => $summary['ok'],
+            'error' => $summary['error'],
+            'fetched' => $summary['fetched'],
+            'approved_future' => $summary['approved_future'],
+            'applied' => $summary['applied'],
+            'cancelled' => $summary['cancelled'],
+            'ignored' => $summary['ignored'],
+            'unknown_employee' => $summary['unknown_employee'],
+            'unreadable' => $summary['unreadable'],
+            'warnings' => $summary['warnings'],
+        ]);
     }
 
     public function sendTestEvent(Request $request, SendTestHrmsEvent $sender)
