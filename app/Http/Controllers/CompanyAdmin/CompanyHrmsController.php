@@ -110,9 +110,6 @@ class CompanyHrmsController extends Controller
 
         $connection = CompanyHrmsConnection::firstOrNew(['company_id' => $company->id]);
 
-        $urlChanged = $connection->pull_base_url !== $validated['base_url'];
-        $emailChanged = $connection->pull_email !== $validated['email'];
-
         $connection->fill([
             'pull_base_url' => $validated['base_url'],
             'pull_email' => $validated['email'],
@@ -123,12 +120,13 @@ class CompanyHrmsController extends Controller
             $connection->pull_password = $validated['password'];
         }
 
-        // Any credential change invalidates the cached token: it was issued for
-        // the old identity, or by the old host.
-        if ($urlChanged || $emailChanged || ! empty($validated['password'])) {
-            $connection->pull_token = null;
-            $connection->pull_token_expires_at = null;
-        }
+        // Unconditionally, not only when a field changed. Saving this form is
+        // how someone reacts to a connection that is misbehaving, and the most
+        // likely reason is a token the vendor no longer honours - so comparing
+        // the values first meant the one action a person takes to fix it left
+        // the broken token in place.
+        $connection->pull_token = null;
+        $connection->pull_token_expires_at = null;
 
         if (! $connection->pull_password) {
             return back()->withErrors(['password' => 'A password is required the first time you save this connection.']);

@@ -53,16 +53,24 @@ class CyberPulseClient
 
         $response = $this->get($connection, '/api/leave/fetchAll');
 
-        // The token is a month old at most but can still be rejected - revoked,
-        // or the vendor restarted with a new signing key. One retry after a fresh
-        // login, never a loop.
-        if ($response !== null && $response->status() === 401 && ! $loggedIn) {
+        // The token is a month old at most but can still be refused - revoked,
+        // or the vendor restarted with a new signing key. 403 counts as well as
+        // 401: vendors are inconsistent about which they use for a token they
+        // will not accept.
+        //
+        // The token is discarded before the retry, so that even if the login is
+        // then refused by the once-a-minute cap, the next run starts clean
+        // instead of presenting the same dead token again.
+        if ($response !== null && in_array($response->status(), [401, 403], true) && ! $loggedIn) {
+            $connection->forceFill(['pull_token' => null, 'pull_token_expires_at' => null])->save();
+
             $login = $this->login($connection);
 
             if (! $login->ok) {
                 return $login;
             }
 
+            // One retry after a fresh login, never a loop.
             $loggedIn = true;
             $response = $this->get($connection, '/api/leave/fetchAll');
         }
