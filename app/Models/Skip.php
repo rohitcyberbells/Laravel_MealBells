@@ -17,6 +17,7 @@ class Skip extends Model
         'created_by',
         'cancelled_at',
         'cancelled_by',
+        'cancelled_source',
     ];
 
     protected $casts = [

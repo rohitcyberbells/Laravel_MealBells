@@ -101,7 +101,7 @@ class PullHrmsLeaves
         $summary['fetched'] = count($fetch->leaves);
 
         $timezone = $this->timezone($company);
-        $approved = $this->approvedFutureLeaves($fetch->leaves, $timezone);
+        $approved = $this->approvedFutureLeaves($company, $fetch->leaves, $timezone);
         $summary['approved_future'] = count($approved);
 
         $this->applyApprovals($company, $approved, $timezone, $dryRun, $summary);
@@ -127,7 +127,7 @@ class PullHrmsLeaves
      * @param  array<int, array<string, mixed>>  $leaves
      * @return array<string, array<string, mixed>> keyed by leave reference
      */
-    protected function approvedFutureLeaves(array $leaves, string $timezone): array
+    protected function approvedFutureLeaves(Company $company, array $leaves, string $timezone): array
     {
         $tomorrow = Carbon::today($timezone)->addDay()->toDateString();
         $approved = [];
@@ -143,7 +143,9 @@ class PullHrmsLeaves
                 continue;
             }
 
-            $event = $this->adapter->toEvent($leave, $timezone);
+            $reference = $this->adapter->reference($leaveId);
+
+            $event = $this->adapter->toEvent($leave, $timezone, $this->revisionFor($company, $reference));
 
             if ($event === null) {
                 continue;
@@ -153,10 +155,27 @@ class PullHrmsLeaves
                 continue;
             }
 
-            $approved[$this->adapter->reference($leaveId)] = $event;
+            $approved[$reference] = $event;
         }
 
         return $approved;
+    }
+
+    /**
+     * How many times this leave has already been cancelled.
+     *
+     * Derived from the events we recorded rather than kept in a counter column,
+     * so it cannot drift from them: the number is exactly the number of
+     * cancellations that actually got through, and a deduped one does not count.
+     *
+     * Matched on the id's own prefix instead of the event vocabulary, because
+     * the ids are ours and the vocabulary is the vendor's.
+     */
+    protected function revisionFor(Company $company, string $reference): int
+    {
+        return HrmsWebhookEvent::where('company_id', $company->id)
+            ->where('external_event_id', 'like', $reference.':cancelled%')
+            ->count();
     }
 
     /**
@@ -270,7 +289,7 @@ class PullHrmsLeaves
         }
 
         foreach ($candidates as $reference) {
-            $event = $this->adapter->toCancellationEvent($reference);
+            $event = $this->adapter->toCancellationEvent($reference, $this->revisionFor($company, $reference));
 
             $summary['details'][] = [
                 'leave' => $reference,

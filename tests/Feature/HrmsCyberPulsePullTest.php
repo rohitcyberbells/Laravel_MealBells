@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Actions\Hrms\PullHrmsLeaves;
+use App\Actions\Meal\CancelSkip;
+use App\Actions\Meal\RecordSkip;
+use App\Enums\SkipOutcome;
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
 use App\Models\CompanyHrmsConnection;
@@ -849,6 +852,234 @@ class HrmsCyberPulsePullTest extends TestCase
             HrmsWebhookEvent::where('leave_external_id', 'cp:leave:66f1aa0000000000000000a1')->sole()->status,
         );
         $this->assertDatabaseCount('skips', 0);
+    }
+
+    // --------------------------------------------------- re-approval revisions
+
+    /**
+     * The whole point of the revision suffix.
+     *
+     * Approved, withdrawn, approved again: without it the second approval reuses
+     * the id the first one consumed, dedupes, applies nothing - and the person's
+     * meal is counted while they are away.
+     */
+    public function test_a_leave_approved_again_after_a_cancellation_is_applied_again(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $ref = 'cp:leave:66f1aa0000000000000000a1';
+
+        // 1. Approved.
+        $this->fakeVendor($leave);
+        $this->assertEquals(1, $this->pull()['applied']);
+        $this->assertEquals(2, Skip::whereNull('cancelled_at')->count());
+
+        // 2. Rejected in the HR system.
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+        $this->fakeVendor($rejected);
+        $this->assertEquals(1, $this->pull()['cancelled']);
+        $this->assertEquals(0, Skip::whereNull('cancelled_at')->count());
+
+        // 3. Approved again. This is what used to be swallowed.
+        $this->fakeVendor($leave);
+        $third = $this->pull();
+
+        $this->assertEquals(1, $third['applied']);
+        $this->assertEquals(2, Skip::whereNull('cancelled_at')->count());
+
+        $this->assertEquals(
+            [$ref.':approved', $ref.':cancelled', $ref.':approved:r1'],
+            HrmsWebhookEvent::orderBy('id')->pluck('external_event_id')->all(),
+        );
+    }
+
+    /**
+     * Revision 0 keeps the documented form, so the ordinary case does not change
+     * shape just because the mechanism exists.
+     */
+    public function test_a_first_approval_keeps_the_plain_documented_id(): void
+    {
+        $this->fakeVendor($this->onlyLeaves('66f1aa0000000000000000a1'));
+        $this->pull();
+
+        $this->assertEquals(
+            'cp:leave:66f1aa0000000000000000a1:approved',
+            HrmsWebhookEvent::sole()->external_event_id,
+        );
+    }
+
+    public function test_the_cycle_can_repeat_more_than_once(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+        $ref = 'cp:leave:66f1aa0000000000000000a1';
+
+        foreach ([1, 2, 3] as $round) {
+            $this->fakeVendor($leave);
+            $this->assertEquals(1, $this->pull()['applied'], "round {$round} approval");
+
+            $this->fakeVendor($rejected);
+            $this->assertEquals(1, $this->pull()['cancelled'], "round {$round} cancellation");
+        }
+
+        $this->assertEquals([
+            $ref.':approved', $ref.':cancelled',
+            $ref.':approved:r1', $ref.':cancelled:r1',
+            $ref.':approved:r2', $ref.':cancelled:r2',
+        ], HrmsWebhookEvent::orderBy('id')->pluck('external_event_id')->all());
+
+        $this->assertEquals(0, Skip::whereNull('cancelled_at')->count());
+    }
+
+    /**
+     * The suffix must not cost idempotency: a repeat run inside the same state
+     * has to produce the same id and dedupe.
+     */
+    public function test_a_repeat_run_is_still_idempotent_after_a_revision(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+
+        $this->fakeVendor($leave);
+        $this->pull();
+        $this->fakeVendor($rejected);
+        $this->pull();
+        $this->fakeVendor($leave);
+        $this->pull();
+
+        $events = HrmsWebhookEvent::count();
+        $skips = Skip::orderBy('id')->get()->map(fn ($s) => [$s->date, $s->cancelled_at])->all();
+
+        // Three more runs in the same state change nothing.
+        foreach ([1, 2, 3] as $ignored) {
+            $summary = $this->pull();
+            $this->assertEquals(0, $summary['applied']);
+            $this->assertEquals(0, $summary['cancelled']);
+            $this->assertGreaterThan(0, $summary['duplicate']);
+        }
+
+        $this->assertEquals($events, HrmsWebhookEvent::count());
+        $this->assertEquals($skips, Skip::orderBy('id')->get()->map(fn ($s) => [$s->date, $s->cancelled_at])->all());
+    }
+
+    /**
+     * The limit of the restore rule, asserted on RecordSkip directly.
+     *
+     * A company admin cancelling an HRMS skip is overriding the HR system on
+     * purpose, so the same leave presenting itself again must be refused. Going
+     * through a pull would not prove this - there the protection comes from the
+     * event id deduping, not from this rule.
+     */
+    public function test_an_automated_source_cannot_restore_a_skip_a_person_cancelled(): void
+    {
+        $admin = User::where('company_id', $this->company->id)->where('role', 'company_admin')->sole();
+
+        $skip = Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->alice->id,
+            'date' => '2026-10-08', 'source' => 'leave', 'external_ref' => 'cp:leave:x1',
+        ]);
+
+        // A person cancels it, so cancelled_source stays null.
+        app(CancelSkip::class)->execute($this->company, $skip, $admin);
+        $this->assertNull($skip->fresh()->cancelled_source);
+
+        // The very same leave reference comes back from the HR system.
+        $result = app(RecordSkip::class)->execute(
+            $this->company, $this->alice, '2026-10-08', 'leave', null, null, 'cp:leave:x1',
+        );
+
+        $this->assertEquals(SkipOutcome::BLOCKED_CANCELLED, $result->outcome);
+        $this->assertNotNull($skip->fresh()->cancelled_at);
+    }
+
+    /**
+     * The other half: the integration may restore its own release.
+     */
+    public function test_an_automated_source_can_restore_its_own_release(): void
+    {
+        $admin = User::where('company_id', $this->company->id)->where('role', 'company_admin')->sole();
+
+        $skip = Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->alice->id,
+            'date' => '2026-10-08', 'source' => 'leave', 'external_ref' => 'cp:leave:x1',
+        ]);
+
+        app(CancelSkip::class)->execute($this->company, $skip, $admin, 'hrms');
+
+        $result = app(RecordSkip::class)->execute(
+            $this->company, $this->alice, '2026-10-08', 'leave', null, null, 'cp:leave:x1',
+        );
+
+        $this->assertEquals(SkipOutcome::REACTIVATED, $result->outcome);
+        $this->assertNull($skip->fresh()->cancelled_at);
+        $this->assertNull($skip->fresh()->cancelled_source);
+    }
+
+    /**
+     * And a different leave landing on a day the integration had freed is still
+     * refused: the reference has to match, not merely be automated.
+     */
+    public function test_a_different_leave_cannot_take_over_a_released_day(): void
+    {
+        $admin = User::where('company_id', $this->company->id)->where('role', 'company_admin')->sole();
+
+        $skip = Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->alice->id,
+            'date' => '2026-10-08', 'source' => 'leave', 'external_ref' => 'cp:leave:x1',
+        ]);
+
+        app(CancelSkip::class)->execute($this->company, $skip, $admin, 'hrms');
+
+        $result = app(RecordSkip::class)->execute(
+            $this->company, $this->alice, '2026-10-08', 'leave', null, null, 'cp:leave:SOMETHING-ELSE',
+        );
+
+        $this->assertEquals(SkipOutcome::BLOCKED_CANCELLED, $result->outcome);
+    }
+
+    /**
+     * Even when the leave is withdrawn and re-approved around it: the skip the
+     * admin cancelled is theirs, and the revision mechanism must not be a way in.
+     */
+    public function test_an_admin_cancellation_survives_a_full_withdraw_and_reapprove_cycle(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+
+        $this->fakeVendor($leave);
+        $this->pull();
+
+        $admin = User::where('company_id', $this->company->id)->where('role', 'company_admin')->sole();
+        $theirs = Skip::where('external_ref', 'cp:leave:66f1aa0000000000000000a1')->orderBy('date')->first();
+        app(CancelSkip::class)->execute($this->company, $theirs, $admin);
+
+        // Withdrawn, then approved again.
+        $this->fakeVendor($rejected);
+        $this->pull();
+        $this->fakeVendor($leave);
+        $this->pull();
+
+        $this->assertNotNull($theirs->fresh()->cancelled_at);
+        $this->assertNull($theirs->fresh()->cancelled_source, 'still recorded as a person cancellation');
+    }
+
+    public function test_an_integration_release_is_marked_as_such(): void
+    {
+        $leave = $this->onlyLeaves('66f1aa0000000000000000a1');
+        $rejected = $leave;
+        $rejected[0]['status'] = 'Rejected';
+
+        $this->fakeVendor($leave);
+        $this->pull();
+        $this->fakeVendor($rejected);
+        $this->pull();
+
+        foreach (Skip::where('external_ref', 'cp:leave:66f1aa0000000000000000a1')->get() as $skip) {
+            $this->assertEquals('hrms', $skip->cancelled_source);
+        }
     }
 
     // ----------------------------------------------------------- health page

@@ -174,7 +174,10 @@ class ApplyHrmsLeaveEvent
 
         foreach ($skips as $skip) {
             try {
-                $this->cancelSkip->execute($company, $skip, $plan->actor);
+                // Marked as an integration release, so a later re-approval of
+                // this same leave can restore it - while a skip a person
+                // cancelled stays cancelled.
+                $this->cancelSkip->execute($company, $skip, $plan->actor, 'hrms');
                 $result['released_days'][] = $this->dateOf($skip);
             } catch (MealRuleViolation $e) {
                 $result['release_blocked'][] = [

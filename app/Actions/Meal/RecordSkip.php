@@ -57,7 +57,39 @@ class RecordSkip
                     return new SkipResult($existingSkip, SkipOutcome::REACTIVATED);
                 }
 
-                // Auto source (leave, wfh, recurring, link) cannot reactivate cancelled skip
+                // An automated source may restore only a cancellation it made
+                // itself, on the very same record. Both halves matter:
+                //
+                //   cancelled_source non-null - a person did not cancel this, so
+                //     nobody's decision is being overridden. Null, which is every
+                //     skip a human cancelled, stays blocked.
+                //   external_ref matching - it is the same leave coming back, not
+                //     a different one landing on a day someone had freed.
+                //
+                // Without this, a leave approved, withdrawn and approved again in
+                // the HR system left the skip cancelled for good, and the meal was
+                // counted while the person was away.
+                $sameRecordReturning = $existingSkip->cancelled_source !== null
+                    && $externalRef !== null
+                    && $existingSkip->external_ref === $externalRef;
+
+                if ($sameRecordReturning) {
+                    $existingSkip->update([
+                        'company_id' => $company->id,
+                        'source' => $source,
+                        'reason' => $reason,
+                        'created_by' => $createdBy?->id,
+                        'external_ref' => $externalRef,
+                        'cancelled_at' => null,
+                        'cancelled_by' => null,
+                        'cancelled_source' => null,
+                    ]);
+
+                    return new SkipResult($existingSkip, SkipOutcome::REACTIVATED);
+                }
+
+                // Any other auto source (leave, wfh, recurring, link) cannot
+                // reactivate a cancelled skip.
                 return new SkipResult($existingSkip, SkipOutcome::BLOCKED_CANCELLED);
             }
 
