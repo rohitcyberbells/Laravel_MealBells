@@ -48,6 +48,14 @@ class HrmsEventPlan
         public readonly array $outsideWindowDates = [],
         public readonly ?User $actor = null,
         public readonly ?string $note = null,
+        /**
+         * Vendor id to write onto the matched employee, set only when the match
+         * was made by email and the employee carries no external_id yet.
+         *
+         * Carried rather than written here: the mapper is read-only, which is
+         * what lets --dry-run map an entire pull without touching a row.
+         */
+        public readonly ?string $backfillExternalId = null,
     ) {}
 
     /**
@@ -76,6 +84,7 @@ class HrmsEventPlan
         array $nonMealDays = [],
         array $outsideWindowDates = [],
         ?User $actor = null,
+        ?string $backfillExternalId = null,
     ): self {
         return new self(
             resolution: self::APPLY,
@@ -90,6 +99,7 @@ class HrmsEventPlan
             nonMealDays: $nonMealDays,
             outsideWindowDates: $outsideWindowDates,
             actor: $actor,
+            backfillExternalId: $backfillExternalId,
         );
     }
 

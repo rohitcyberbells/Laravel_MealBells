@@ -7,6 +7,7 @@ use App\Actions\Meal\RecordSkip;
 use App\Enums\SkipOutcome;
 use App\Exceptions\MealRuleViolation;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
 use App\Models\Skip;
 use App\Services\Hrms\HrmsEventPlan;
@@ -62,12 +63,41 @@ class ApplyHrmsLeaveEvent
             return $result;
         }
 
+        $this->backfillExternalId($company, $plan, $result);
         $this->createSkips($company, $plan, $result);
         $this->releaseSkips($company, $plan, $result);
 
         $result['status'] = $this->finalStatus($plan, $result);
 
         return $result;
+    }
+
+    /**
+     * Record the vendor's own id on an employee matched by email.
+     *
+     * Email is the weakest key, so the first match on it is used to learn the
+     * strong one and every later event for this person resolves on external_id.
+     * Guarded on the column still being empty, which makes a repeat of the same
+     * event a no-op and keeps an id already recorded from being overwritten.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    protected function backfillExternalId(Company $company, HrmsEventPlan $plan, array &$result): void
+    {
+        if (! $plan->backfillExternalId || ! $plan->employee) {
+            return;
+        }
+
+        // Scoped by company as well as id: an employee row is only ever this
+        // company's to write.
+        $written = Employee::where('id', $plan->employee->id)
+            ->where('company_id', $company->id)
+            ->where(fn ($query) => $query->whereNull('external_id')->orWhere('external_id', ''))
+            ->update(['external_id' => $plan->backfillExternalId]);
+
+        if ($written > 0) {
+            $result['notes'][] = "Learned external_id '{$plan->backfillExternalId}' for {$plan->employee->employee_code} from an email match.";
+        }
     }
 
     /**
