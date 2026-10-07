@@ -56,6 +56,21 @@ return [
      * When a day's count is flagged as unusual and escalated. Worth tuning per
      * deployment: a company of 20 and one of 2,000 do not deviate alike.
      */
+    /*
+     * How long the operational tables keep their rows. These hold no meal
+     * records - they are sessions, the in-app notification feed and failed
+     * jobs - but they carry user ids and job payloads, and nothing was ever
+     * clearing them.
+     *
+     * Failed jobs are kept longer than a session because one may still be worth
+     * retrying; a session is spent the moment it expires.
+     */
+    'retention' => [
+        'sessions_days' => env('MEALBELLS_RETENTION_SESSIONS_DAYS', 30),
+        'notifications_days' => env('MEALBELLS_RETENTION_NOTIFICATIONS_DAYS', 90),
+        'failed_jobs_days' => env('MEALBELLS_RETENTION_FAILED_JOBS_DAYS', 30),
+    ],
+
     'anomaly' => [
         'deviation_threshold_percent' => env('MEALBELLS_ANOMALY_DEVIATION_PERCENT', 20),
         'history_min_days' => env('MEALBELLS_ANOMALY_HISTORY_MIN_DAYS', 3),

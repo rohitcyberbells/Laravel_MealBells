@@ -34,3 +34,10 @@ Schedule::command('hrms:pull', ['--all', '--before-cutoff'])
 Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class, HrmsPullRun::class]])
     ->dailyAt('03:00')
     ->onOneServer();
+
+// The framework's own tables only grow: sessions, the notification feed and
+// failed jobs. They hold no meal records, but they carry user ids and job
+// payloads, and nothing was clearing them.
+Schedule::command('mealbells:prune-operational-data')
+    ->dailyAt('03:15')
+    ->onOneServer();

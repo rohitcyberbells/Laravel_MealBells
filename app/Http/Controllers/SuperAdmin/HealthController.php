@@ -31,6 +31,24 @@ class HealthController extends Controller
 
         $failedJobsCount = DB::table('failed_jobs')->count();
 
+        // A count alone is not actionable. The oldest one says whether this is
+        // a burst from five minutes ago or something that has been sitting for
+        // a week, and the queue names say which part of the system is stuck.
+        $failedJobs = [
+            'count' => $failedJobsCount,
+            'oldest_at' => DB::table('failed_jobs')->min('failed_at'),
+            'newest_at' => DB::table('failed_jobs')->max('failed_at'),
+            'by_queue' => DB::table('failed_jobs')
+                ->selectRaw('queue, count(*) as total')
+                ->groupBy('queue')
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get(),
+            // Printed rather than offered as a button: retrying blindly can
+            // re-apply work that a human should look at first.
+            'retry_command' => 'php artisan queue:retry all',
+        ];
+
         $snapshotsLast24h = MealCount::whereNotNull('locked_at')
             ->where('locked_at', '>=', now()->subHours(24))
             ->count();
@@ -98,6 +116,7 @@ class HealthController extends Controller
                 'is_stale' => $isStale,
             ],
             'failed_jobs_count' => $failedJobsCount,
+            'failed_jobs' => $failedJobs,
             'snapshots_last_24h' => $snapshotsLast24h,
             'missing_snapshots_today' => $missingSnapshotsToday,
             'unconfigured_companies' => $unconfiguredCompanies,
