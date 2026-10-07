@@ -1,0 +1,102 @@
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "66f1aa0000000000000000a1",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e1",
+        "name": "Alice Approved",
+        "email": "alice@alpha.test",
+        "department": "Engineering",
+        "bankAccountNumber": "000111222333",
+        "ifsc": "HDFC0001234",
+        "salary": 1450000,
+        "dob": "1994-03-11",
+        "address": "12 Example Road, Pune",
+        "panNumber": "ABCDE1234F",
+        "image": "https://cyberpulse.example/uploads/alice.jpg"
+      },
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "leaveType": "casual",
+      "reason": "Dental surgery follow-up",
+      "status": "Approved",
+      "halfDayType": null
+    },
+    {
+      "_id": "66f1aa0000000000000000a2",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e2",
+        "name": "Bob Wfh",
+        "email": "bob@alpha.test",
+        "salary": 980000
+      },
+      "startDate": "2026-10-07T18:30:00.000Z",
+      "endDate": "2026-10-07T18:30:00.000Z",
+      "leaveType": "wfh",
+      "status": "approved",
+      "reason": "Plumber visiting"
+    },
+    {
+      "_id": "66f1aa0000000000000000a3",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e3",
+        "name": "Cara Halfday",
+        "email": "cara@alpha.test"
+      },
+      "startDate": "2026-10-12T00:00:00.000Z",
+      "endDate": "2026-10-12T00:00:00.000Z",
+      "leaveType": "half-day",
+      "status": "Approved",
+      "halfDayType": "first-half"
+    },
+    {
+      "_id": "66f1aa0000000000000000a4",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e4",
+        "name": "Dan Pending",
+        "email": "dan@alpha.test"
+      },
+      "startDate": "2026-10-13T00:00:00.000Z",
+      "endDate": "2026-10-13T00:00:00.000Z",
+      "leaveType": "casual",
+      "status": "Pending"
+    },
+    {
+      "_id": "66f1aa0000000000000000a5",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e5",
+        "name": "Erin Rejected",
+        "email": "erin@alpha.test"
+      },
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "leaveType": "sick",
+      "status": "Rejected"
+    },
+    {
+      "_id": "66f1aa0000000000000000a6",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e9",
+        "name": "Nobody Known",
+        "email": "nobody@alpha.test"
+      },
+      "startDate": "2026-10-15T00:00:00.000Z",
+      "endDate": "2026-10-15T00:00:00.000Z",
+      "leaveType": "casual",
+      "status": "Approved"
+    },
+    {
+      "_id": "66f1aa0000000000000000a7",
+      "employeeId": {
+        "_id": "66e0bb0000000000000000e1",
+        "name": "Alice Approved",
+        "email": "alice@alpha.test"
+      },
+      "startDate": "2026-09-20T00:00:00.000Z",
+      "endDate": "2026-09-21T00:00:00.000Z",
+      "leaveType": "casual",
+      "status": "Approved"
+    }
+  ]
+}

@@ -146,6 +146,64 @@ return [
         'payload_days' => env('HRMS_PAYLOAD_RETENTION_DAYS', 30),
     ],
 
+    /*
+     * CyberPulse HRMS, which offers no webhooks and has to be polled.
+     */
+    'cyberpulse' => [
+        /*
+         * The vendor's token lasts 30 days and cannot be refreshed, so it is
+         * cached slightly short of that and replaced before it lapses rather
+         * than after.
+         */
+        'token_days' => env('HRMS_CP_TOKEN_DAYS', 29),
+
+        /*
+         * Self-imposed. Their login endpoint has no rate limit or lockout of its
+         * own, which makes restraint our responsibility: without this a crash
+         * loop would hammer it once per run.
+         */
+        'min_seconds_between_logins' => env('HRMS_CP_LOGIN_COOLDOWN', 60),
+
+        'timeout_seconds' => env('HRMS_CP_TIMEOUT', 15),
+
+        /*
+         * Largest share of the leaves we currently hold that one run may cancel.
+         *
+         * A deleted leave leaves nothing behind to receive, so cancellation is
+         * inferred by absence from a fetch - and a partial or mis-scoped fetch is
+         * indistinguishable from a mass withdrawal. Above this share the run
+         * cancels nothing and is marked suspicious, because adding meals back for
+         * people who are actually on leave is worse than being a few hours stale.
+         */
+        'max_cancel_share' => env('HRMS_CP_MAX_CANCEL_SHARE', 0.3),
+
+        /*
+         * Cancellations allowed in one run regardless of the share above.
+         *
+         * A share alone cannot express "this looks like a mass withdrawal": a
+         * company holding two leaves is already at 50% when one is withdrawn, so
+         * a pure percentage would refuse every ordinary cancellation at small
+         * scale and the integration would silently stop releasing meals. Up to
+         * this many is treated as routine; past it, the share applies.
+         */
+        'cancels_always_allowed' => env('HRMS_CP_CANCELS_ALWAYS_ALLOWED', 3),
+
+        /*
+         * Minutes between scheduled pulls. The scheduler also runs one shortly
+         * before each company's cutoff, so the final count reflects leave
+         * approved during the morning.
+         */
+        'pull_every_minutes' => env('HRMS_CP_PULL_MINUTES', 15),
+
+        /*
+         * Minutes before a company's cutoff to force one extra pull.
+         *
+         * The regular cadence can leave a gap right before the count locks,
+         * which is exactly when leave approved that morning matters most.
+         */
+        'pull_before_cutoff_minutes' => env('HRMS_CP_PULL_BEFORE_CUTOFF_MINUTES', 20),
+    ],
+
     'reconcile' => [
         /*
          * How long an event may sit unfinished before the backstop picks it up.
