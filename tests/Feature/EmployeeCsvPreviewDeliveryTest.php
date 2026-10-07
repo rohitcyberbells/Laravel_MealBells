@@ -98,6 +98,11 @@ class EmployeeCsvPreviewDeliveryTest extends TestCase
         $this->actingAs($this->admin)
             ->from('/company-admin/employees')
             ->post('/company-admin/employees/csv-import', ['rows' => $rows])
+            // The status matters: assertSessionHasNoErrors passes on a 500,
+            // because a 500 carries no validation errors - which is how an
+            // "Array to string conversion" in the response went unnoticed while
+            // the rows themselves imported fine.
+            ->assertRedirect('/company-admin/employees')
             ->assertSessionHasNoErrors();
 
         $this->assertEquals(2, Employee::count());
@@ -120,11 +125,87 @@ QA001,QA One,false,inactive
         $this->actingAs($this->admin)
             ->from('/company-admin/employees')
             ->post('/company-admin/employees/csv-import', ['rows' => $rows])
+            ->assertRedirect('/company-admin/employees')
             ->assertSessionHasNoErrors();
 
         $employee = Employee::sole();
         $this->assertFalse($employee->is_meal_eligible);
         $this->assertEquals('inactive', $employee->status);
+    }
+
+    /**
+     * The whole response, not just the rows.
+     *
+     * The importer returns counts per outcome; the controller used to
+     * interpolate that array straight into the flash message, so every
+     * confirmed import landed its rows and then answered with a 500.
+     */
+    public function test_confirming_an_import_answers_with_a_redirect_and_a_real_message(): void
+    {
+        $this->upload("employee_code,name\nQA001,QA One\nQA002,QA Two\n");
+
+        $rows = $this->actingAs($this->admin)->get('/company-admin/employees')
+            ->getOriginalContent()->getData()['page']['props']['flash']['csvPreview']['valid_rows'];
+
+        $response = $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => $rows]);
+
+        $response->assertRedirect('/company-admin/employees')->assertSessionHasNoErrors();
+
+        $message = session('message');
+        $this->assertIsString($message);
+        $this->assertStringContainsString('2 added', $message);
+        $this->assertStringNotContainsString('Array', $message);
+    }
+
+    public function test_re_importing_the_same_rows_reports_them_as_unchanged(): void
+    {
+        $this->upload("employee_code,name\nQA001,QA One\n");
+
+        $rows = $this->actingAs($this->admin)->get('/company-admin/employees')
+            ->getOriginalContent()->getData()['page']['props']['flash']['csvPreview']['valid_rows'];
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => $rows]);
+
+        $this->assertStringContainsString('1 added', session('message'));
+
+        // Same file again: nothing new, nothing changed.
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => $rows])
+            ->assertRedirect('/company-admin/employees');
+
+        $this->assertStringContainsString('1 unchanged', session('message'));
+        $this->assertEquals(1, Employee::count());
+    }
+
+    public function test_a_changed_row_reports_as_updated(): void
+    {
+        $this->upload("employee_code,name\nQA001,QA One\n");
+        $rows = $this->actingAs($this->admin)->get('/company-admin/employees')
+            ->getOriginalContent()->getData()['page']['props']['flash']['csvPreview']['valid_rows'];
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => $rows]);
+
+        $this->upload("employee_code,name\nQA001,QA One Renamed\n");
+        $rows = $this->actingAs($this->admin)->get('/company-admin/employees')
+            ->getOriginalContent()->getData()['page']['props']['flash']['csvPreview']['valid_rows'];
+
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => $rows])
+            ->assertRedirect('/company-admin/employees');
+
+        $this->assertStringContainsString('1 updated', session('message'));
+        $this->assertEquals('QA One Renamed', Employee::sole()->name);
+    }
+
+    public function test_an_empty_row_list_is_refused_rather_than_reported_as_success(): void
+    {
+        $this->actingAs($this->admin)->from('/company-admin/employees')
+            ->post('/company-admin/employees/csv-import', ['rows' => []])
+            ->assertSessionHasErrors('rows');
+
+        $this->assertEquals(0, Employee::count());
     }
 
     public function test_the_preview_is_flash_data_and_clears_on_the_next_load(): void

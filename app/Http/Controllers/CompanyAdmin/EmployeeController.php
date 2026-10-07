@@ -139,9 +139,38 @@ class EmployeeController extends Controller
         ]);
 
         $company = Auth::user()->company;
-        $count = $action->execute($company, $request->input('rows'));
 
-        return back()->with('message', "Successfully imported/updated {$count} employees.");
+        // The action reports counts per outcome. Interpolating the whole array
+        // into the message threw "Array to string conversion", so the import
+        // landed the rows and then answered with a 500.
+        $result = $action->execute($company, $request->input('rows'));
+
+        $parts = [];
+
+        if ($result['imported'] > 0) {
+            $parts[] = $result['imported'].' added';
+        }
+
+        if ($result['updated'] > 0) {
+            $parts[] = $result['updated'].' updated';
+        }
+
+        if ($result['unchanged'] > 0) {
+            $parts[] = $result['unchanged'].' unchanged';
+        }
+
+        // Rows the importer itself refused, as opposed to the ones the preview
+        // had already filtered out. Saying so beats a count that quietly
+        // excludes them.
+        if ($result['errors'] !== []) {
+            $parts[] = count($result['errors']).' failed';
+        }
+
+        $message = $parts === []
+            ? 'Nothing to import: no rows were supplied.'
+            : 'Import finished: '.implode(', ', $parts).'.';
+
+        return back()->with('message', $message);
     }
 
     public function createLogins(Request $request, CreateEmployeeLogins $action)
