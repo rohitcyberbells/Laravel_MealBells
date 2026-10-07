@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Hrms\PullHrmsLeaves;
 use App\Models\Company;
 use App\Models\CompanyHrmsConnection;
 use App\Models\CompanySetting;
@@ -12,6 +13,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -195,15 +197,106 @@ class HrmsPullConnectionScreenTest extends TestCase
     public function test_changing_a_credential_invalidates_the_cached_token(): void
     {
         $this->save();
-
-        CompanyHrmsConnection::where('company_id', $this->company->id)->first()
-            ->forceFill(['pull_token' => 'old-token', 'pull_token_expires_at' => now()->addDays(10)])->save();
+        $this->holdToken();
 
         $this->save(['email' => 'someone.else@alpha.test', 'password' => '']);
 
         $connection = CompanyHrmsConnection::where('company_id', $this->company->id)->sole();
         $this->assertNull($connection->pull_token);
         $this->assertNull($connection->pull_token_expires_at);
+    }
+
+    /**
+     * Saving the form unchanged must clear it too.
+     *
+     * Re-saving is how someone reacts to a connection that is misbehaving, and
+     * the likeliest cause is a token the vendor no longer honours. Comparing the
+     * values first meant the one action a person takes to fix it left the broken
+     * token in place, and it had to be cleared by hand.
+     */
+    public function test_re_saving_the_same_credentials_still_clears_the_token(): void
+    {
+        $this->save();
+        $this->holdToken();
+
+        // Byte-for-byte identical, password field left blank.
+        $this->save(['password' => ''])->assertSessionHasNoErrors();
+
+        $connection = CompanyHrmsConnection::where('company_id', $this->company->id)->sole();
+        $this->assertNull($connection->pull_token);
+        $this->assertNull($connection->pull_token_expires_at);
+
+        // And the credentials themselves survived.
+        $this->assertEquals(self::BASE, $connection->pull_base_url);
+        $this->assertEquals('vendor-secret', $connection->pull_password);
+    }
+
+    /**
+     * A token the vendor refuses is dropped and one fresh login is attempted.
+     * 403 counts as well as 401 - vendors are inconsistent about which they use.
+     */
+    #[DataProvider('tokenRefusalStatuses')]
+    public function test_a_refused_token_is_dropped_and_a_fresh_login_is_attempted(int $status): void
+    {
+        $this->save();
+        $this->holdToken();
+
+        $calls = 0;
+
+        Http::fake([
+            self::BASE.'/api/employee/login' => Http::response(['token' => 'brand-new-token'], 200),
+            self::BASE.'/api/leave/fetchAll' => function () use (&$calls, $status) {
+                $calls++;
+
+                // Refuse the held token once, accept whatever comes next.
+                return $calls === 1
+                    ? Http::response(['message' => 'bad token'], $status)
+                    : Http::response(['success' => true, 'data' => []], 200);
+            },
+        ]);
+
+        $summary = app(PullHrmsLeaves::class)
+            ->execute($this->company->fresh('setting'));
+
+        $this->assertTrue($summary['ok'], 'the retry should have succeeded');
+        $this->assertEquals('brand-new-token', CompanyHrmsConnection::where('company_id', $this->company->id)->sole()->pull_token);
+        $this->assertEquals(2, $calls, 'exactly one retry, not a loop');
+    }
+
+    /** @return array<int, array<int, int>> */
+    public static function tokenRefusalStatuses(): array
+    {
+        return [[401], [403]];
+    }
+
+    /**
+     * Even when the once-a-minute cap then refuses the login, the dead token is
+     * gone - so the next run starts clean instead of presenting it again.
+     */
+    public function test_a_refused_token_is_dropped_even_if_the_login_cooldown_blocks(): void
+    {
+        $this->save();
+        $this->holdToken();
+
+        CompanyHrmsConnection::where('company_id', $this->company->id)->first()
+            ->forceFill(['last_login_at' => now()->subSeconds(2)])->save();
+
+        Http::fake([
+            self::BASE.'/api/leave/fetchAll' => Http::response(['message' => 'bad token'], 401),
+        ]);
+
+        $summary = app(PullHrmsLeaves::class)
+            ->execute($this->company->fresh('setting'));
+
+        $this->assertFalse($summary['ok']);
+        $this->assertStringContainsString('Refusing to log in', (string) $summary['error']);
+        $this->assertNull(CompanyHrmsConnection::where('company_id', $this->company->id)->sole()->pull_token);
+    }
+
+    protected function holdToken(string $token = 'old-token'): void
+    {
+        CompanyHrmsConnection::where('company_id', $this->company->id)->first()
+            ->forceFill(['pull_token' => $token, 'pull_token_expires_at' => now()->addDays(10)])->save();
     }
 
     // ---------------------------------------------------------------- testing
