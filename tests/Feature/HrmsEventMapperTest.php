@@ -252,6 +252,95 @@ class HrmsEventMapperTest extends TestCase
         $this->assertEquals(HrmsEventPlan::UNMAPPABLE, $plan->resolution);
     }
 
+    /**
+     * A skip removes a whole day's meal, so a half day is neither a skip nor a
+     * non-skip. Recorded as ignored with a reason rather than guessed at.
+     */
+    public function test_a_half_day_leave_is_ignored_rather_than_guessed_at(): void
+    {
+        $plan = $this->mapper->map($this->companyA, $this->approval(leaveType: 'half-day'));
+
+        $this->assertEquals(HrmsEventPlan::IGNORED, $plan->resolution);
+        $this->assertStringContainsString('partial_day_not_supported', (string) $plan->note);
+        $this->assertEquals('L-1', $plan->leaveExternalId);
+        $this->assertEmpty($plan->createDates);
+        $this->assertDatabaseCount('skips', 0);
+    }
+
+    public function test_a_short_leave_is_ignored_too(): void
+    {
+        $plan = $this->mapper->map($this->companyA, $this->approval(leaveType: 'short-leave'));
+
+        $this->assertEquals(HrmsEventPlan::IGNORED, $plan->resolution);
+        $this->assertStringContainsString('partial_day_not_supported', (string) $plan->note);
+    }
+
+    public function test_partial_day_matching_ignores_case_and_padding(): void
+    {
+        $plan = $this->mapper->map($this->companyA, $this->approval(leaveType: '  Half-Day '));
+
+        $this->assertEquals(HrmsEventPlan::IGNORED, $plan->resolution);
+        $this->assertStringContainsString('partial_day_not_supported', (string) $plan->note);
+    }
+
+    /**
+     * The event name says leave_approved, which on its own would determine the
+     * source and skip the leave-type check entirely.
+     */
+    public function test_a_partial_day_wins_over_a_source_bearing_event_name(): void
+    {
+        $plan = $this->mapper->map($this->companyA, $this->approval(
+            eventType: 'leave_approved',
+            leaveType: 'half-day',
+        ));
+
+        $this->assertEquals(HrmsEventPlan::IGNORED, $plan->resolution);
+        $this->assertStringContainsString('partial_day_not_supported', (string) $plan->note);
+    }
+
+    public function test_a_company_can_add_its_own_partial_day_vocabulary(): void
+    {
+        config()->set("hrms.companies.{$this->companyA->id}.partial_day_types", ['Permission Hours']);
+
+        $plan = $this->mapper->map($this->companyA, $this->approval(leaveType: 'permission hours'));
+
+        $this->assertEquals(HrmsEventPlan::IGNORED, $plan->resolution);
+
+        // The defaults still apply alongside it.
+        $this->assertEquals(
+            HrmsEventPlan::IGNORED,
+            $this->mapper->map($this->companyA, $this->approval(leaveType: 'half-day'))->resolution,
+        );
+    }
+
+    /**
+     * A full-day type must still map, or the partial-day guard would be swallowing
+     * ordinary leave.
+     */
+    public function test_a_full_day_leave_type_is_unaffected(): void
+    {
+        $plan = $this->mapper->map($this->companyA, $this->approval(leaveType: 'leave'));
+
+        $this->assertEquals(HrmsEventPlan::APPLY, $plan->resolution);
+        $this->assertEquals('leave', $plan->source);
+        $this->assertNotEmpty($plan->createDates);
+    }
+
+    /**
+     * Pins what (a) asked for: the event name alone decides the source, with no
+     * leave type in the payload at all.
+     */
+    public function test_the_event_name_alone_determines_the_source(): void
+    {
+        $leave = $this->mapper->map($this->companyA, $this->approval(eventType: 'leave_approved'));
+        $this->assertEquals(HrmsEventPlan::APPLY, $leave->resolution);
+        $this->assertEquals('leave', $leave->source);
+
+        $wfh = $this->mapper->map($this->companyA, $this->approval(eventType: 'wfh_approved'));
+        $this->assertEquals(HrmsEventPlan::APPLY, $wfh->resolution);
+        $this->assertEquals('wfh', $wfh->source);
+    }
+
     public function test_leave_type_from_payload_is_used_when_the_event_name_is_generic(): void
     {
         config()->set("hrms.companies.{$this->companyA->id}.event_type_map", [

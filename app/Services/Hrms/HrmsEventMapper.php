@@ -73,6 +73,17 @@ class HrmsEventMapper
         string $leaveExternalId,
         ?Carbon $occurredAt,
     ): HrmsEventPlan {
+        $rawLeaveType = $this->optionalString(Arr::get($payload, $paths['leave_type']));
+
+        // Checked before the source, because the event name alone can say
+        // 'leave_approved' while the leave type says it only covers half the day.
+        if ($rawLeaveType !== null && $this->isPartialDay($company, $rawLeaveType)) {
+            return HrmsEventPlan::ignored(
+                "Partial-day leave is not supported (partial_day_not_supported): '{$rawLeaveType}'.",
+                $leaveExternalId,
+            );
+        }
+
         $source = $verb['source'] ?? $this->sourceFromPayload($company, $payload, $paths);
 
         if (! in_array($source, ['leave', 'wfh'], true)) {
@@ -270,6 +281,27 @@ class HrmsEventMapper
             config('hrms.event_type_defaults', []),
             config("hrms.companies.{$company->id}.event_type_map") ?? []
         );
+    }
+
+    /**
+     * A leave type that covers part of a day rather than all of it.
+     */
+    protected function isPartialDay(Company $company, string $rawLeaveType): bool
+    {
+        $types = array_merge(
+            config('hrms.partial_day_defaults', []),
+            config("hrms.companies.{$company->id}.partial_day_types") ?? []
+        );
+
+        $needle = strtolower(trim($rawLeaveType));
+
+        foreach ($types as $type) {
+            if (strtolower(trim((string) $type)) === $needle) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
