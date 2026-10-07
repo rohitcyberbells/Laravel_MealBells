@@ -246,8 +246,13 @@ const hasEvents = computed(() => props.events.length > 0);
                 ]"
             >
                 <p class="font-semibold">
-                    {{ test_result.ok ? '✅ Test event accepted' : '❌ Test event failed' }}
+                    <template v-if="test_result.dry_run">🧪 Test event built and signed — not delivered</template>
+                    <template v-else>{{ test_result.ok ? '✅ Test event accepted' : '❌ Test event failed' }}</template>
                     <span v-if="test_result.status" class="font-mono text-xs">(HTTP {{ test_result.status }})</span>
+                </p>
+                <p v-if="test_result.dry_run" class="text-xs mt-1">
+                    The signature and payload are correct, so your HR system can post the same shape. Delivering it
+                    here would cancel a real employee's meal, so it is not sent in production.
                 </p>
                 <p v-if="test_result.error" class="text-xs mt-1">{{ test_result.error }}</p>
                 <p v-if="test_result.ok && !test_result.employee_matched" class="text-xs mt-1">

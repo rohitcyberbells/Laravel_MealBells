@@ -196,6 +196,13 @@ class CompanyHrmsController extends Controller
                 // our own endpoint over HTTP deadlocks a single-threaded server
                 // until it times out.
                 'transport' => 'in_process',
+                // Outside production the event is delivered for real, which is
+                // what makes it useful for onboarding: the result shows what the
+                // pipeline actually did. In production it is signed and built
+                // but never sent, because delivering it would cancel a real
+                // employee's real meal and nothing would distinguish it from a
+                // genuine event afterwards.
+                'send' => ! $this->isProduction(),
             ]);
         } catch (Throwable $e) {
             // Nothing should reach here - the action already converts a failed
@@ -210,6 +217,21 @@ class CompanyHrmsController extends Controller
                 'employee_matched' => false,
                 'event_status' => null,
                 'summary' => null,
+            ]);
+        }
+
+        if ($this->isProduction()) {
+            return back()->with('test_result', [
+                'ok' => $result['ok'],
+                'error' => $result['error'],
+                'status' => null,
+                'event_id' => $result['event_id'],
+                'employee_matched' => $result['employee_matched'],
+                'event_status' => null,
+                'summary' => null,
+                // So the screen can say so rather than leaving someone to wonder
+                // why nothing appeared on the events list.
+                'dry_run' => true,
             ]);
         }
 
@@ -229,7 +251,13 @@ class CompanyHrmsController extends Controller
             'employee_matched' => $result['employee_matched'],
             'event_status' => $event?->status,
             'summary' => $event ? $this->summarise($event) : null,
+            'dry_run' => false,
         ]);
+    }
+
+    protected function isProduction(): bool
+    {
+        return app()->environment('production');
     }
 
     /**

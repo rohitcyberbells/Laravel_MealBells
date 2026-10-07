@@ -22,10 +22,15 @@ class HrmsConnectionResolver
      */
     public function webhookFor(Company $company): ?array
     {
-        $webhook = array_merge(
-            config('hrms.webhook_defaults', []),
-            config("hrms.companies.{$company->id}.webhook") ?? []
-        );
+        // The per-company config block is a convenience for a developer with no
+        // database row - a secret in a deployed config file or env var is not
+        // where a tenant's credential belongs, and silently falling back to one
+        // in production would hide a missing row rather than surface it.
+        $fromConfig = app()->environment(['local', 'testing'])
+            ? config("hrms.companies.{$company->id}.webhook") ?? []
+            : [];
+
+        $webhook = array_merge(config('hrms.webhook_defaults', []), $fromConfig);
 
         $connection = CompanyHrmsConnection::where('company_id', $company->id)->first();
 
