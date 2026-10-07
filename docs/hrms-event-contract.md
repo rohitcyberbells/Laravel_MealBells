@@ -307,3 +307,125 @@ php artisan hrms:simulate --company=ACME01 --event=leave_approved --employee=HR-
 `--print` shows the signed request without sending it, which is the quickest way
 to check your own signing against ours. `--company` may be omitted when only one
 company is configured.
+
+---
+
+## 11. Running a pull (`hrms:pull`)
+
+For an HRMS that cannot push to us. CyberPulse is the one implemented.
+
+### Setting the credentials
+
+Easiest path — the company admin does it themselves:
+
+**Settings → HRMS → Pull from your HR system.** Enter the HR system's URL
+(https only), the login email and the password, pick the HR system, and Save.
+
+The password is write-only. It is never sent back to the page; the form shows
+only whether one is stored. Leaving the field blank on a later save keeps the
+stored one, so changing the URL cannot silently clear it. Changing the URL,
+email or password clears the cached token, because that token was issued for the
+old identity or by the old host.
+
+From the console instead:
+
+```bash
+php artisan tinker --execute '
+$c = \App\Models\CompanyHrmsConnection::firstOrNew(["company_id" => 1]);
+$c->fill([
+    "pull_base_url" => "https://hrms.yourcompany.com",
+    "pull_email"    => "integration@yourcompany.com",
+    "pull_password" => "…",
+    "pull_adapter"  => "cyberpulse",
+])->save();
+'
+```
+
+All four `pull_*` columns and the cached `pull_token` are encrypted at rest and
+hidden from model serialisation.
+
+### Checking it before it touches anything
+
+**Test connection** on that screen fetches and reports what a real run would
+apply, cancel, ignore and fail to match — and writes nothing. Same thing from
+the CLI:
+
+```bash
+php artisan hrms:pull ACME01 --dry-run        # report only
+php artisan hrms:pull ACME01 --dry-run -v     # per-leave detail
+```
+
+Point a new connection at `--dry-run` first. The counts it reports are the ones
+a real run produces, including the "nothing to do" cases — a leave landing
+entirely on a weekend or a declared holiday is reported as ignored by both.
+
+Then, for real:
+
+```bash
+php artisan hrms:pull ACME01
+```
+
+Re-running is safe: each state has a stable event id, so a repeat applies
+nothing and is reported as already seen.
+
+### On a schedule
+
+Two entries, both already registered:
+
+| | |
+|---|---|
+| `hrms:pull --all` | every `hrms.cyberpulse.pull_every_minutes` (default 15) |
+| `hrms:pull --all --before-cutoff` | every minute, but acts only inside the window before each company's cutoff, at most once per window |
+
+The second exists because the regular cadence can leave a gap right before the
+count locks, which is when leave approved that morning matters most.
+
+Last run, counts and any warning appear on the super admin **Health** page. A
+pull that stopped is flagged there, because otherwise it looks exactly like a
+quiet day of no leave.
+
+### What is not logged, and not stored
+
+The fetch returns whole employee records. Eight fields survive the boundary —
+leave `_id`, `startDate`, `endDate`, `leaveType`, `status`, and the employee's
+`_id`, `email` and `name` — and the rest is discarded the moment the body is
+parsed, before anything is logged, returned or persisted. So **bank details,
+salary, date of birth, address, PAN, documents and photos never reach us at
+all.**
+
+Also deliberately absent:
+
+- **The vendor's `reason` text.** It can carry medical detail and company admins
+  can read skip reasons, so it is never kept. The skip gets a generated label
+  such as `CyberPulse casual leave`.
+- **The raw response.** It is never written to a log line, an exception message,
+  a webhook payload or the database.
+- **The credentials.** A login failure logs that it failed, not the request —
+  the request body is a password.
+- **`hrms_pull_runs`** holds counts, a status and warning strings only. No
+  employee identifiers, no dates.
+
+What *is* kept is the canonical envelope per event in `hrms_webhook_events`,
+redacted after 30 days, and the run counts, deleted after 30 days.
+
+### Cancellation, and why it is cautious
+
+CyberPulse deletes a leave row outright rather than marking it cancelled, so
+there is nothing to receive — absence from a later fetch is the only signal.
+That makes a failed, truncated or mis-scoped fetch look exactly like a mass
+withdrawal, and wiping a day of skips silently adds meals for people who are on
+leave. Three things stand in front of it:
+
+1. Nothing is cancelled unless the fetch clearly succeeded.
+2. Only skips carrying this integration's own `cp:leave:` reference are ever
+   touched. **A skip a person entered has no reference at all, so it cannot be
+   seen, let alone released.**
+3. A run proposing to cancel more than `max_cancel_share` (default 30%) of the
+   leaves it holds cancels nothing and is marked `suspicious` on the Health page.
+   A floor (`cancels_always_allowed`, default 3) keeps ordinary single
+   cancellations working at small scale, where one withdrawal out of two held
+   leaves is already 50%.
+
+A withdrawn leave that is approved again is applied again: the integration may
+restore a cancellation it made itself. It may not restore one a **person** made
+— that decision stands.
