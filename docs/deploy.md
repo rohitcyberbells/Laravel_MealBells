@@ -155,26 +155,40 @@ php artisan queue:retry all
 
 ## 5. The first super admin
 
-Both seeders refuse outside local, and there is no bootstrap command yet, so
-this is a one-off on the server:
-
 ```bash
-php artisan tinker --execute '
-\App\Models\User::create([
-    "name" => "Platform Root",
-    "email" => "ops@yourcompany.com",
-    "password" => \Illuminate\Support\Facades\Hash::make("<a long random password>"),
-    "role" => "super_admin",
-    "must_change_password" => true,
-]);'
+php artisan mealbells:create-super-admin
 ```
 
-`must_change_password` forces a change on first sign-in, so the password above
-only has to survive being typed once.
+It prompts for the address, name and password. For an unattended run:
 
-> **There is no forgot-password flow.** If this account loses its password the
-> only recovery is database access. Create two super admins, or keep the
-> credential somewhere you trust.
+```bash
+php artisan mealbells:create-super-admin \
+  --email=ops@yourcompany.com \
+  --name="Platform Root" \
+  --generate-password
+```
+
+`--generate-password` prints one once and requires a change on first sign-in,
+so the printed value only has to survive being pasted into your password
+manager. Prefer it over `--password=…`, which lands in shell history.
+
+Running it again with an existing address changes nothing and says so, so it is
+safe in a deploy script and cannot be used to take over a colleague's account.
+
+> **Mail to this address must work.** A super admin's only recovery is a reset
+> link sent there (§5a). Either verify mail delivery before you need it, or
+> create a second super admin.
+
+### 5a. Password recovery
+
+`/forgot-password` sends a reset link to any account whose address can receive
+mail. Two things to know:
+
+- The response is identical whether or not the account exists, so it cannot be
+  used to discover which addresses are registered.
+- An employee with no address of their own carries a stand-in one ending in
+  `.local`, which is never written to. Those accounts get no link; their HR team
+  resets them from the Employees screen.
 
 ---
 
