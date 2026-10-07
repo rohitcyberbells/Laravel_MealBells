@@ -99,6 +99,23 @@ return [
     ],
 
     /*
+     * Leave types that cover part of a day.
+     *
+     * A skip is all-or-nothing: one row removes the whole day's meal. A half day
+     * is therefore neither a skip nor a non-skip, and guessing either way is
+     * wrong - cancelling the meal of someone who is in for lunch, or counting
+     * someone who is not. These are recorded as ignored with a reason, so the
+     * decision is visible rather than silently resolved.
+     *
+     * Compared case-insensitively, after trimming. A company can extend the list
+     * with its own vocabulary via 'partial_day_types' in its block.
+     */
+    'partial_day_defaults' => [
+        'half-day',
+        'short-leave',
+    ],
+
+    /*
      * Adapter used when a company does not name its own. Most vendors fit the
      * generic one, because differing field names are handled by 'payload_map'.
      */
