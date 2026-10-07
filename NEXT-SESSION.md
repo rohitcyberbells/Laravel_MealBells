@@ -21,38 +21,48 @@ _Written 2026-10-06, after pushing today's work._
 
 ---
 
-## 1. Browser pass on the four new screens — start here
+## 1. Browser pass on the four new screens — DONE 2026-10-07
 
-**No bug is known in any of these.** They are unverified, not broken: the build
-proves they compile, feature tests pin the server contract, and guard tests pin
-the page and the server to the same keys. What nothing proves is that the
-component mounts in a browser and that a click round-trips.
+Driven in a real headless Chrome against a throwaway copy of the dev database.
+**28/28 checks passed, zero console or page errors.** All four components mount
+and every click round-trips.
 
-Run `composer run dev`, then:
+- [x] **`/super-admin/dashboard`** — admin accounts list renders; Reset password
+      produces the amber panel with a 12-character password, names the right
+      account, and is gone after a reload.
+- [x] **`/company-admin/employees`** — the Recurring modal opens, adds a rule
+      ("Every Friday"), pauses it, resumes it and deletes it back to the empty
+      state. The `recurring_rules` string-vs-number key worry was unfounded.
+- [x] **`/company-admin/employees`** — Reset password renders the credentials
+      panel ("1 login generated"), names the right employee, carries the
+      shown-once warning and the Copy all button.
+- [x] **`/employee/dashboard`** — the range form opens and submitting
+      2026-10-12..16 reported "Skips recorded for 4 meal days". Four, not five,
+      because the seeded recurring Monday skip already covered Oct 12 — so
+      first-source-wins behaved correctly.
 
-- [ ] **`/super-admin/dashboard`** — a company card lists its admin accounts.
-      Hit **Reset password** on one. Expect an amber panel with the temporary
-      password and the admin's name/email. Reload: panel should be gone.
-- [ ] **`/company-admin/employees`** — hit **🔄 Recurring** on a row. Add a rule,
-      pause it, resume it, delete it. The button's count should only include
-      rules that are live today.
-- [ ] **`/company-admin/employees`** — hit **Reset password** on a row that has a
-      login (rows without one show a checkbox instead). Expect the credentials
-      panel, with a login ID that matches how that employee actually signs in
-      (email if they have one, otherwise `ACME01 / ACME002`).
-- [ ] **`/employee/dashboard`** — "Away for several days?" opens a From/To form.
-      Pick a range covering a weekend; only the meal days should be skipped, and
-      a weekend-only range should come back as an error, not a green banner.
+**One cosmetic artifact, not a bug.** The add-rule POST shows as
+`net::ERR_ABORTED` in the console: an in-flight XHR superseded by Inertia's
+redirect. Verified harmless — the rule is created exactly once, and the rule
+count returns to its seeded value after the delete, so there is no double
+submit.
 
-**The one thing I'd check first.** In the recurring modal, `recurring_rules` is
-an object keyed by employee id. Inertia serialises integer keys as JSON object
-keys, so they arrive as strings, while `rulesFor(employeeId)` passes a number.
-JS coerces the key, so `obj[5]` and `obj["5"]` are the same lookup and this
-should be fine — and the server side is covered by a test. But if the modal
-opens empty for an employee who definitely has rules, that is where to look.
+### If you redo this pass, two traps
 
-If anything misbehaves, the browser console is readable from here via the
-`browser-logs` tool — no need to copy anything out by hand.
+- **`php artisan serve` does not pass `DB_DATABASE` to its subprocess.** Setting
+  it on the command line looks like it works (`config()` resolves it for other
+  artisan calls) but the server still reads `database/database.sqlite`. Prove
+  isolation before trusting it: rename a company in the copy and check the
+  served page shows the new name. Use
+  `PHP_CLI_SERVER_WORKERS=8 DB_DATABASE=/path/copy.sqlite php -S 127.0.0.1:8899 -t public router.php`
+  with a router that returns false for existing files, otherwise static assets
+  404 and Vue never mounts.
+- **Do not reset the account you are about to sign in as.** Resetting
+  `hr@acme.test` or `ACME001` mid-run locks the rest of the run out, and the
+  failure looks like a broken login rather than a spent password.
+
+Worth capturing as a project skill via `/run-skill-generator` — the harness
+needed `puppeteer-core`, a router script, and the two traps above.
 
 ---
 
