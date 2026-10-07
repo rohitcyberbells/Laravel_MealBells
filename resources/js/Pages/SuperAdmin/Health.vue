@@ -15,6 +15,10 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    failed_jobs: {
+        type: Object,
+        default: () => ({ count: 0, by_queue: [], retry_command: 'php artisan queue:retry all' }),
+    },
     snapshots_last_24h: {
         type: Number,
         default: 0,
@@ -116,6 +120,28 @@ const pullTone = (pull) => {
                     <p class="text-xs text-slate-400">
                         Jobs in `failed_jobs` table requiring investigation
                     </p>
+
+                    <!-- A count alone is not actionable: the oldest one says
+                         whether this is a burst from minutes ago or something
+                         that has been sitting for a week. -->
+                    <template v-if="failed_jobs.count > 0">
+                        <p class="text-[11px] text-slate-500">
+                            Oldest <span class="font-mono text-slate-400">{{ failed_jobs.oldest_at }}</span>
+                        </p>
+                        <div v-if="failed_jobs.by_queue?.length" class="space-y-1">
+                            <p v-for="q in failed_jobs.by_queue" :key="q.queue" class="text-[11px] text-slate-400">
+                                <span class="font-mono">{{ q.queue }}</span> — {{ q.total }}
+                            </p>
+                        </div>
+                        <!-- Printed rather than offered as a button: retrying
+                             blindly can re-apply work someone should look at. -->
+                        <code class="block bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-amber-300 select-all">
+                            {{ failed_jobs.retry_command }}
+                        </code>
+                        <p class="text-[10px] text-slate-500">
+                            Inspect first with <span class="font-mono">php artisan queue:failed</span>.
+                        </p>
+                    </template>
                 </div>
 
                 <!-- Locked Snapshots Card -->
