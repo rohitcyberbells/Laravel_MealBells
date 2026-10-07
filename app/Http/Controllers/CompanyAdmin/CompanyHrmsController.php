@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyHrmsConnection;
 use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
+use App\Rules\SafeHrmsBaseUrl;
 use App\Services\Hrms\Adapters\GenericHrmsAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -96,9 +97,11 @@ class CompanyHrmsController extends Controller
         $company = $this->company();
 
         $validated = $request->validate([
-            // https only, because this carries a password to a third party. A
-            // plain-http endpoint would put it on the wire in clear.
-            'base_url' => ['required', 'url', 'starts_with:https://', 'max:255'],
+            // Scheme and host are judged by SafeHrmsBaseUrl: https in
+            // production because this carries a password, and no private or
+            // internal address, because the server then makes requests to
+            // whatever is entered here.
+            'base_url' => ['required', 'string', 'max:255', new SafeHrmsBaseUrl],
             'email' => ['required', 'email', 'max:255'],
             'password' => ['nullable', 'string', 'min:6', 'max:255'],
             // From the configured list, so a form post cannot name a class.
