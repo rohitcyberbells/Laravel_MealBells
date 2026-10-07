@@ -194,10 +194,33 @@ const hasEvents = computed(() => props.events.length > 0);
 
                     <p v-if="pull_test.ok" class="text-[11px] text-slate-400 mt-2">
                         Nothing was changed — this was a dry run.
-                        <span v-if="pull_test.unknown_employee > 0" class="text-amber-400">
-                            {{ pull_test.unknown_employee }} leave(s) matched no employee here; set their HR id or email on the employee.
-                        </span>
                     </p>
+
+                    <!-- Named, not just counted: an admin can only fix the
+                         mapping if they know who failed to match. -->
+                    <div v-if="pull_test.unmatched?.length" class="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/30 p-3">
+                        <p class="text-xs font-bold text-amber-300">
+                            {{ pull_test.unmatched.length }} leave(s) matched no employee in MealBells
+                        </p>
+                        <p class="text-[11px] text-amber-200/80 mt-0.5">
+                            Set the HR employee id as <span class="font-mono">external_id</span>, or the matching email, on each
+                            employee — then test again.
+                        </p>
+                        <table class="w-full text-left text-[11px] mt-2">
+                            <thead class="text-amber-200/70 uppercase font-semibold">
+                                <tr>
+                                    <th class="py-1 pr-3">HR employee id</th>
+                                    <th class="py-1 pr-3">Email</th>
+                                </tr>
+                            </thead>
+                            <tbody class="font-mono text-slate-300">
+                                <tr v-for="row in pull_test.unmatched" :key="row.leave">
+                                    <td class="py-1 pr-3">{{ row.employee_ref || '—' }}</td>
+                                    <td class="py-1 pr-3">{{ row.employee_email || '—' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
                     <p v-for="warning in pull_test.warnings" :key="warning" class="text-xs text-amber-300 mt-1">{{ warning }}</p>
                 </div>

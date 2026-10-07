@@ -169,6 +169,10 @@ class CompanyHrmsController extends Controller
             'ignored' => $summary['ignored'],
             'unknown_employee' => $summary['unknown_employee'],
             'unreadable' => $summary['unreadable'],
+            // Named, so the admin can set the HR id or email on the employee
+            // rather than only being told how many failed. Flash data, so it is
+            // gone on the next render and never stored.
+            'unmatched' => array_slice($summary['unmatched'], 0, 25),
             'warnings' => $summary['warnings'],
         ]);
     }

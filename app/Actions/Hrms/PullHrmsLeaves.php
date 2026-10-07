@@ -55,6 +55,7 @@ class PullHrmsLeaves
      *     cancelled: int,
      *     cancel_candidates: int,
      *     held_leaves: int,
+     *     unmatched: array<int, array{leave: string, employee_ref: ?string, employee_email: ?string}>,
      *     warnings: array<int, string>,
      *     details: array<int, array<string, mixed>>
      * }
@@ -76,6 +77,10 @@ class PullHrmsLeaves
             'cancelled' => 0,
             'cancel_candidates' => 0,
             'held_leaves' => 0,
+            // Who the HR system named that we could not place. Reported so an
+            // admin can fix the mapping instead of only being told a number.
+            // Flash and console only - never persisted, see finish().
+            'unmatched' => [],
             'warnings' => [],
             'details' => [],
         ];
@@ -216,6 +221,14 @@ class PullHrmsLeaves
                 'unreadable' => $summary['unreadable']++,
                 default => null,
             };
+
+            if ($outcome === 'unknown_employee') {
+                $summary['unmatched'][] = [
+                    'leave' => $reference,
+                    'employee_ref' => $event['leave']['employee_id'] ?? null,
+                    'employee_email' => $event['leave']['employee_email'] ?? null,
+                ];
+            }
 
             if ($dryRun) {
                 if ($outcome === 'apply') {
@@ -393,9 +406,10 @@ class PullHrmsLeaves
             $connection->forceFill([
                 'last_pull_at' => now(),
                 'last_pull_status' => $summary['status'],
-                // Details can run to hundreds of rows; the counts and warnings
-                // are what the health page shows.
-                'last_pull_summary' => collect($summary)->except(['details'])->all(),
+                // Counts and warnings only. 'details' can run to hundreds of
+                // rows, and 'unmatched' carries employee identifiers - neither
+                // belongs in a column the health page reads.
+                'last_pull_summary' => collect($summary)->except(['details', 'unmatched'])->all(),
                 'last_pull_error' => $summary['error'],
             ])->save();
         }

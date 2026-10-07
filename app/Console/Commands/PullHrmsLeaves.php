@@ -69,8 +69,18 @@ class PullHrmsLeaves extends Command
             $this->warn($warning);
         }
 
-        if ($summary['unknown_employee'] > 0) {
-            $this->warn("{$summary['unknown_employee']} leave(s) matched no employee. They are listed on the super admin Health page.");
+        if ($summary['unmatched'] !== []) {
+            $this->newLine();
+            $this->warn(count($summary['unmatched']).' leave(s) matched no employee in MealBells:');
+            $this->table(
+                ['HR employee id', 'Email', 'Leave'],
+                collect($summary['unmatched'])->map(fn (array $row) => [
+                    $row['employee_ref'] ?: '—',
+                    $row['employee_email'] ?: '—',
+                    $row['leave'],
+                ])->all(),
+            );
+            $this->line('Set external_id or email on the matching employee, then run again.');
         }
 
         if ($this->output->isVerbose()) {
