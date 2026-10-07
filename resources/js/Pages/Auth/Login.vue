@@ -1,5 +1,5 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const form = useForm({
@@ -76,10 +76,15 @@ const fillDemo = (identifier, companyCode = '') => {
                     <p v-if="form.errors.password" class="text-red-400 text-xs mt-1">{{ form.errors.password }}</p>
                 </div>
 
-                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                    <input v-model="form.remember" type="checkbox" class="accent-emerald-500 cursor-pointer" />
-                    Keep me signed in
-                </label>
+                <div class="flex items-center justify-between gap-3">
+                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                        <input v-model="form.remember" type="checkbox" class="accent-emerald-500 cursor-pointer" />
+                        Keep me signed in
+                    </label>
+                    <Link href="/forgot-password" class="text-xs text-slate-400 hover:text-emerald-400">
+                        Forgot password?
+                    </Link>
+                </div>
 
                 <button
                     type="submit"
