@@ -101,6 +101,13 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(5)->by('email:'.strtolower(trim((string) $request->input('email')))),
         ]);
 
+        /*
+         * The monitor polls once a minute; the limit is for everyone else. Per
+         * IP, because an unauthenticated endpoint that runs five queries is
+         * worth a budget even behind a secret.
+         */
+        RateLimiter::for('health-ping', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+
         RateLimiter::for('login', function (Request $request) {
             $identifier = strtolower(trim((string) (
                 $request->input('identifier')

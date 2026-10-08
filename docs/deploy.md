@@ -251,13 +251,64 @@ encryption are both the operator's job).
 
 | | |
 |---|---|
-| `GET /up` | Laravel's own endpoint. Point an uptime monitor here. It proves the app boots — it does **not** check the database, the queue or the scheduler. |
-| `/super-admin/health` | The real signals: scheduler heartbeat, the last backup, failed jobs with their oldest entry and queue breakdown, missing snapshots, HRMS events stuck or abandoned, per-company pull status. Behind a login, so a monitor cannot read it. |
+| `GET /up` | Laravel's own endpoint, unchanged. It proves the app boots — it stays **200 with the database unreachable, the worker stopped and the scheduler dead**, so on its own it is green through every failure this application actually has. |
+| `GET /health/ping?token=…` | The real checks, machine-readable. **Point the uptime monitor here.** |
+| `/super-admin/health` | The same signals for a person, with detail: failed jobs by queue with their oldest entry, missing snapshots, HRMS events stuck or abandoned, per-company pull status, the last backup. Behind a login, so a monitor cannot read it. |
 
-**Nothing alerts.** The Health page has to be opened by a person. Until that
-changes, someone needs to look at it daily — the failure that costs most (the
-queue worker down, or a pull that stopped) looks exactly like a quiet day with
-no leave.
+### `/health/ping`
+
+```bash
+php artisan mealbells:health-token      # prints a token and the full URL
+```
+
+Put the value in `.env` as `HEALTH_PING_TOKEN`, then rerun
+`php artisan config:cache`. **Until the token is set the endpoint answers 404**
+and is effectively off.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'https://your-host/health/ping?token=YOUR_TOKEN'       # expect 200
+```
+
+The token may be sent as `X-Health-Token` instead of a query parameter, which
+keeps it out of access logs and is worth preferring if the monitor allows a
+custom header.
+
+**200** when every check passes, **503** when any fails. The body names which:
+
+```json
+{
+  "status": "failing",
+  "failing": ["queue_worker"],
+  "checks": { "queue_worker": { "ok": false, "oldest_pending_job_minutes": 41 } }
+}
+```
+
+| Check | Fails when |
+|---|---|
+| `database` | a `select 1` throws |
+| `scheduler` | no heartbeat, or older than `HEALTH_SCHEDULER_STALE_AFTER_MINUTES` (3) |
+| `queue_failures` | `failed_jobs` exceeds `HEALTH_FAILED_JOBS_THRESHOLD` (25) |
+| `queue_worker` | a job has sat unreserved longer than `HEALTH_PENDING_JOB_STALE_AFTER_MINUTES` (10) |
+| `hrms_pull` | a configured pull is stale or last errored — set `HEALTH_PULL_STALENESS_FAILS=false` to report without failing |
+
+Two things to know about `queue_worker`. There is no worker heartbeat to read
+with `QUEUE_CONNECTION=database`, so this is inferred from work left sitting —
+and an **empty queue passes**, because it is no evidence either way. A monitor
+must not page someone because nothing happened to be queued at 3am. The flip
+side is that a worker which died with an empty queue is not noticed until
+something is queued.
+
+Wrong token and missing token both answer **404**, the same as any unknown path:
+an endpoint that confirms its own existence and names the component that is
+down, to an unauthenticated caller, is reconnaissance. So a 404 from the monitor
+means the token is wrong, not that the route is missing.
+
+The endpoint carries no session, so polling it every minute does not fill the
+sessions table, and it is rate-limited to 60 requests a minute per address.
+
+**Alerting is still a monitor's job.** Nothing in the application emails anyone
+when a check fails; `/health/ping` is what makes an external monitor able to.
 
 ---
 
@@ -273,6 +324,8 @@ no leave.
 - [ ] no `:5173` in the page source
 - [ ] create a company, provision one employee login, and confirm the mail
       arrives
+- [ ] `HEALTH_PING_TOKEN` is set, `/health/ping?token=…` answers **200**, and
+      the uptime monitor is pointed at it
 - [ ] run `php artisan mealbells:backup` and confirm the Health page shows it
 - [ ] set `BACKUP_DIRECTORY` outside the release folder, and add an off-host
       copy — see [backup-restore.md](backup-restore.md)
