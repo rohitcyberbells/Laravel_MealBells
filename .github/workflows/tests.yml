@@ -1,0 +1,118 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The fast one, and the one that gates a pull request. SQLite in memory is
+  # what the suite was written against and runs the whole thing in under a
+  # minute.
+  sqlite:
+    name: suite (sqlite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, pdo_pgsql, intl, bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare
+        run: |
+          cp .env.local.example .env
+          php artisan key:generate
+
+      # Built because the suite renders Inertia pages, which resolve assets
+      # through the Vite manifest. Without it every page test fails on a
+      # missing manifest rather than on anything real.
+      - name: Build assets
+        run: npm ci && npm run build
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Tests
+        run: vendor/bin/phpunit
+
+  # The one that matters for deployment. Production runs PostgreSQL; the suite
+  # is written against SQLite, and the two differ in ways tests do not notice
+  # until something is already live - case sensitivity, stricter typing, how a
+  # unique index is built, and migration rollbacks.
+  #
+  # Allowed to fail the workflow: it is a real gate, not advisory. If it is
+  # ever made advisory it stops being worth running.
+  pgsql:
+    name: suite (postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: mealbells_test
+          POSTGRES_USER: mealbells
+          POSTGRES_PASSWORD: mealbells
+        ports:
+          - 5432:5432
+        # Without this the job starts testing before the server accepts
+        # connections, and fails as if the code were broken.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: mealbells_test
+      DB_USERNAME: mealbells
+      DB_PASSWORD: mealbells
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, pgsql, pdo_sqlite, sqlite3, intl, bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare
+        run: |
+          cp .env.local.example .env
+          php artisan key:generate
+
+      - name: Build assets
+        run: npm ci && npm run build
+
+      # Proves the schema builds on PostgreSQL from empty, which is what a
+      # first deploy does. One migration branches on the driver to use a
+      # partial unique index, so this is not the same code path as SQLite.
+      - name: Migrate from empty
+        run: php artisan migrate --force
+
+      # And that it unwinds. A rollback that fails is only discovered during an
+      # incident, which is the worst moment to learn it.
+      - name: Roll the schema back
+        run: php artisan migrate:rollback --step=100 --force
+
+      - name: Tests
+        # The env above is overridden by phpunit.xml, which pins SQLite, so the
+        # connection is forced here rather than there - phpunit.xml stays the
+        # fast local default.
+        run: vendor/bin/phpunit
+        env:
+          DB_CONNECTION: pgsql

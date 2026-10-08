@@ -53,6 +53,33 @@ PostgreSQL. One migration branches on the driver to use a partial unique index
 on Postgres, and the JSON columns suit `jsonb`. SQLite is for local work and the
 test suite.
 
+**The two drivers disagree in ways tests do not notice.** The suite runs on
+SQLite in memory and production runs PostgreSQL, so CI runs the whole suite
+against both — see `.github/workflows/tests.yml`. The differences that have
+actually bitten here:
+
+| | |
+|---|---|
+| `LIKE` | case-insensitive for ASCII on SQLite, **case-sensitive on PostgreSQL**. The employee search read as working in development and would not have found `Alice` when typing `alice` in production. Fixed by lowering both sides. |
+| `time` columns | PostgreSQL returns `HH:MM:SS` whatever was written; SQLite keeps the string. Normalised on write — see `CompanySetting`. |
+| booleans | `0`/`1` from SQLite, `true`/`false` from PostgreSQL. Covered by model casts. |
+| `GROUP BY` | PostgreSQL rejects a selected column that is neither grouped nor aggregated; SQLite allows it. A query that is fine locally can be rejected outright in production. |
+| rollbacks | dropping a column referenced by a unique index fails on SQLite and not on PostgreSQL — see §7. |
+
+`tests/Feature/DriverPortabilityTest.php` pins each of these to the behaviour
+the application needs, so it holds on whichever driver it is run against.
+
+To run the suite against PostgreSQL locally:
+
+```bash
+createdb mealbells_test
+DB_CONNECTION=pgsql DB_DATABASE=mealbells_test DB_USERNAME=$(whoami) \
+  vendor/bin/phpunit
+```
+
+`phpunit.xml` pins SQLite so the local default stays fast; PHPUnit does not
+overwrite a variable already set in the environment, so the shell wins.
+
 ---
 
 ## 3. Deploy
