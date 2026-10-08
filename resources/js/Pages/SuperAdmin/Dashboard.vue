@@ -9,6 +9,7 @@ const props = defineProps({
     tiffinServices: Array,
     assignments: Array,
     archivedCompanies: { type: Array, default: () => [] },
+    archivedTiffinServices: { type: Array, default: () => [] },
     temporary_password: { type: String, default: null },
     reset_for: { type: Object, default: null },
 });
@@ -113,10 +114,26 @@ const unpairCompany = (companyId, companyName) => {
     }
 };
 
-const deleteTiffin = (tiffinId, tiffinName) => {
-    if (confirm(`Are you sure you want to delete ${tiffinName}? This action cannot be undone.`)) {
-        router.delete(`/super-admin/tiffin-services/${tiffinId}`);
-    }
+// Typed, not clicked, for the same reason as a company: archiving the wrong
+// vendor stops every company they serve getting a daily count.
+const archiveTiffinForm = useForm({ confirm_name: '' });
+const archivingTiffin = ref(null);
+
+const beginArchiveTiffin = (tiffin) => {
+    archivingTiffin.value = tiffin;
+    archiveTiffinForm.reset('confirm_name');
+    archiveTiffinForm.clearErrors();
+};
+
+const archiveTiffin = () => {
+    archiveTiffinForm.delete(`/super-admin/tiffin-services/${archivingTiffin.value.id}`, {
+        preserveScroll: true,
+        onSuccess: () => { archivingTiffin.value = null; },
+    });
+};
+
+const restoreTiffin = (tiffin) => {
+    router.post(`/super-admin/tiffin-services/${tiffin.id}/restore`, {}, { preserveScroll: true });
 };
 
 </script>
@@ -453,9 +470,58 @@ const deleteTiffin = (tiffinId, tiffinName) => {
                                 </p>
                             </div>
                         </div>
-                        <button @click="deleteTiffin(t.id, t.name)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
-                            Delete
+                        <button @click="beginArchiveTiffin(t)" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg transition font-medium">
+                            Archive
                         </button>
+                    </div>
+
+                    <!-- Archiving asks for the name, because a mis-click here
+                         silently stops a kitchen being told what to cook. -->
+                    <div v-if="archivingTiffin" class="bg-red-500/10 border border-red-500/40 rounded-xl p-5 space-y-3">
+                        <div>
+                            <h4 class="font-bold text-red-300">Archive {{ archivingTiffin.name }}?</h4>
+                            <p class="text-xs text-red-200/80 mt-1">
+                                Its menus, overrides and past counts are all kept — nothing is deleted. Its logins
+                                stop working, and every company it serves is unpaired, so they will stop getting a
+                                daily count until you pair them with another service. You can restore it below.
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] uppercase font-semibold text-red-200/70 mb-1">
+                                Type <span class="font-mono text-red-200">{{ archivingTiffin.name }}</span> to confirm
+                            </label>
+                            <input
+                                v-model="archiveTiffinForm.confirm_name"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                                :placeholder="archivingTiffin.name"
+                            />
+                            <p v-if="archiveTiffinForm.errors.confirm_name" class="text-xs text-red-300 mt-1">{{ archiveTiffinForm.errors.confirm_name }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                @click="archiveTiffin"
+                                :disabled="archiveTiffinForm.processing || archiveTiffinForm.confirm_name !== archivingTiffin.name"
+                                class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-lg text-sm cursor-pointer"
+                            >
+                                Archive service
+                            </button>
+                            <button @click="archivingTiffin = null" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm border border-slate-700 cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="archivedTiffinServices.length" class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-300">Archived tiffin services</h3>
+                        <div v-for="t in archivedTiffinServices" :key="t.id" class="flex items-center justify-between gap-3 text-xs bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+                            <div>
+                                <span class="font-bold text-slate-200">{{ t.name }}</span>
+                                <span class="text-slate-500 ml-2">archived {{ t.deleted_at }}<span v-if="t.deleted_by"> by {{ t.deleted_by }}</span></span>
+                            </div>
+                            <button @click="restoreTiffin(t)" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded transition font-medium">
+                                Restore
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

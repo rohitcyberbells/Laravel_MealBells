@@ -6,10 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyHrmsConnection;
 use App\Models\CompanyTiffinAssignment;
-use App\Models\DailyOverrides;
 use App\Models\TiffinService;
 use App\Models\User;
-use App\Models\WeeklyMenu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -67,7 +65,24 @@ class SuperAdminController extends Controller
                 ...$tiffin->toArray(),
                 'admins' => $tiffinAdmins->get($tiffin->id, collect())->values(),
             ]),
-            'assignments' => CompanyTiffinAssignment::with(['company', 'tiffinService'])->latest()->get(),
+            // Listed so an archive is visible and reversible rather than just
+            // gone from the page.
+            'archivedTiffinServices' => TiffinService::onlyTrashed()
+                ->with('deletedBy:id,name')
+                ->get()
+                ->map(fn (TiffinService $tiffin) => [
+                    'id' => $tiffin->id,
+                    'name' => $tiffin->name,
+                    'deleted_at' => $tiffin->deleted_at?->toDateTimeString(),
+                    'deleted_by' => $tiffin->deletedBy?->name,
+                ]),
+            // withTrashed on both sides, because this is the pairing history:
+            // the row for an archived company or service is exactly the row
+            // somebody is looking for, and without it the name renders blank.
+            'assignments' => CompanyTiffinAssignment::with([
+                'company' => fn ($query) => $query->withTrashed(),
+                'tiffinService' => fn ($query) => $query->withTrashed(),
+            ])->latest()->get(),
             // Flash data, so it survives exactly one render after rotation.
             'hrms_secret' => session('hrms_secret'),
             // Likewise for a password reset. Without this the reset flashed a
@@ -303,14 +318,94 @@ class SuperAdminController extends Controller
         ]);
     }
 
-    public function destroyTiffin(TiffinService $tiffinService)
+    /**
+     * Archive a tiffin service. Nothing is destroyed.
+     *
+     * A hard delete cascaded across weekly_menus and its items,
+     * daily_overrides, company_tiffin_assignments and meal_counts - and
+     * meal_counts is the record of what the kitchen was actually told to cook,
+     * the evidence in any billing dispute with that vendor. Deleting the vendor
+     * deleted the proof of what they were asked for, which is exactly the
+     * moment you need it.
+     *
+     * A soft delete issues no DELETE at all, so the foreign keys stay quiet and
+     * every child row survives.
+     */
+    public function destroyTiffin(Request $request, TiffinService $tiffinService)
     {
-        User::where('tiffin_service_id', $tiffinService->id)->delete();
-        CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)->delete();
-        WeeklyMenu::where('tiffin_service_id', $tiffinService->id)->delete();
-        DailyOverrides::where('tiffin_service_id', $tiffinService->id)->delete();
-        $tiffinService->delete();
+        // Typed, not clicked. A JS confirm() is one keystroke away from
+        // archiving the wrong vendor, and every company they serve stops
+        // getting a count the moment this happens.
+        $request->validate([
+            'confirm_name' => ['required', 'string'],
+        ]);
 
-        return back()->with('message', 'Tiffin Service deleted successfully!');
+        if (trim($request->input('confirm_name')) !== $tiffinService->name) {
+            return back()->withErrors([
+                'confirm_name' => "That does not match. Type the service's name exactly: {$tiffinService->name}",
+            ]);
+        }
+
+        $affectedCompanies = CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)
+            ->where('is_active', true)
+            ->count();
+
+        DB::transaction(function () use ($tiffinService, $request) {
+            // Deactivated, not deleted, so their attribution on past menus,
+            // overrides and confirmed counts stays intact.
+            User::where('tiffin_service_id', $tiffinService->id)->update([
+                'is_active' => false,
+                'deactivated_at' => now(),
+                'deactivated_by' => $request->user()->id,
+            ]);
+
+            CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)
+                ->update(['is_active' => false]);
+
+            $tiffinService->forceFill(['deleted_by' => $request->user()->id])->save();
+            $tiffinService->delete();
+        });
+
+        // Said out loud, because it is the real consequence and it is not
+        // obvious: a company with no active assignment is skipped by the cutoff
+        // entirely, so its count stops locking and its vendor is never told
+        // anything. Those companies need pairing with another service.
+        $warning = $affectedCompanies > 0
+            ? " {$affectedCompanies} ".($affectedCompanies === 1 ? 'company is' : 'companies are').
+              ' now unpaired and will stop getting a daily count until re-paired.'
+            : '';
+
+        return back()->with(
+            'message',
+            "{$tiffinService->name} is archived. Nothing was deleted, and it can be restored.".$warning,
+        );
+    }
+
+    /**
+     * Bring an archived service back.
+     *
+     * Its assignments are deliberately left inactive: a company may have been
+     * paired with another vendor in the meantime, and re-activating silently
+     * would give it two active assignments - which a database constraint
+     * forbids outright. Pairing is a decision, so it is made again by hand.
+     */
+    public function restoreTiffin(Request $request, int $tiffinServiceId)
+    {
+        $tiffinService = TiffinService::onlyTrashed()->findOrFail($tiffinServiceId);
+
+        DB::transaction(function () use ($tiffinService) {
+            $tiffinService->restore();
+            $tiffinService->forceFill(['deleted_by' => null])->save();
+
+            User::where('tiffin_service_id', $tiffinService->id)
+                ->whereNotNull('deactivated_at')
+                ->update(['is_active' => true, 'deactivated_at' => null, 'deactivated_by' => null]);
+        });
+
+        return back()->with(
+            'message',
+            "{$tiffinService->name} is restored and its logins work again. ".
+            'Its companies are still unpaired - pair them again from this screen.',
+        );
     }
 }
