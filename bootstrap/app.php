@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HealthPingController;
+use App\Http\Middleware\EnsureAccountIsStillActive;
 use App\Http\Middleware\EnsureMustChangePassword;
 use App\Http\Middleware\EnsureUserRole;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -55,6 +56,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            // Before the password check, because an account that may not be
+            // here at all should not be asked to choose a new password.
+            EnsureAccountIsStillActive::class,
             EnsureMustChangePassword::class,
         ]);
 

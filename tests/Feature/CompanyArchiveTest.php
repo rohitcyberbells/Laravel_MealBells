@@ -304,13 +304,45 @@ class CompanyArchiveTest extends TestCase
         $this->assertNull($this->company->fresh()->deleted_at);
     }
 
+    /**
+     * A live company's admin, deliberately.
+     *
+     * This used to use the archived company's own admin, which no longer
+     * reaches the role check at all: EnsureAccountIsStillActive signs out an
+     * archived company's people on their next request, so the response is a
+     * redirect to sign-in rather than a 403. That is the stronger refusal, but
+     * it stops this test asserting the thing it is named after - so it asks
+     * from a company that is still live.
+     */
     public function test_only_a_super_admin_can_restore(): void
+    {
+        $otherAdmin = User::create([
+            'name' => 'Beta HR', 'email' => 'hr@beta.test',
+            'password' => bcrypt('password-1'), 'role' => 'company_admin', 'company_id' => $this->other->id,
+        ]);
+
+        $this->archive();
+        $this->signOut();
+
+        $this->actingAs($otherAdmin)
+            ->post("/super-admin/companies/{$this->company->id}/restore")
+            ->assertStatus(403);
+
+        $this->assertNotNull($this->company->fresh()->deleted_at);
+    }
+
+    /**
+     * And the archived company's own admin cannot even get that far.
+     */
+    public function test_an_archived_companys_admin_is_signed_out_rather_than_forbidden(): void
     {
         $this->archive();
 
-        $this->actingAs($this->admin)
+        $this->actingAs(User::findOrFail($this->admin->id))
             ->post("/super-admin/companies/{$this->company->id}/restore")
-            ->assertStatus(403);
+            ->assertRedirect('/login');
+
+        $this->assertNotNull($this->company->fresh()->deleted_at);
     }
 
     public function test_restoring_an_unarchived_company_is_a_404(): void
