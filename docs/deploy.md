@@ -340,7 +340,36 @@ cover that case, which is why both exist.
 
 ---
 
-## 9. After the first deploy, check
+## 9. Who gets emailed
+
+Most notifications are in-app only, deliberately: an employee or an HR admin is
+already in MealBells, and mailing them every skip would make the mail
+worthless. Three go out by email, because the recipient is not looking at a
+screen when they matter.
+
+| | Goes to | When |
+|---|---|---|
+| Daily count | the vendor | the day locks — with every company they cook for that date broken out, and the total |
+| **UPDATED** count | the vendor | a post-cutoff change, leading with the **new total**, not the delta |
+| Cutoff failed | super admins | a company's cutoff errored; once per company per day |
+| Health alerts | super admins, or `HEALTH_ALERT_RECIPIENTS` | see §8 |
+
+Two things that decide whether these arrive at all:
+
+- **`MAIL_FROM_ADDRESS` must be a domain you can send from.** Laravel's own
+  default is `hello@example.com`; this app instead derives one from `APP_URL`
+  when the variable is unset, but either way a from-address that fails SPF is
+  dropped silently by the receiving side and looks like a working mailer from
+  here. Send one real mail and confirm it lands, rather than that it sent.
+- **A login with no address of its own carries a stand-in ending `.local`**,
+  which is never written to. Those accounts get the in-app copy and no mail —
+  so if a vendor says they are not getting the count, check their address
+  first.
+
+Vendor-facing mail carries counts and company names only: never an employee
+name, code, email or skip reason. A test asserts it.
+
+## 10. After the first deploy, check
 
 - [ ] `/` redirects to the sign-in page, and the tab reads **MealBells**
 - [ ] an error page shows no stack trace (`APP_DEBUG=false`)

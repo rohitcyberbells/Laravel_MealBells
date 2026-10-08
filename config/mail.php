@@ -111,8 +111,17 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        /*
+         * The framework's default here is hello@example.com, which is a domain
+         * nobody operating this owns - so with MAIL_FROM_ADDRESS unset every
+         * mail is sent from an address that fails SPF and is quietly dropped by
+         * the receiving side. Deriving it from APP_URL is wrong less often, and
+         * is at least a domain this installation is actually served from.
+         */
+        'address' => env('MAIL_FROM_ADDRESS')
+            ?: 'noreply@'.(parse_url((string) env('APP_URL'), PHP_URL_HOST) ?: 'localhost'),
+
+        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'MealBells')),
     ],
 
 ];
