@@ -82,6 +82,19 @@ class NavigationTest extends TestCase
     }
 
     /**
+     * GET routes that are not pages, so they are not expected in a menu.
+     *
+     * The export is a file download: it has to be a GET so a browser can follow
+     * it, but it renders nothing and belongs on the Settings screen beside an
+     * explanation of what is in the file, not as a sidebar destination.
+     *
+     * @var array<int, string>
+     */
+    protected const NOT_PAGES = [
+        '/company-admin/export',
+    ];
+
+    /**
      * Every GET page this role is allowed to reach, taken from the router rather
      * than a hand-written list - so a new page with no menu item fails here.
      *
@@ -93,6 +106,7 @@ class NavigationTest extends TestCase
             ->filter(fn ($route) => in_array('GET', $route->methods(), true))
             ->filter(fn ($route) => in_array("role:{$role}", $route->gatherMiddleware(), true))
             ->map(fn ($route) => '/'.ltrim($route->uri(), '/'))
+            ->reject(fn (string $path) => in_array($path, self::NOT_PAGES, true))
             ->unique()
             ->values()
             ->all();

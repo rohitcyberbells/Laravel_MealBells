@@ -27,7 +27,24 @@ class Employee extends Model
 
     protected $casts = [
         'is_meal_eligible' => 'boolean',
+        'anonymised_at' => 'datetime',
     ];
+
+    /**
+     * Whether this person's details were removed at their request.
+     *
+     * The row is kept deliberately - deleting it would cascade every skip they
+     * ever had, and those skips are what the daily counts were computed from.
+     */
+    public function isAnonymised(): bool
+    {
+        return $this->anonymised_at !== null;
+    }
+
+    public function anonymisedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'anonymised_by');
+    }
 
     public function company(): BelongsTo
     {

@@ -6,6 +6,7 @@ use App\Http\Controllers\CompanyAdmin\AdoptionReportController;
 use App\Http\Controllers\CompanyAdmin\CompanyAdminController;
 use App\Http\Controllers\CompanyAdmin\CompanyCalendarController;
 use App\Http\Controllers\CompanyAdmin\CompanyDailyController;
+use App\Http\Controllers\CompanyAdmin\CompanyExportController;
 use App\Http\Controllers\CompanyAdmin\CompanyHrmsController;
 use App\Http\Controllers\CompanyAdmin\CompanyRecurringSkipController;
 use App\Http\Controllers\CompanyAdmin\CompanySettingController;
@@ -104,6 +105,7 @@ Route::middleware('auth')->group(function () {
         // Settings Management
         Route::get('/settings', [CompanySettingController::class, 'index'])->name('company-admin.settings.index');
         Route::put('/settings', [CompanySettingController::class, 'update'])->name('company-admin.settings.update');
+        Route::get('/export', [CompanyExportController::class, 'download'])->name('company-admin.export');
         Route::post('/admins', [CompanySettingController::class, 'storeAdmin'])->name('company-admin.admins.store');
 
         // CSV & Logins
@@ -114,6 +116,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/employees/csv-import', [EmployeeController::class, 'importCsv'])->name('company-admin.employees.csv-import');
         Route::post('/employees/logins', [EmployeeController::class, 'createLogins'])->name('company-admin.employees.logins');
         Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword'])->name('company-admin.employees.reset-password');
+        Route::post('/employees/{employee}/anonymise', [EmployeeController::class, 'anonymise'])->name('company-admin.employees.anonymise');
 
         // Skip Management
         Route::post('/skips', [SkipController::class, 'store'])->name('company-admin.skips.store');

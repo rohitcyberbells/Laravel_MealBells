@@ -233,6 +233,29 @@ const addAdmin = () => {
                     </Link>
                 </div>
             </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+                <h2 class="text-base font-bold text-slate-200">Your data</h2>
+
+                <div class="flex items-start justify-between gap-4 text-sm">
+                    <div>
+                        <p class="text-slate-300 font-semibold">Export everything</p>
+                        <p class="text-xs text-slate-500">
+                            A zip of four CSVs — employees, skips, extra meals and the daily counts the kitchen
+                            was given — with a README explaining each column. It contains personal data, so
+                            keep it somewhere you would keep a payroll file.
+                        </p>
+                    </div>
+                    <!-- A plain link, not an Inertia visit: the response is a
+                         file download and Inertia would try to parse it. -->
+                    <a
+                        href="/company-admin/export"
+                        class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition"
+                    >
+                        Download export
+                    </a>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>
