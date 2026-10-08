@@ -180,9 +180,13 @@ class EmployeePortalTest extends TestCase
 
         $response->assertSessionHasErrors('login_code');
 
-        // Active session check
-        $res2 = $this->actingAs($this->empUserA1)->get('/employee/dashboard');
-        $res2->assertStatus(403);
+        // An existing session is now ended rather than answered with a 403 on
+        // every request: EnsureAccountIsStillActive re-checks the account and
+        // signs it out. The controller's own 403 is still there behind it, but
+        // nothing reaches it any more.
+        $this->actingAs(User::findOrFail($this->empUserA1->id))
+            ->get('/employee/dashboard')
+            ->assertRedirect('/login');
     }
 
     public function test_employee_cannot_access_company_admin_routes(): void

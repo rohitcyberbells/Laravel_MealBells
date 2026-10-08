@@ -35,6 +35,52 @@ class User extends Authenticatable
         return ! str_ends_with(strtolower($email), strtolower($suffix));
     }
 
+    /**
+     * Whether this account may be signed in right now.
+     *
+     * Read in two places that must agree: the sign-in check, and the middleware
+     * that re-checks it on every request. It used to exist only in the login
+     * controller, which meant deactivating someone - or archiving their company
+     * - did nothing to a session they already had. They kept working until it
+     * expired.
+     *
+     * The three switches are owned by different people: an employee is stood
+     * down on their employee record by their HR team, any account can be
+     * deactivated by a super admin, and archiving a company or a tiffin service
+     * takes everyone attached to it with it.
+     */
+    public function canSignIn(): bool
+    {
+        // Explicitly false, not merely falsy. The column is NOT NULL DEFAULT
+        // true, so a null here never comes from the database - it only means
+        // the attribute was not loaded, as happens with a model built by
+        // create() where the default was applied server-side. Treating that as
+        // deactivated locked out every such account.
+        if ($this->is_active === false || $this->is_active === 0) {
+            return false;
+        }
+
+        // An archived company's people are refused. The company is
+        // soft-deleted, so the relation resolves to null while company_id still
+        // points at it - which is exactly the condition to catch.
+        if ($this->company_id !== null && $this->company === null) {
+            return false;
+        }
+
+        // The same for an archived tiffin service. Archiving deactivates its
+        // logins, so is_active already catches them; this is the second lock,
+        // for an account reactivated by hand or created after the archive.
+        if ($this->tiffin_service_id !== null && $this->tiffinService === null) {
+            return false;
+        }
+
+        if ($this->role !== 'employee') {
+            return true;
+        }
+
+        return ! $this->employee || $this->employee->status === 'active';
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);

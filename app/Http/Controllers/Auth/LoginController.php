@@ -128,41 +128,15 @@ class LoginController extends Controller
     /**
      * Whether this account may sign in at all.
      *
-     * Two separate switches, because they are owned by different people: an
-     * employee is stood down on their employee record by their HR team, and any
-     * account can be deactivated by a super admin.
-     *
-     * Checked before the password in both login paths, so a deactivated account
-     * is refused in a way indistinguishable from a wrong address - saying
-     * "deactivated" would confirm the account exists.
+     * The rule itself lives on the model, because the middleware that re-checks
+     * it on every request has to apply exactly the same one. Checked before the
+     * password in both login paths, so a deactivated account is refused in a
+     * way indistinguishable from a wrong address - saying "deactivated" would
+     * confirm the account exists.
      */
     protected function employeeIsActive(User $user): bool
     {
-        if (! $user->is_active) {
-            return false;
-        }
-
-        // An archived company's people cannot sign in. The company is
-        // soft-deleted, so the relation resolves to null while company_id still
-        // points at it - which is exactly the condition to refuse.
-        if ($user->company_id !== null && $user->company === null) {
-            return false;
-        }
-
-        // The same for an archived tiffin service. Archiving deactivates its
-        // logins, so is_active already catches them - this is the second lock:
-        // a vendor account reactivated by hand, or created after the archive,
-        // would otherwise sign in and see a preparation screen for a service
-        // that no longer exists.
-        if ($user->tiffin_service_id !== null && $user->tiffinService === null) {
-            return false;
-        }
-
-        if ($user->role !== 'employee') {
-            return true;
-        }
-
-        return ! $user->employee || $user->employee->status === 'active';
+        return $user->canSignIn();
     }
 
     protected function genericFailure(Request $request, string $field)
