@@ -25,10 +25,19 @@ class EmployeeController extends Controller
         $status = $request->query('status');
 
         $employees = Employee::where('company_id', $company->id)
+            // Lowered on both sides rather than a plain LIKE.
+            //
+            // SQLite's LIKE is case-insensitive for ASCII and PostgreSQL's is
+            // not, so this screen searched case-insensitively in development
+            // and case-sensitively in production: typing 'alice' would not
+            // find 'Alice' on a real deployment, and nothing in the suite
+            // would ever have said so.
             ->when($search, fn ($q) => $q->where(function ($sub) use ($search) {
-                $sub->where('name', 'like', "%{$search}%")
-                    ->orWhere('employee_code', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                $needle = '%'.mb_strtolower(trim((string) $search)).'%';
+
+                $sub->whereRaw('LOWER(name) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(employee_code) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(email) LIKE ?', [$needle]);
             }))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('name')
