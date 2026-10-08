@@ -55,4 +55,31 @@ return [
      * companies with a pull configured.
      */
     'pull_staleness_fails' => env('HEALTH_PULL_STALENESS_FAILS', true),
+
+    'alerts' => [
+        /*
+         * Whether a failing check emails anyone. Off would leave the health
+         * page as the only signal, which means someone has to remember to look
+         * at it - the state this replaced.
+         */
+        'enabled' => env('HEALTH_ALERTS_ENABLED', true),
+
+        /*
+         * Comma-separated addresses. Empty means every super admin, which is
+         * the sensible default; set it when alerts should go to an on-call
+         * address or a ticketing inbox instead of to people's own accounts.
+         */
+        'recipients' => env('HEALTH_ALERT_RECIPIENTS', ''),
+
+        /*
+         * Minutes before the same unresolved issue is mailed again.
+         *
+         * The command runs every five minutes, so without this a dead worker
+         * would send twelve mails an hour and be filtered within a day - at
+         * which point the alerting is worse than none. An hour is long enough
+         * to stay credible and short enough to catch someone coming back to
+         * their desk.
+         */
+        'repeat_after_minutes' => env('HEALTH_ALERT_REPEAT_AFTER_MINUTES', 60),
+    ],
 ];
