@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MealRuleReason;
 use App\Exceptions\MealRuleViolation;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\Employee;
 use App\Models\MealCount;
 use Carbon\Carbon;
@@ -110,7 +111,7 @@ class MealGuard
 
         // 5. Cutoff Time Check
         if (in_array('cutoff', $checks) && MealCutoff::hasCutoffPassed($company, $dateString)) {
-            $cutoffTime = $company->setting?->cutoff_time ?? '10:30:00';
+            $cutoffTime = CompanySetting::cutoffLabelFor($company->setting);
             throw new MealRuleViolation("Cannot {$actionName}: Cutoff time ({$cutoffTime}) has passed for today.", MealRuleReason::CUTOFF_PASSED);
         }
     }

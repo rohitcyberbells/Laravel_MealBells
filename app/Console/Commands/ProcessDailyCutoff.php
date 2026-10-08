@@ -41,10 +41,7 @@ class ProcessDailyCutoff extends Command
                     continue;
                 }
 
-                $cutoffTimeStr = $setting->cutoff_time ?? '11:00';
-                $parts = explode(':', $cutoffTimeStr);
-                $hour = (int) ($parts[0] ?? 11);
-                $minute = (int) ($parts[1] ?? 0);
+                [$hour, $minute] = $setting->cutoffHourMinute();
 
                 $cutoffDateTime = Carbon::createFromFormat('Y-m-d', $todayDate, $timezone)->setTime($hour, $minute, 0);
                 $summaryDateTime = $cutoffDateTime->copy()->subMinutes(30);

@@ -32,7 +32,7 @@ class CompanySettingController extends Controller
             ->get();
 
         return Inertia::render('CompanyAdmin/Settings/Index', [
-            'cutoff_time' => $setting?->cutoff_time ?? '11:00',
+            'cutoff_time' => $setting?->cutoff_time ?? CompanySetting::DEFAULT_CUTOFF_TIME,
             'timezone' => $setting?->timezone ?? 'Asia/Kolkata',
             'wfh_auto_skip' => $setting?->wfh_auto_skip ?? false,
             'meal_days' => $setting?->meal_days ?? [1, 2, 3, 4, 5],
@@ -65,7 +65,10 @@ class CompanySettingController extends Controller
         }
 
         $validated = $request->validate([
-            'cutoff_time' => 'required',
+            // Was just 'required'. '12pm' passed it, then parsed through
+            // explode(':') as hour 0 - a silent midnight cutoff that locks the
+            // count before anyone can change it.
+            'cutoff_time' => 'required|date_format:H:i,H:i:s',
             'timezone' => 'required|string|timezone',
             'wfh_auto_skip' => 'required|boolean',
             'meal_days' => 'required|array|min:1',

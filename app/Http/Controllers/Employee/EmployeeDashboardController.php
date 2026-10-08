@@ -7,6 +7,7 @@ use App\Actions\Meal\RecordSkip;
 use App\Enums\MealRuleReason;
 use App\Exceptions\MealRuleViolation;
 use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
 use App\Models\DailyOverrides;
 use App\Models\MealCount;
 use App\Models\RecurringSkip;
@@ -44,10 +45,7 @@ class EmployeeDashboardController extends Controller
         $tiffinService = $assignment?->tiffinService;
 
         // Cutoff calculation
-        $cutoffTimeStr = $company->setting?->cutoff_time ?? '11:00';
-        $parts = explode(':', $cutoffTimeStr);
-        $cutoffHour = (int) ($parts[0] ?? 11);
-        $cutoffMinute = (int) ($parts[1] ?? 0);
+        [$cutoffHour, $cutoffMinute] = CompanySetting::cutoffHourMinuteFor($company->setting);
 
         $cutoffDateTime = Carbon::createFromFormat('Y-m-d', $targetDate, $timezone)->setTime($cutoffHour, $cutoffMinute, 0);
         $now = Carbon::now($timezone);
@@ -169,7 +167,7 @@ class EmployeeDashboardController extends Controller
                 'status' => $todaySkip ? 'skipped' : 'take',
                 'skip_source' => $todaySkip?->source,
                 'can_cancel' => $todaySkip && in_array($todaySkip->source, ['self', 'recurring']) && ! $todayLocked && $now->lt($cutoffDateTime),
-                'cutoff_time' => substr($cutoffTimeStr, 0, 5),
+                'cutoff_time' => CompanySetting::cutoffLabelFor($company->setting),
                 'seconds_left' => $secondsLeft,
                 'locked' => $todayLocked,
             ],

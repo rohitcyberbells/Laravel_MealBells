@@ -104,7 +104,9 @@ class SkipAndAdjustmentTest extends TestCase
         $action = new RecordSkip;
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Cutoff time (00:01:00) has passed for today.');
+        // The message carries the cutoff as a person reads it, not as the
+        // column stores it.
+        $this->expectExceptionMessage('Cutoff time (00:01) has passed for today.');
 
         $action->execute($company, $employee, Carbon::today()->toDateString());
     }

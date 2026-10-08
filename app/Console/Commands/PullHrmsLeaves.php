@@ -169,9 +169,9 @@ class PullHrmsLeaves extends Command
         $timezone = $setting->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
         $lead = (int) config('hrms.cyberpulse.pull_before_cutoff_minutes', 20);
 
-        [$hour, $minute] = array_pad(explode(':', (string) ($setting->cutoff_time ?? '11:00')), 2, '0');
+        [$hour, $minute] = $setting->cutoffHourMinute();
 
-        $cutoff = Carbon::today($timezone)->setTime((int) $hour, (int) $minute);
+        $cutoff = Carbon::today($timezone)->setTime($hour, $minute);
         $windowOpens = $cutoff->copy()->subMinutes($lead);
         $now = Carbon::now($timezone);
 

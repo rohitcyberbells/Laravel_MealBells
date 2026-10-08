@@ -97,7 +97,10 @@ class CompanySettingsPageTest extends TestCase
 
         $setting = $this->setting();
 
-        $this->assertEquals('10:30', $setting->cutoff_time);
+        // The form posts 'HH:MM'; the column is a `time` and PostgreSQL would
+        // return 'HH:MM:SS' regardless, so the model normalises on write and
+        // both drivers now store the same thing.
+        $this->assertEquals('10:30:00', $setting->cutoff_time);
         $this->assertFalse($setting->wfh_auto_skip);
         $this->assertEquals([1, 2, 3, 4, 5, 6], $setting->meal_days);
         $this->assertEquals($this->admin->id, $setting->primary_admin_id);
