@@ -89,8 +89,18 @@ class BrandedMailLayoutTest extends TestCase
         $this->assertStringNotContainsString('**', $html);
 
         // A plain-text alternative exists, since several vendor mail clients
-        // will only show that.
-        $this->assertNotEmpty((string) $message->getTextBody());
+        // will only show that - and it gets the same treatment.
+        //
+        // It is asserted separately because it has its own template: the first
+        // pass at branding changed only the HTML one, and a production
+        // rehearsal found Laravel's stock footer still going out in the text
+        // part, where no test was looking.
+        $text = (string) $message->getTextBody();
+
+        $this->assertNotEmpty($text);
+        $this->assertStringContainsString('MealBells', $text);
+        $this->assertStringContainsString('10 meals', $text);
+        $this->assertStringNotContainsString('All rights reserved', $text);
     }
 
     public function test_the_subject_names_the_company_and_the_number(): void
