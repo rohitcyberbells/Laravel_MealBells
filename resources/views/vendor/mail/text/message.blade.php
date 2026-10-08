@@ -21,7 +21,11 @@
     {{-- Footer --}}
     <x-slot:footer>
         <x-mail::footer>
-            © {{ date('Y') }} {{ config('app.name') }}. @lang('All rights reserved.')
+            {{ config('app.name') }} - sent automatically, so there is nothing to reply to.
+@if (config('app.url'))
+
+            {{ config('app.url') }}
+@endif
         </x-mail::footer>
     </x-slot:footer>
 </x-mail::layout>

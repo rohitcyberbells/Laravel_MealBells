@@ -213,10 +213,34 @@ class DemoSeederTest extends TestCase
         }
     }
 
+    /**
+     * The seeder itself, not `db:seed`.
+     *
+     * Going through the command proved nothing: Laravel's own confirmable guard
+     * aborts `db:seed` in production before the seeder is reached, so this test
+     * was green with the seeder's guard deleted. `db:seed --force` skips that
+     * prompt - which is exactly what a deploy script does - and then the
+     * seeder's own check is all that is left.
+     */
     public function test_it_refuses_to_run_outside_local_and_testing(): void
     {
-        // The seeder writes to the console on refusal, which the mocked output
-        // style rejects; the buffer keeps that message out of the test output.
+        app()['env'] = 'production';
+
+        $before = Company::count();
+
+        $seeder = new DemoSeeder;
+        $seeder->setContainer(app());
+        $seeder->run();
+
+        $this->assertEquals($before, Company::count());
+    }
+
+    /**
+     * And the outer guard, which is what stops a plain `php artisan db:seed
+     * --class=DemoSeeder` typed on a server by hand.
+     */
+    public function test_the_command_is_refused_in_production_without_force(): void
+    {
         $this->withoutMockingConsoleOutput();
 
         app()['env'] = 'production';
@@ -224,9 +248,10 @@ class DemoSeederTest extends TestCase
         $before = Company::count();
 
         ob_start();
-        $this->seed(DemoSeeder::class);
+        $exitCode = $this->artisan('db:seed', ['--class' => DemoSeeder::class]);
         ob_end_clean();
 
+        $this->assertNotSame(0, $exitCode, 'db:seed was allowed to proceed in production');
         $this->assertEquals($before, Company::count());
     }
 
