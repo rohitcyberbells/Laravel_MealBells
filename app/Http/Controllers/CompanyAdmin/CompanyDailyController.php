@@ -7,6 +7,7 @@ use App\Actions\Meal\CalculateExpectedMeals;
 use App\Actions\Meal\RecordPostCutoffChange;
 use App\Exceptions\MealRuleViolation;
 use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
 use App\Models\Employee;
 use App\Models\MealAdjustment;
 use App\Models\MealCount;
@@ -96,10 +97,7 @@ class CompanyDailyController extends Controller
         }
 
         // Cutoff time & Seconds Left Calculation
-        $cutoffTimeStr = $company->setting?->cutoff_time ?? '11:00';
-        $cutoffParts = explode(':', $cutoffTimeStr);
-        $cutoffHour = (int) ($cutoffParts[0] ?? 11);
-        $cutoffMinute = (int) ($cutoffParts[1] ?? 0);
+        [$cutoffHour, $cutoffMinute] = CompanySetting::cutoffHourMinuteFor($company->setting);
 
         $cutoffDateTime = Carbon::createFromFormat('Y-m-d', $date, $timezone)
             ->setTime($cutoffHour, $cutoffMinute, 0);
@@ -138,7 +136,7 @@ class CompanyDailyController extends Controller
             'is_meal_day' => $isMealDay,
             'count' => $countData,
             'status' => $status,
-            'cutoff_time' => substr($cutoffTimeStr, 0, 5),
+            'cutoff_time' => CompanySetting::cutoffLabelFor($company->setting),
             'seconds_left' => $secondsLeft,
             'skips' => $skips,
             'extra_meals' => $extraMeals,

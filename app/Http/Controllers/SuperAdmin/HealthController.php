@@ -96,10 +96,9 @@ class HealthController extends Controller
                 continue;
             }
 
-            $cutoffStr = $company->setting->cutoff_time ?? '11:00';
-            $parts = explode(':', $cutoffStr);
+            [$cutoffHour, $cutoffMinute] = $company->setting->cutoffHourMinute();
             $cutoffDateTime = Carbon::createFromFormat('Y-m-d', $todayDate, $timezone)
-                ->setTime((int) ($parts[0] ?? 11), (int) ($parts[1] ?? 0), 0);
+                ->setTime($cutoffHour, $cutoffMinute, 0);
 
             $nowInCompanyTz = Carbon::now($timezone);
 
@@ -111,7 +110,7 @@ class HealthController extends Controller
                         'company_id' => $company->id,
                         'company_name' => $company->name,
                         'date' => $todayDate,
-                        'cutoff_time' => $cutoffStr,
+                        'cutoff_time' => $company->setting->cutoffLabel(),
                     ];
                 }
             }
