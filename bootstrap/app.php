@@ -36,6 +36,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->name('health.ping');
         },
     )
+    /*
+     * Auto-discovery off, deliberately.
+     *
+     * The framework discovers listeners in app/Listeners by default, and
+     * AppServiceProvider also registers all four explicitly - so every one was
+     * bound twice, and every notification they send went out twice. The vendor
+     * received two identical "your count is ready" emails for every locked day,
+     * and two in-app copies.
+     *
+     * It was invisible because assertSentTo() does not count, only
+     * assertSentToTimes() does.
+     *
+     * Explicit registration is kept rather than discovery: it can be found by
+     * grepping, and it says in one place what listens to what.
+     */
+    ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             HandleInertiaRequests::class,
