@@ -29,8 +29,14 @@ class RemoveCalendarDay
             throw new MealRuleViolation('Cannot modify calendar for locked date.', MealRuleReason::COUNT_LOCKED);
         }
 
+        // Deleted through the model, not as a mass delete on the builder: a
+        // builder delete fires no model events, so the per-request memo of the
+        // calendar would keep answering with the row that is now gone.
         CompanyCalendarDay::where('company_id', $company->id)
             ->where('date', $date)
+            ->get()
+            ->each
             ->delete();
+
     }
 }

@@ -59,6 +59,18 @@ class HealthController extends Controller
         $unconfiguredCompanies = [];
         $companies = Company::with('setting', 'activeAssignment')->get();
 
+        // One pass for every company's locked snapshot, instead of an exists()
+        // inside the loop.
+        $lockedToday = MealCount::whereNotNull('locked_at')
+            ->whereIn('company_id', $companies->pluck('id'))
+            ->whereBetween('date', [
+                now()->subDay()->toDateString(),
+                now()->addDay()->toDateString(),
+            ])
+            ->get(['company_id', 'date'])
+            ->map(fn ($row) => $row->company_id.':'.Carbon::parse($row->date)->toDateString())
+            ->all();
+
         foreach ($companies as $company) {
             if (! $company->activeAssignment) {
                 continue;
@@ -92,10 +104,7 @@ class HealthController extends Controller
             $nowInCompanyTz = Carbon::now($timezone);
 
             if ($nowInCompanyTz->gte($cutoffDateTime)) {
-                $hasLockedCount = MealCount::where('company_id', $company->id)
-                    ->where('date', $todayDate)
-                    ->whereNotNull('locked_at')
-                    ->exists();
+                $hasLockedCount = in_array($company->id.':'.$todayDate, $lockedToday, true);
 
                 if (! $hasLockedCount) {
                     $missingSnapshotsToday[] = [
@@ -239,14 +248,25 @@ class HealthController extends Controller
         $startOfToday = now()->startOfDay();
         $sevenDaysAgo = now()->subDays(7);
 
-        $countsFor = fn ($since) => [
-            'failed' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_FAILED)
-                ->where('created_at', '>=', $since)->count(),
-            'blocked' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_BLOCKED)
-                ->where('created_at', '>=', $since)->count(),
-            'stale' => HrmsWebhookEvent::where('status', HrmsWebhookEvent::STATUS_STALE)
-                ->where('created_at', '>=', $since)->count(),
-        ];
+        // One grouped query per window instead of one per status: this was six
+        // counts for two windows of three statuses.
+        $countsFor = function ($since) {
+            $tallies = HrmsWebhookEvent::selectRaw('status, count(*) as total')
+                ->whereIn('status', [
+                    HrmsWebhookEvent::STATUS_FAILED,
+                    HrmsWebhookEvent::STATUS_BLOCKED,
+                    HrmsWebhookEvent::STATUS_STALE,
+                ])
+                ->where('created_at', '>=', $since)
+                ->groupBy('status')
+                ->pluck('total', 'status');
+
+            return [
+                'failed' => (int) $tallies->get(HrmsWebhookEvent::STATUS_FAILED, 0),
+                'blocked' => (int) $tallies->get(HrmsWebhookEvent::STATUS_BLOCKED, 0),
+                'stale' => (int) $tallies->get(HrmsWebhookEvent::STATUS_STALE, 0),
+            ];
+        };
 
         $lastEvent = HrmsWebhookEvent::latest('created_at')->first();
 
