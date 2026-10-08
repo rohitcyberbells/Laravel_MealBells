@@ -106,6 +106,7 @@ Every minute, as the web user. It drives:
 | `hrms:pull --all --before-cutoff` | every minute, acts once per window | Leave approved that morning misses today's count |
 | `mealbells:generate-recurring-skips` | hourly | "Every Friday" rules stop producing skips |
 | `hrms:reconcile` | every 5 min | A webhook event that failed is never retried |
+| `mealbells:health-alerts` | every 5 min | **Nobody is emailed when anything breaks.** See §8 |
 | `model:prune` | 03:00 | HRMS payloads are never redacted |
 | `mealbells:backup` | 02:30 | **No backups at all.** Nothing here is recoverable without one |
 | `mealbells:prune-operational-data` | 03:15 | Sessions, notifications and failed jobs grow without limit |
@@ -307,8 +308,35 @@ means the token is wrong, not that the route is missing.
 The endpoint carries no session, so polling it every minute does not fill the
 sessions table, and it is rate-limited to 60 requests a minute per address.
 
-**Alerting is still a monitor's job.** Nothing in the application emails anyone
-when a check fails; `/health/ping` is what makes an external monitor able to.
+### Alert emails
+
+`mealbells:health-alerts` runs every five minutes from the same cron entry and
+emails the operators when a check fails — the five above plus **backups**,
+which is alerted on but deliberately kept out of `/health/ping` (a backup 37
+hours old is a real problem, not an outage, and paging an uptime monitor at 3am
+for it trains people to ignore the monitor).
+
+| | Default | |
+|---|---|---|
+| `HEALTH_ALERTS_ENABLED` | `true` | |
+| `HEALTH_ALERT_RECIPIENTS` | empty | Comma-separated. Empty means **every active super admin**. Set it to send to an on-call or ticketing address instead. |
+| `HEALTH_ALERT_REPEAT_AFTER_MINUTES` | 60 | The same unresolved issue is not mailed again inside this window. |
+
+Each issue is deduped on its own, and **one message is sent when it clears** —
+without that, the reader cannot tell a fixed problem from one nobody has looked
+at. The recovery mail says plainly that nothing was made up for automatically:
+the scheduler catching up does not retroactively lock yesterday's count.
+
+```bash
+php artisan mealbells:health-alerts --dry-run   # what would be sent, sending nothing
+```
+
+A dry run deliberately records nothing, so it cannot suppress the real alert.
+
+**The alert mails need a working mailer and a running queue worker** — they are
+queued like everything else. That is the one hole: a dead worker cannot mail
+you to say the worker is dead. `/health/ping` and an external monitor are what
+cover that case, which is why both exist.
 
 ---
 
@@ -326,6 +354,8 @@ when a check fails; `/health/ping` is what makes an external monitor able to.
       arrives
 - [ ] `HEALTH_PING_TOKEN` is set, `/health/ping?token=…` answers **200**, and
       the uptime monitor is pointed at it
+- [ ] `php artisan mealbells:health-alerts --dry-run` names the right
+      recipients, and one real alert mail has been seen arriving
 - [ ] run `php artisan mealbells:backup` and confirm the Health page shows it
 - [ ] set `BACKUP_DIRECTORY` outside the release folder, and add an off-host
       copy — see [backup-restore.md](backup-restore.md)
