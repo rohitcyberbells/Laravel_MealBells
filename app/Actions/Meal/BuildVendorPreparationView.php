@@ -22,12 +22,7 @@ class BuildVendorPreparationView
         // 1. Date Range Guard Check (Past 30 days to Future 14 days)
         // Resolve timezone from first active company assignment or fallback to default_timezone.
         // Limitation: If vendor serves multiple companies across different timezones, default_timezone is used as fallback reference.
-        $firstCompanySetting = CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)
-            ->where('is_active', true)
-            ->with('company.setting')
-            ->first()?->company?->setting;
-
-        $timezone = $firstCompanySetting?->timezone ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+        $timezone = $this->timezoneFor($tiffinService->id);
 
         $targetDate = Carbon::parse($date, $timezone)->startOfDay();
         $minDate = Carbon::today($timezone)->subDays(30)->startOfDay();
@@ -160,5 +155,32 @@ class BuildVendorPreparationView
             ],
             'companies' => $companyDataList,
         ];
+    }
+
+    /** @var array<int, string> */
+    protected array $timezones = [];
+
+    /**
+     * The timezone a vendor's day is judged on.
+     *
+     * Memoized and public because the controller needs it too - to default the
+     * date before calling this action - and both were running the same
+     * three-query lookup.
+     *
+     * Limitation: a vendor serving companies in different timezones gets the
+     * first one, which is the pre-existing behaviour.
+     */
+    public function timezoneFor(?int $tiffinServiceId): string
+    {
+        $fallback = config('mealbells.default_timezone', 'Asia/Kolkata');
+
+        if (! $tiffinServiceId) {
+            return $fallback;
+        }
+
+        return $this->timezones[$tiffinServiceId] ??= CompanyTiffinAssignment::where('tiffin_service_id', $tiffinServiceId)
+            ->where('is_active', true)
+            ->with('company.setting')
+            ->first()?->company?->setting?->timezone ?? $fallback;
     }
 }

@@ -8,6 +8,7 @@ use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
 use App\Models\MealCount;
 use App\Models\WeeklyMenu;
+use App\Services\MealCalendar;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -101,15 +102,24 @@ class CompanyAdminController extends Controller
         ]);
 
         // 7-day Forecast
+        //
+        // One calendar query for the whole span, and one pass for the locked
+        // snapshots, instead of both per day inside the loop.
+        $forecastEnd = Carbon::today($timezone)->addDays(6)->toDateString();
+        MealCalendar::preload($company, $todayDate, $forecastEnd);
+
+        $lockedSnapshots = MealCount::where('company_id', $company->id)
+            ->whereBetween('date', [$todayDate, $forecastEnd])
+            ->whereNotNull('locked_at')
+            ->get()
+            ->keyBy(fn (MealCount $count) => Carbon::parse($count->date)->toDateString());
+
         $forecast = [];
         for ($i = 0; $i < 7; $i++) {
             $forecastDate = Carbon::today($timezone)->addDays($i)->toDateString();
             $forecastCalculated = $calculator->execute($company, $forecastDate);
 
-            $lockedSnapshot = MealCount::where('company_id', $company->id)
-                ->where('date', $forecastDate)
-                ->whereNotNull('locked_at')
-                ->first();
+            $lockedSnapshot = $lockedSnapshots->get($forecastDate);
 
             $forecast[] = array_merge($forecastCalculated, [
                 'is_locked' => $lockedSnapshot !== null,

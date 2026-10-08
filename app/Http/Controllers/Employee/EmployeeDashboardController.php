@@ -7,7 +7,6 @@ use App\Actions\Meal\RecordSkip;
 use App\Enums\MealRuleReason;
 use App\Exceptions\MealRuleViolation;
 use App\Http\Controllers\Controller;
-use App\Models\CompanyCalendarDay;
 use App\Models\DailyOverrides;
 use App\Models\MealCount;
 use App\Models\RecurringSkip;
@@ -58,59 +57,86 @@ class EmployeeDashboardController extends Controller
             $secondsLeft = max(0, $now->diffInSeconds($cutoffDateTime, false));
         }
 
-        // Today details
-        $todayMeal = $this->resolveMealForDate($company, $tiffinService, $targetDate, $timezone);
-        $todaySkip = Skip::where('company_id', $company->id)
+        // Everything the page needs for today and the next six days, fetched by
+        // range rather than per day. This loop used to cost five queries a day,
+        // which was most of the seventy-six this page issued.
+        $startCarbon = Carbon::createFromFormat('Y-m-d', $targetDate, $timezone);
+        $endDate = $startCarbon->copy()->addDays(6)->toDateString();
+
+        MealCalendar::preload($company, $targetDate, $endDate);
+
+        $skipsByDate = Skip::where('company_id', $company->id)
             ->where('employee_id', $employee->id)
-            ->where('date', $targetDate)
+            ->whereBetween('date', [$targetDate, $endDate])
             ->whereNull('cancelled_at')
-            ->first();
+            ->get()
+            ->keyBy(fn (Skip $skip) => Carbon::parse($skip->date)->toDateString());
 
-        $todayLocked = MealCount::where('company_id', $company->id)
-            ->where('date', $targetDate)
+        $lockedDates = MealCount::where('company_id', $company->id)
+            ->whereBetween('date', [$targetDate, $endDate])
             ->whereNotNull('locked_at')
-            ->exists();
+            ->pluck('date')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->all();
 
-        $todayCalDay = CompanyCalendarDay::where('company_id', $company->id)
-            ->where('date', $targetDate)
-            ->first();
+        $overridesByDate = $tiffinService
+            ? DailyOverrides::where('tiffin_service_id', $tiffinService->id)
+                ->whereBetween('date', [$targetDate, $endDate])
+                ->get()
+                ->keyBy(fn (DailyOverrides $override) => Carbon::parse($override->date)->toDateString())
+            : collect();
 
-        $todayOverride = $tiffinService ? DailyOverrides::where('tiffin_service_id', $tiffinService->id)
-            ->where('date', $targetDate)
-            ->first() : null;
+        // The week's published menus. A seven-day span touches at most two
+        // weeks, so this is one query instead of one per day.
+        $menusByWeek = $tiffinService
+            ? WeeklyMenu::with('items')
+                ->where('tiffin_service_id', $tiffinService->id)
+                ->whereIn('week_start_date', [
+                    $startCarbon->copy()->startOfWeek()->toDateString(),
+                    $startCarbon->copy()->addDays(6)->startOfWeek()->toDateString(),
+                ])
+                ->where('status', 'published')
+                ->get()
+                ->keyBy(fn (WeeklyMenu $menu) => Carbon::parse($menu->week_start_date)->toDateString())
+            : collect();
+
+        $mealFor = function (string $date) use ($overridesByDate, $menusByWeek, $timezone): ?string {
+            if ($override = $overridesByDate->get($date)) {
+                return $override->meal_description;
+            }
+
+            $moment = Carbon::createFromFormat('Y-m-d', $date, $timezone);
+            $menu = $menusByWeek->get($moment->copy()->startOfWeek()->toDateString());
+
+            return $menu?->items
+                ?->firstWhere(fn ($item) => strtolower($item->day_of_week) === strtolower($moment->format('l')))
+                ?->meal_description;
+        };
+
+        // Today details
+        $todayMeal = $mealFor($targetDate);
+        $todaySkip = $skipsByDate->get($targetDate);
+        $todayLocked = in_array($targetDate, $lockedDates, true);
+        $todayCalDay = MealCalendar::override($company, $targetDate);
+        $todayOverride = $overridesByDate->get($targetDate);
 
         // Next 7 days list
         $next7Days = [];
-        $startCarbon = Carbon::createFromFormat('Y-m-d', $targetDate, $timezone);
+
         for ($i = 0; $i < 7; $i++) {
             $dCarbon = $startCarbon->copy()->addDays($i);
             $dStr = $dCarbon->toDateString();
 
-            $dMeal = $this->resolveMealForDate($company, $tiffinService, $dStr, $timezone);
-            $dSkip = Skip::where('company_id', $company->id)
-                ->where('employee_id', $employee->id)
-                ->where('date', $dStr)
-                ->whereNull('cancelled_at')
-                ->first();
-
-            $dLocked = MealCount::where('company_id', $company->id)
-                ->where('date', $dStr)
-                ->whereNotNull('locked_at')
-                ->exists();
-
-            $dCalDay = CompanyCalendarDay::where('company_id', $company->id)
-                ->where('date', $dStr)
-                ->first();
-
-            $dOverride = $tiffinService ? DailyOverrides::where('tiffin_service_id', $tiffinService->id)
-                ->where('date', $dStr)
-                ->first() : null;
+            $dSkip = $skipsByDate->get($dStr);
+            $dLocked = in_array($dStr, $lockedDates, true);
+            $dCalDay = MealCalendar::override($company, $dStr);
+            $dOverride = $overridesByDate->get($dStr);
 
             $next7Days[] = [
                 'date' => $dStr,
                 'day_name' => $dCarbon->format('l'),
                 'is_meal_day' => MealCalendar::isMealDay($company, $dStr),
-                'meal' => $dMeal,
+                'meal' => $mealFor($dStr),
                 'has_override' => $dOverride !== null,
                 'calendar_day' => $dCalDay ? ['type' => $dCalDay->type, 'note' => $dCalDay->note] : null,
                 'status' => $dSkip ? 'skipped' : 'take',
@@ -265,33 +291,5 @@ class EmployeeDashboardController extends Controller
 
             return back()->withErrors(['skip' => $msg]);
         }
-    }
-
-    protected function resolveMealForDate($company, $tiffinService, string $date, string $timezone): ?string
-    {
-        if (! $tiffinService) {
-            return null;
-        }
-
-        $override = DailyOverrides::where('tiffin_service_id', $tiffinService->id)
-            ->where('date', $date)
-            ->first();
-
-        if ($override) {
-            return $override->meal_description;
-        }
-
-        $dayName = Carbon::createFromFormat('Y-m-d', $date, $timezone)->format('l');
-        $weekStart = Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfWeek()->toDateString();
-
-        $weeklyMenu = WeeklyMenu::with('items')
-            ->where('tiffin_service_id', $tiffinService->id)
-            ->where('week_start_date', $weekStart)
-            ->where('status', 'published')
-            ->first();
-
-        $item = $weeklyMenu?->items?->firstWhere(fn ($i) => strtolower($i->day_of_week) === strtolower($dayName));
-
-        return $item?->meal_description;
     }
 }

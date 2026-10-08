@@ -12,6 +12,7 @@ use App\Listeners\SendVendorLateChangeNotificationListener;
 use App\Listeners\SendWeeklyMenuPublishedNotification;
 use App\Models\Employee;
 use App\Observers\EmployeeObserver;
+use App\Services\MealCalendarCache;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -26,7 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One per request, so the container disposes of it between requests and
+        // between tests. Static state would leak across both.
+        $this->app->singleton(MealCalendarCache::class);
     }
 
     /**
