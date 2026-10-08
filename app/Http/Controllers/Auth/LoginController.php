@@ -149,6 +149,15 @@ class LoginController extends Controller
             return false;
         }
 
+        // The same for an archived tiffin service. Archiving deactivates its
+        // logins, so is_active already catches them - this is the second lock:
+        // a vendor account reactivated by hand, or created after the archive,
+        // would otherwise sign in and see a preparation screen for a service
+        // that no longer exists.
+        if ($user->tiffin_service_id !== null && $user->tiffinService === null) {
+            return false;
+        }
+
         if ($user->role !== 'employee') {
             return true;
         }

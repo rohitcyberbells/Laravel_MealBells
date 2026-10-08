@@ -141,10 +141,10 @@ class CompanyArchiveTest extends TestCase
         $this->assertStringContainsString('confirm_name', $page);
         $this->assertStringContainsString('to confirm', $page);
 
-        // The company's own one-click delete is gone. (Deleting a tiffin
-        // service is still a confirm() and still a hard delete - the same
-        // hazard, out of scope here.)
+        // The one-click delete is gone. The tiffin service on the same screen
+        // is archived the same way now - see TiffinServiceArchiveTest.
         $this->assertStringNotContainsString('deleteCompany', $page);
+        $this->assertStringNotContainsString('deleteTiffin', $page);
         $this->assertStringContainsString('beginArchive', $page);
     }
 
