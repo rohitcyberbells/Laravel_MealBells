@@ -33,7 +33,10 @@ class SendVendorLateChangeNotificationListener
                 $company?->name ?? 'Company',
                 $mealCount->date,
                 $change->change_quantity,
-                $change->reason
+                $change->reason,
+                // The new total, not just the delta: '+3' asks the reader to
+                // remember what it was, mid-shift.
+                (int) $mealCount->adjusted_total,
             ));
         }
     }

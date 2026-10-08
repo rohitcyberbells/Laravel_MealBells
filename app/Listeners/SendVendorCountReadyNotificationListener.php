@@ -26,7 +26,11 @@ class SendVendorCountReadyNotificationListener
             $user->notify(new VendorCountReadyNotification(
                 $company?->name ?? 'Company',
                 $mealCount->date,
-                $mealCount->adjusted_total
+                $mealCount->adjusted_total,
+                // So the mail can carry every company this vendor cooks for on
+                // this date. They cook for all of them at once, so one
+                // company's number alone is not the kitchen's workload.
+                $tiffinService->id,
             ));
         }
     }
