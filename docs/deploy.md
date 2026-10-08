@@ -80,11 +80,13 @@ the application needs, so it holds on whichever driver it is run against.
 `migrate` from empty, a full `migrate:rollback`, and `mealbells:backup` through
 `pg_restore` with a password hash still verifying afterwards.
 
-The 8 skips are `HotPathIndexesTest`: its `EXPLAIN` parsing and index
-introspection are written for SQLite, so **the hot-path indexes are asserted
-only on the development driver**. They exist on PostgreSQL — the migration
-creates them — but nothing checks the planner actually uses them there, which
-is the driver that matters.
+`HotPathIndexesTest` now runs on both, so there are **no skips left**: index
+column order comes from the schema builder rather than SQLite's `PRAGMA`, and
+the planner assertion has a PostgreSQL branch. Because PostgreSQL correctly
+prefers a sequential scan on a tiny table, that branch seeds ~5,000 skips,
+4,000 adjustments and 3,000 users and runs `ANALYZE` first, so the choice it
+makes is a real one — all four hot queries come out as an index or bitmap index
+scan without any nudging.
 
 To run the suite against PostgreSQL locally:
 
