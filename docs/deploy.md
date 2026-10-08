@@ -369,7 +369,54 @@ Two things that decide whether these arrive at all:
 Vendor-facing mail carries counts and company names only: never an employee
 name, code, email or skip reason. A test asserts it.
 
-## 10. After the first deploy, check
+## 10. Error tracking (optional)
+
+Sentry is installed but **off unless `SENTRY_DSN` is set** — with no DSN the SDK
+initialises nothing, reports nothing and makes no network calls. Leaving it
+unset is a complete opt-out, and nothing else in the application depends on it.
+
+```dotenv
+SENTRY_DSN=https://…@…ingest.sentry.io/…
+SENTRY_RELEASE=mealbells@2026.10.08-abc1234   # set this in the deploy script
+```
+
+`SENTRY_ENVIRONMENT` falls back to `APP_ENV`; without it a staging error is
+indistinguishable from a production one and wakes someone up. `SENTRY_RELEASE`
+is deliberately **not** read from git at runtime — a release folder often has no
+`.git`, and shelling out on every boot to find out is worse than being told.
+Without it, every regression looks like it has always been there.
+
+### What is scrubbed, and why it matters here
+
+By default an error tracker receives the request body that caused the error. In
+MealBells that body is sometimes a sign-in form holding a password, sometimes an
+**HRMS payload holding a whole company's leave** with employee names and codes,
+and sometimes an HRMS credential being saved. `send_default_pii=false` does not
+cover any of that: the payload is in the request data, not in the PII fields.
+
+So every event passes through `App\Observability\SentryScrubber`, which scrubs
+by key name rather than from a list of known fields — the next endpoint somebody
+adds will not be on a list:
+
+| | |
+|---|---|
+| Replaced at any depth | anything matching password, secret, token, signature, authorization, cookie, api key, credential, dsn, **payload**, email, login code, employee code |
+| Dropped outright | cookies (a session cookie in a report is a usable credential), the env block, a raw request body |
+| Stripped from URLs | `token`, `email`, `signature` query values |
+| Masked in free text | email addresses, keeping the domain — usually the useful part of a mail failure, and it names nobody |
+| Reduced | the user, to an id and a role. Anyone who needs the name looks it up in MealBells, where that access is already controlled |
+
+`send_default_pii` and SQL bindings are forced to `false` in config and are not
+env-tunable. Bindings are the actual values — an address, an employee code, a
+leave reason — while the query shape is what helps debugging, and that is kept.
+
+`/up` and `/health/ping` are excluded from tracing: they are polled every minute
+and would be most of the quota.
+
+> **It is a production dependency**, so `composer install --no-dev` installs it.
+> That is intended — it has to be present to report a production error.
+
+## 11. After the first deploy, check
 
 - [ ] `/` redirects to the sign-in page, and the tab reads **MealBells**
 - [ ] an error page shows no stack trace (`APP_DEBUG=false`)
