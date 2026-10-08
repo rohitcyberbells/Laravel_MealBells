@@ -14,6 +14,7 @@ use App\Services\Hrms\HrmsEventMapper;
 use App\Services\Hrms\HrmsEventPlan;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * One pull run for a company whose HRMS has no webhooks.
@@ -387,7 +388,15 @@ class PullHrmsLeaves
     protected function record(Company $company, array $event): ?HrmsWebhookEvent
     {
         try {
-            $recorded = HrmsWebhookEvent::create([
+            // A transaction of its own, so the unique violation below rolls back
+            // a savepoint instead of the whole run.
+            //
+            // On SQLite a failed INSERT leaves the enclosing transaction usable;
+            // PostgreSQL aborts it entirely, so on the production driver one
+            // already-seen event killed everything the pull did afterwards with
+            // 25P02 - and an already-seen event is the normal case on every run
+            // after the first.
+            $recorded = DB::transaction(fn () => HrmsWebhookEvent::create([
                 'company_id' => $company->id,
                 'external_event_id' => $event['event_id'],
                 'event_type' => $event['event_type'],
@@ -395,7 +404,7 @@ class PullHrmsLeaves
                 'occurred_at' => Carbon::parse($event['occurred_at'])->toDateTimeString(),
                 'payload' => $event,
                 'status' => HrmsWebhookEvent::STATUS_RECEIVED,
-            ]);
+            ]));
         } catch (QueryException) {
             // unique(company_id, external_event_id): this state was already
             // recorded on an earlier run, so the run is idempotent for free.

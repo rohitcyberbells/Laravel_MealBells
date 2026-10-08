@@ -194,7 +194,16 @@ database, not merely written down:
 | After restore | **2 / 40 / 17 / 12** |
 | Checks | `integrity_check` → `ok`; a known employee row present; a password hash still verifying |
 
-The PostgreSQL path is written from the same command but has **not** been run
-here — `pg_dump` is not installed on this machine. Run `mealbells:backup`
-followed by a `pg_restore` into a scratch database once, on the real server,
-before depending on it.
+The PostgreSQL path has now been exercised too, on PostgreSQL 18.6:
+
+| | |
+|---|---|
+| Backed up | `mealbells:backup` → an 84.9 KB custom-format dump |
+| Restored | `pg_restore --no-owner --no-acl` into a fresh database, exit 0 |
+| Checked | a known company and user present by name, and **the user's password hash still verifying** |
+
+The hash check is the one that matters: a restore with the right row counts but
+unreadable hashes is still a failed restore, and it looks like a successful one
+from the outside until somebody tries to sign in.
+
+Both were run against a scratch database, never the development one.

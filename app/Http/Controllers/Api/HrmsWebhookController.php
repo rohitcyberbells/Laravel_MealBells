@@ -11,6 +11,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class HrmsWebhookController extends Controller
 {
@@ -44,7 +45,16 @@ class HrmsWebhookController extends Controller
         }
 
         try {
-            $event = HrmsWebhookEvent::create([
+            // Wrapped in a transaction of its own so that the unique violation
+            // below rolls back a savepoint rather than everything around it.
+            //
+            // On SQLite a failed INSERT leaves the enclosing transaction usable,
+            // so catching the violation was enough. PostgreSQL aborts the whole
+            // transaction instead - every later statement fails with 25P02 -
+            // and this is the production driver. Nested here, Laravel issues a
+            // SAVEPOINT, so the duplicate is swallowed and the caller's
+            // transaction survives.
+            $event = DB::transaction(fn () => HrmsWebhookEvent::create([
                 'company_id' => $company->id,
                 'external_event_id' => $externalEventId,
                 'event_type' => $eventType,
@@ -52,7 +62,7 @@ class HrmsWebhookController extends Controller
                 'occurred_at' => $this->parseOccurredAt($payload, $paths['occurred_at'] ?? null),
                 'payload' => $payload,
                 'status' => 'received',
-            ]);
+            ]));
         } catch (QueryException) {
             // unique(company_id, external_event_id) tripped: a retried delivery of
             // an event already held. Acknowledging with 200 stops the vendor

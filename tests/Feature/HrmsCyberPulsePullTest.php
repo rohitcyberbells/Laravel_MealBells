@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -593,9 +594,12 @@ class HrmsCyberPulsePullTest extends TestCase
         ];
 
         // Every table, not just the ones we expect to have written.
-        $tables = collect(DB::select("select name from sqlite_master where type='table'"))
-            ->pluck('name')
-            ->reject(fn ($t) => str_starts_with($t, 'sqlite_'));
+        //
+        // Through the schema builder rather than sqlite_master, which does not
+        // exist on PostgreSQL - the production driver. A privacy test that only
+        // runs on the development driver is the wrong one to have skipped.
+        $tables = collect(Schema::getTableListing(schemaQualified: false))
+            ->reject(fn ($table) => str_starts_with($table, 'sqlite_'));
 
         $dump = '';
 
