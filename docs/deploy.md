@@ -66,8 +66,25 @@ actually bitten here:
 | `GROUP BY` | PostgreSQL rejects a selected column that is neither grouped nor aggregated; SQLite allows it. A query that is fine locally can be rejected outright in production. |
 | rollbacks | dropping a column referenced by a unique index fails on SQLite and not on PostgreSQL — see §7. |
 
+One more, and it was the serious one: **a failed INSERT aborts the whole
+transaction on PostgreSQL** and leaves it usable on SQLite. Two places insert
+an HRMS event and catch the unique violation to detect a duplicate delivery —
+which on PostgreSQL killed every statement after it with `25P02`. Both now
+nest the insert in its own transaction, so Laravel issues a `SAVEPOINT` and
+only that rolls back.
+
 `tests/Feature/DriverPortabilityTest.php` pins each of these to the behaviour
 the application needs, so it holds on whichever driver it is run against.
+
+**Verified on PostgreSQL 18.6:** the full suite (955 passed, 8 skipped),
+`migrate` from empty, a full `migrate:rollback`, and `mealbells:backup` through
+`pg_restore` with a password hash still verifying afterwards.
+
+The 8 skips are `HotPathIndexesTest`: its `EXPLAIN` parsing and index
+introspection are written for SQLite, so **the hot-path indexes are asserted
+only on the development driver**. They exist on PostgreSQL — the migration
+creates them — but nothing checks the planner actually uses them there, which
+is the driver that matters.
 
 To run the suite against PostgreSQL locally:
 
@@ -267,11 +284,11 @@ See [backup-restore.md](backup-restore.md) for the restore steps, the retention
 settings, and what the nightly backup does *not* cover (off-host copies and
 encryption are both the operator's job).
 
-> **One `down()` is known broken on SQLite.** Dropping `employees.user_id`
-> fails because a unique index still references it. It does not affect
-> PostgreSQL, but it means "every migration has a `down()`" is not the same as
-> "every rollback works" — another reason to restore from a dump rather than
-> roll a schema change back.
+> **One `down()` is broken on SQLite.** Dropping `employees.user_id` fails
+> because a unique index still references it. **Confirmed not to affect
+> PostgreSQL** — a full `migrate:rollback --step=100` unwinds every migration
+> cleanly on 18.6 — but it means "every migration has a `down()`" is not the
+> same as "every rollback works" on a developer's machine.
 
 ---
 

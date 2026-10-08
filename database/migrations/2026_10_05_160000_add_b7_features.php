@@ -18,11 +18,15 @@ return new class extends Migration
 
         // 2. Deactivate old duplicate active assignments (keep latest active per company)
         if (Schema::hasTable('company_tiffin_assignments')) {
+            // havingRaw, not having('active_count', ...): PostgreSQL does not
+            // allow a SELECT alias in HAVING, while SQLite and MySQL do. This
+            // migration therefore failed outright on PostgreSQL - which is to
+            // say a first deploy to the production driver never got past here.
             $duplicateCompanyIds = DB::table('company_tiffin_assignments')
                 ->where('is_active', true)
-                ->select('company_id', DB::raw('COUNT(*) as active_count'))
+                ->select('company_id')
                 ->groupBy('company_id')
-                ->having('active_count', '>', 1)
+                ->havingRaw('COUNT(*) > 1')
                 ->pluck('company_id');
 
             foreach ($duplicateCompanyIds as $companyId) {

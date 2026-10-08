@@ -20,6 +20,10 @@
 /public/storage
 /storage/*.key
 /storage/pail
+# BACKUP_DIRECTORY defaults here, so a local `mealbells:backup` leaves a full
+# database dump in the working tree. Untracked and unignored, one `git add -A`
+# commits every employee's name and email into the repository.
+/storage/backups
 /vendor
 _ide_helper.php
 Homestead.json
