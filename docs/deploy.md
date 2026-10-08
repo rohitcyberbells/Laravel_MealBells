@@ -415,7 +415,48 @@ Two things that decide whether these arrive at all:
 Vendor-facing mail carries counts and company names only: never an employee
 name, code, email or skip reason. A test asserts it.
 
-## 10. Error tracking (optional)
+## 10. Getting data out, and taking a person out
+
+### A company's own data
+
+**Settings → Your data → Download export** gives a company admin a zip of four
+CSVs — `employees`, `skips`, `extra_meals`, `daily_counts` — plus a README
+naming the company, the moment it was taken, who took it, and what each column
+means. `daily_counts` carries both `final_expected` (the figure when the day
+locked) and `adjusted_total` (after post-cutoff changes), because those are
+different answers to different questions.
+
+The company comes from the signed-in admin and is never read from the request,
+so there is no parameter to tamper with. The file is deleted after it is sent,
+and `storage/app/exports` is gitignored in case a download dies halfway.
+
+**It contains personal data** — every employee's name, address and employee
+code. Treat it like a payroll file.
+
+### "Remove my data"
+
+**Employees → Remove details**, with the employee's name typed and checked on
+the server. It removes the name, email, employee code, HR system id and login,
+and clears any free-text reason on their skips. The login is deactivated rather
+than deleted, so everything it created keeps its attribution.
+
+**Their skips are kept**, and this is deliberate. Deleting the employee row
+cascades to every skip they ever had, so the count the kitchen was given for a
+past day would no longer be explicable from the rows behind it — and that count
+is the evidence in a billing dispute.
+
+One consequence worth understanding before someone asks: a **live
+recomputation** of a past day's total does change, because
+`CalculateExpectedMeals` counts the employees who are eligible *now*. That is
+already true whenever anybody leaves. The historical figure is the **locked
+snapshot** in `meal_counts`, which is untouched — that is what snapshots are
+for.
+
+The HR system id is cleared on purpose: left in place, the next `hrms:pull`
+would match the person again by their id on the HR side and put the name
+straight back.
+
+## 11. Error tracking (optional)
 
 Sentry is installed but **off unless `SENTRY_DSN` is set** — with no DSN the SDK
 initialises nothing, reports nothing and makes no network calls. Leaving it
@@ -462,7 +503,7 @@ and would be most of the quota.
 > **It is a production dependency**, so `composer install --no-dev` installs it.
 > That is intended — it has to be present to report a production error.
 
-## 11. After the first deploy, check
+## 12. After the first deploy, check
 
 - [ ] `/` redirects to the sign-in page, and the tab reads **MealBells**
 - [ ] an error page shows no stack trace (`APP_DEBUG=false`)

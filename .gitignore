@@ -24,6 +24,10 @@
 # database dump in the working tree. Untracked and unignored, one `git add -A`
 # commits every employee's name and email into the repository.
 /storage/backups
+# Where a company export is written before being handed over. The command
+# deletes it after sending, but a crash mid-download would leave a zip of every
+# employee's name and address in the working tree.
+/storage/app/exports
 /vendor
 _ide_helper.php
 Homestead.json

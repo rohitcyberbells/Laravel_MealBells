@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\CompanyAdmin;
 
+use App\Actions\Employee\AnonymiseEmployee;
 use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Employee\ImportEmployeeCsv;
 use App\Actions\Employee\ResetEmployeePassword;
@@ -112,6 +113,42 @@ class EmployeeController extends Controller
         $employee->update($validated);
 
         return back()->with('message', 'Employee updated successfully.');
+    }
+
+    /**
+     * Remove an employee's personal details at their request.
+     *
+     * Typed, not clicked, and checked here rather than in the browser: the row
+     * is not recoverable afterwards, and a confirm() is one keystroke away from
+     * erasing the wrong person.
+     *
+     * The count history is deliberately left alone - see AnonymiseEmployee.
+     */
+    public function anonymise(Request $request, Employee $employee, AnonymiseEmployee $action)
+    {
+        $company = Auth::user()->company;
+
+        if (! $company || $employee->company_id !== $company->id) {
+            abort(403, 'Unauthorized access to employee.');
+        }
+
+        $request->validate([
+            'confirm_name' => ['required', 'string'],
+        ]);
+
+        if (trim($request->input('confirm_name')) !== $employee->name) {
+            return back()->withErrors([
+                'confirm_name' => "That does not match. Type the employee's name exactly: {$employee->name}",
+            ]);
+        }
+
+        $action->execute($company, $employee, Auth::user());
+
+        return back()->with(
+            'message',
+            'Their name, address, employee code and login have been removed. '.
+            'Their past meals are still counted, so your daily totals are unchanged.',
+        );
     }
 
     public function previewCsv(Request $request, ValidateEmployeeCsv $action)

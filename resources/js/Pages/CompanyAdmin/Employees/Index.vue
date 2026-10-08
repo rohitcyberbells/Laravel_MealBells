@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { router, Link, usePage } from '@inertiajs/vue3';
+import { router, Link, usePage, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../../Layouts/AppLayout.vue';
 import EmployeeFormModal from './EmployeeFormModal.vue';
 import CsvImportModal from './CsvImportModal.vue';
@@ -77,6 +77,24 @@ const resetPassword = (employee) => {
     router.post(`/company-admin/employees/${employee.id}/reset-password`, {}, {
         preserveScroll: true,
         onSuccess: () => { dismissedCredentials.value = false; },
+    });
+};
+
+// Typed, not clicked. This is irreversible - the name, address, employee code
+// and login are gone afterwards - so a confirm() is the wrong control.
+const anonymiseForm = useForm({ confirm_name: '' });
+const anonymising = ref(null);
+
+const beginAnonymise = (employee) => {
+    anonymising.value = employee;
+    anonymiseForm.reset('confirm_name');
+    anonymiseForm.clearErrors();
+};
+
+const anonymise = () => {
+    anonymiseForm.post(`/company-admin/employees/${anonymising.value.id}/anonymise`, {
+        preserveScroll: true,
+        onSuccess: () => { anonymising.value = null; },
     });
 };
 
@@ -290,6 +308,67 @@ watch([search, status], () => {
                                     >
                                         Edit
                                     </button>
+                                    <!-- Offered only where there is still a
+                                         person to remove. -->
+                                    <button
+                                        v-if="!emp.anonymised_at"
+                                        @click="beginAnonymise(emp)"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition cursor-pointer"
+                                        :title="`Remove ${emp.name}'s personal details at their request`"
+                                    >
+                                        Remove details
+                                    </button>
+                                    <span v-else class="px-3 py-1.5 text-xs text-slate-500 italic">
+                                        details removed
+                                    </span>
+                                </td>
+                            </tr>
+
+                            <!-- The confirmation, inline rather than a modal:
+                                 it has to sit next to the row it is about. -->
+                            <tr v-if="anonymising">
+                                <td colspan="7" class="p-0">
+                                    <div class="bg-red-500/10 border-y border-red-500/40 p-5 space-y-3">
+                                        <div>
+                                            <h4 class="font-bold text-red-300">
+                                                Remove {{ anonymising.name }}'s personal details?
+                                            </h4>
+                                            <p class="text-xs text-red-200/80 mt-1">
+                                                Their name, email, employee code, HR system id and login are removed
+                                                and cannot be restored. Their past meals stay counted, so your daily
+                                                totals and the figures the kitchen was given do not change. Any reason
+                                                text on their skips is cleared.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] uppercase font-semibold text-red-200/70 mb-1">
+                                                Type <span class="font-mono text-red-200">{{ anonymising.name }}</span> to confirm
+                                            </label>
+                                            <input
+                                                v-model="anonymiseForm.confirm_name"
+                                                class="w-full max-w-md bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                                                :placeholder="anonymising.name"
+                                            />
+                                            <p v-if="anonymiseForm.errors.confirm_name" class="text-xs text-red-300 mt-1">
+                                                {{ anonymiseForm.errors.confirm_name }}
+                                            </p>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button
+                                                @click="anonymise"
+                                                :disabled="anonymiseForm.processing || anonymiseForm.confirm_name !== anonymising.name"
+                                                class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-lg text-sm cursor-pointer"
+                                            >
+                                                Remove their details
+                                            </button>
+                                            <button
+                                                @click="anonymising = null"
+                                                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm border border-slate-700 cursor-pointer"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
 
