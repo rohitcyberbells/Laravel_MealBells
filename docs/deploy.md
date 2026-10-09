@@ -69,6 +69,7 @@ actually bitten here:
 | booleans | `0`/`1` from SQLite, `true`/`false` from PostgreSQL. Covered by model casts. |
 | `GROUP BY` | PostgreSQL rejects a selected column that is neither grouped nor aggregated; SQLite allows it. A query that is fine locally can be rejected outright in production. |
 | rollbacks | dropping a column referenced by a unique index fails on SQLite and not on PostgreSQL — see §7. |
+| **filesystem case** | macOS is case-insensitive, Linux is not — and this is not a database difference at all. Inertia v3 defaults its page path to `resources/js/pages`; this project uses `resources/js/Pages`. The two agreed on every developer machine and on none of the servers, so twelve tests failed the first time CI ran and had never failed locally. `config/inertia.php` now names the real directory, and `InertiaPageComponentTest` reads the tracked case out of git rather than asking the filesystem, because on macOS the filesystem gives the wrong answer. |
 
 One more, and it was the serious one: **a failed INSERT aborts the whole
 transaction on PostgreSQL** and leaves it usable on SQLite. Two places insert
