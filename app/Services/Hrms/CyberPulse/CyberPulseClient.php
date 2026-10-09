@@ -33,6 +33,21 @@ class CyberPulseClient
 
     public const EMPLOYEE_FIELDS = ['_id', 'email', 'name'];
 
+    /**
+     * The only fields that survive an attendance fetch.
+     *
+     * Stricter than the leave whitelist, because an attendance record is the
+     * most invasive thing the HR system holds: selfie photographs at clock-in
+     * and clock-out, GPS latitude and longitude with a resolved address, an
+     * emergency reason in free text, and every break taken. None of it helps
+     * count meals, and holding it would make us responsible for data we have no
+     * reason to have.
+     *
+     * clock_in_at is read and then thrown away - it is used once, to decide
+     * whether the person had arrived by the cutoff, and never stored.
+     */
+    public const ATTENDANCE_FIELDS = ['employee_id', 'email', 'clocked_in', 'clock_in_at', 'is_wfh'];
+
     public function fetchLeaves(CompanyHrmsConnection $connection): CyberPulseResult
     {
         if (! $connection->hasPullCredentials()) {
@@ -99,6 +114,107 @@ class CyberPulseClient
         }
 
         return CyberPulseResult::success($this->whitelist($rows), $loggedIn);
+    }
+
+    /**
+     * One day of attendance: who had clocked in, for every active employee.
+     *
+     * A different endpoint from the leave fetch, and a different kind of
+     * authentication. It is keyed rather than token-based, so this performs no
+     * login at all: we are not holding a real person's credentials to read
+     * whether their colleagues turned up, and a service account appearing in
+     * the vendor's own attendance reports as an employee would confuse
+     * everyone.
+     *
+     * The absence of a key is a configuration state, not an error - a company
+     * that has not been given one simply has no attendance to pull.
+     */
+    public function fetchAttendance(CompanyHrmsConnection $connection, string $date): CyberPulseResult
+    {
+        if (! $connection->hasAttendanceCredentials()) {
+            return CyberPulseResult::failure('No attendance API key is configured for this company.');
+        }
+
+        $timezone = $connection->company?->setting?->timezone
+            ?? config('mealbells.default_timezone', 'Asia/Kolkata');
+
+        try {
+            $response = Http::acceptJson()
+                ->withHeaders(['X-API-Key' => (string) $connection->attendance_api_key])
+                ->timeout((int) config('hrms.cyberpulse.timeout_seconds', 15))
+                ->get($this->url($connection, '/api/integration/attendance/daily'), [
+                    'date' => $date,
+                    // Sent as well as expected back: the vendor's own day
+                    // boundary is built from the server's local time, so an
+                    // Indian office on a UTC host would otherwise be asking
+                    // about the wrong day for its first five and a half hours.
+                    'tz' => $timezone,
+                ]);
+        } catch (\Throwable $e) {
+            // Our message, not theirs: a transport exception can carry the
+            // request, and the request carries the key.
+            Log::warning("CyberPulse attendance fetch failed for company {$connection->company_id}: transport error.");
+
+            return CyberPulseResult::failure('Could not reach CyberPulse for the attendance fetch.');
+        }
+
+        if (! $response->successful()) {
+            return CyberPulseResult::failure(
+                "CyberPulse returned {$response->status()} for the attendance fetch.",
+                $response->status(),
+            );
+        }
+
+        $body = $response->json();
+
+        if (! is_array($body) || ! is_array($body['employees'] ?? null)) {
+            return CyberPulseResult::failure('CyberPulse attendance fetch carried no employees array.');
+        }
+
+        // A day the vendor answered for, with a timezone that is not the one we
+        // asked about, is not an answer to our question.
+        $answeredFor = (string) ($body['date'] ?? '');
+
+        if ($answeredFor !== '' && $answeredFor !== $date) {
+            return CyberPulseResult::failure(
+                "CyberPulse answered for {$answeredFor} when asked about {$date}."
+            );
+        }
+
+        return CyberPulseResult::success($this->whitelistAttendance($body['employees']));
+    }
+
+    /**
+     * Reduce the vendor's attendance rows to the five fields we may hold.
+     *
+     * Applied the moment the body is parsed, before anything is logged,
+     * returned or persisted - so a selfie path or a coordinate cannot reach a
+     * log line, an exception message or the database even once.
+     *
+     * @param  array<int, mixed>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    protected function whitelistAttendance(array $rows): array
+    {
+        $clean = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $kept = [];
+
+            foreach (self::ATTENDANCE_FIELDS as $field) {
+                if (array_key_exists($field, $row)) {
+                    $kept[$field] = is_scalar($row[$field]) ? $row[$field] : null;
+                }
+            }
+
+            $clean[] = $kept;
+        }
+
+        return $clean;
     }
 
     /**
