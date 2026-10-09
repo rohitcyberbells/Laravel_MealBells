@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CompanyAdmin\AdoptionReportController;
+use App\Http\Controllers\CompanyAdmin\AttendanceReportController;
 use App\Http\Controllers\CompanyAdmin\CompanyAdminController;
 use App\Http\Controllers\CompanyAdmin\CompanyCalendarController;
 use App\Http\Controllers\CompanyAdmin\CompanyDailyController;
@@ -147,6 +148,7 @@ Route::middleware('auth')->group(function () {
 
         // Adoption Report
         Route::get('/reports/adoption', [AdoptionReportController::class, 'index'])->name('company-admin.reports.adoption');
+        Route::get('/reports/attendance', [AttendanceReportController::class, 'index'])->name('company-admin.reports.attendance');
 
         // Extra Meals Management
         Route::post('/extra-meals', [MealAdjustmentController::class, 'store'])->name('company-admin.extra-meals.store');
