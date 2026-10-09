@@ -286,11 +286,14 @@ See [backup-restore.md](backup-restore.md) for the restore steps, the retention
 settings, and what the nightly backup does *not* cover (off-host copies and
 encryption are both the operator's job).
 
-> **One `down()` is broken on SQLite.** Dropping `employees.user_id` fails
-> because a unique index still references it. **Confirmed not to affect
-> PostgreSQL** — a full `migrate:rollback --step=100` unwinds every migration
-> cleanly on 18.6 — but it means "every migration has a `down()`" is not the
-> same as "every rollback works" on a developer's machine.
+> **Every migration now rolls back on both drivers**, verified end to end:
+> `migrate` from empty followed by `migrate:rollback --step=100` unwinds all 40
+> on SQLite and on PostgreSQL 18.6. CI runs both.
+>
+> It did not used to. Dropping `employees.user_id` failed on SQLite because a
+> unique index still referenced it; PostgreSQL drops a dependent index along
+> with its column, so the fault only ever appeared on a developer's machine and
+> never on the deployed driver. The `down()` now drops the indexes first.
 
 ---
 
