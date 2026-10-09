@@ -1,7 +1,11 @@
 # Deploying MealBells
 
-Written for whoever puts this on a server. For running a demo on a laptop see
-[demo-day.md](demo-day.md).
+Written for whoever puts this on a server: the reference for each piece, in no
+particular order.
+
+**Going live for the first time? Follow [go-live.md](go-live.md) instead** —
+it is the same material as an ordered sequence, and links back here for detail.
+For running a demo on a laptop see [demo-day.md](demo-day.md).
 
 Requirements: PHP 8.3+ (built on 8.4), PostgreSQL, a web server, and somewhere
 to run two background processes.
