@@ -235,6 +235,20 @@ class HrmsEventMapper
     }
 
     /**
+     * Find an employee from a vendor reference, writing nothing.
+     *
+     * The same rules the leave mapper uses, exposed for the attendance pull so
+     * there is one definition of how a vendor's handle becomes one of our
+     * employees. Deliberately without the external_id backfill: shadow mode
+     * reports and does not modify, so the attendance pull leaves the employee
+     * record exactly as it found it.
+     */
+    public function findEmployee(Company $company, string $reference, ?string $email = null): ?Employee
+    {
+        return $this->resolveEmployee($company, $reference, $email)[0];
+    }
+
+    /**
      * external_id, then employee_code, then email. Every lookup is scoped to the
      * company, so a vendor id belonging to another tenant cannot resolve here.
      *

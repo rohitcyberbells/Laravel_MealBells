@@ -31,6 +31,19 @@ Schedule::command('hrms:pull', ['--all', '--before-cutoff'])
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
+
+// Attendance, shortly before each company's cutoff and only for companies that
+// have switched it on. Shadow mode: it records what it saw and reports what it
+// would have changed, and changes no count.
+//
+// After the leave pull on purpose - leave should already be applied, so anyone
+// still unaccounted for is genuinely unaccounted for. Every minute, acting once
+// per window, so a company whose cutoff is 11:00 is read promptly rather than
+// five times.
+Schedule::command('hrms:pull-attendance', ['--all', '--before-cutoff'])
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('model:prune', ['--model' => [HrmsWebhookEvent::class, HrmsPullRun::class]])
     ->dailyAt('03:00')
     ->onOneServer();

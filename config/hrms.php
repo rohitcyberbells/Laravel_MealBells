@@ -220,6 +220,32 @@ return [
          * which is exactly when leave approved that morning matters most.
          */
         'pull_before_cutoff_minutes' => env('HRMS_CP_PULL_BEFORE_CUTOFF_MINUTES', 20),
+
+        /*
+         * Largest share of a company's eligible employees that may look absent
+         * before an attendance run refuses to record anything.
+         *
+         * Forty percent of a company is not away; the HR system is far more
+         * likely to be broken, mis-scoped or mid-restart. Above this the run
+         * records nothing and is marked suspicious, because a wasted meal costs
+         * less than somebody going without lunch.
+         *
+         * In shadow mode this decides whether the day enters the report at all:
+         * a suspicious day must not quietly contribute a large "would have
+         * saved" number and flatter the case for acting on attendance.
+         */
+        'max_absent_share' => env('HRMS_CP_MAX_ABSENT_SHARE', 0.4),
+
+        /*
+         * Minutes before a company's cutoff that attendance is read.
+         *
+         * Later than the leave pull's window on purpose: leave should already
+         * be applied, so anyone still unaccounted for is genuinely unaccounted
+         * for. It has to be early enough for the run to finish before the
+         * cutoff, since a run that straddles it would act on part of the
+         * company and be refused for the rest.
+         */
+        'attendance_before_cutoff_minutes' => env('HRMS_CP_ATTENDANCE_BEFORE_CUTOFF_MINUTES', 5),
     ],
 
     'reconcile' => [

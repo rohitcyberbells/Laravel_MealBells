@@ -24,8 +24,16 @@ class AttendanceDay extends Model
         'source',
     ];
 
+    /**
+     * `date` is deliberately not cast.
+     *
+     * Casting it to a date makes Eloquent write '2026-10-09 00:00:00', which
+     * then never matches a lookup by '2026-10-09' - so updateOrCreate always
+     * tried to insert and the second pull of a day died on the unique index.
+     * Found by the idempotency test. Skip and MealCount leave their date
+     * columns uncast for the same reason.
+     */
     protected $casts = [
-        'date' => 'date',
         'clocked_in_by_cutoff' => 'boolean',
         'is_wfh' => 'boolean',
     ];
