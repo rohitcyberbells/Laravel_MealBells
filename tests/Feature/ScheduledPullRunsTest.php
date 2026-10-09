@@ -27,11 +27,19 @@ class ScheduledPullRunsTest extends TestCase
     use RefreshDatabase;
 
     /** @return array<int, Event> */
+    /**
+     * The leave pull's entries, and only those.
+     *
+     * Matched on the whole command word. A plain str_contains('hrms:pull') also
+     * catches hrms:pull-attendance, and argsFor() below then builds
+     * `hrms:pull -attendance --all`, which fails with "the -a option does not
+     * exist" - a failure about this filter, not about anything being wrong.
+     */
     protected function pullEvents(): array
     {
         return array_values(array_filter(
             app(Schedule::class)->events(),
-            fn (Event $event) => str_contains($event->command ?? '', 'hrms:pull'),
+            fn (Event $event) => preg_match('/\bhrms:pull(?![\w-])/', $event->command ?? '') === 1,
         ));
     }
 
