@@ -39,6 +39,16 @@ jobs:
       - name: Pint
         run: vendor/bin/pint --test
 
+      # Both drivers get this, because the two disagree about it. SQLite
+      # refuses to drop a column an index still references while PostgreSQL
+      # drops the dependent index itself - so a broken down() can pass on one
+      # and fail on the other, and it did: rolling back locally failed for
+      # months while the deployed driver was fine.
+      - name: Migrate from empty, then roll the schema back
+        run: |
+          php artisan migrate --force
+          php artisan migrate:rollback --step=100 --force
+
       - name: Tests
         run: vendor/bin/phpunit
 
@@ -99,15 +109,14 @@ jobs:
         run: npm ci && npm run build
 
       # Proves the schema builds on PostgreSQL from empty, which is what a
-      # first deploy does. One migration branches on the driver to use a
-      # partial unique index, so this is not the same code path as SQLite.
-      - name: Migrate from empty
-        run: php artisan migrate --force
-
-      # And that it unwinds. A rollback that fails is only discovered during an
-      # incident, which is the worst moment to learn it.
-      - name: Roll the schema back
-        run: php artisan migrate:rollback --step=100 --force
+      # first deploy does, and that it unwinds again. One migration branches on
+      # the driver to use a partial unique index, so this is not the same code
+      # path as SQLite. A rollback that fails is otherwise only discovered
+      # during an incident, which is the worst moment to learn it.
+      - name: Migrate from empty, then roll the schema back
+        run: |
+          php artisan migrate --force
+          php artisan migrate:rollback --step=100 --force
 
       - name: Tests
         # The env above is overridden by phpunit.xml, which pins SQLite, so the

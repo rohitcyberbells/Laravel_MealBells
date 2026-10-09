@@ -41,11 +41,22 @@ return new class extends Migration
 
     /**
      * Reverse the migrations.
+     *
+     * The indexes are dropped before the columns they cover.
+     *
+     * PostgreSQL drops a dependent index along with its column, so this looked
+     * fine for a long time. SQLite does not: it refuses with "error in index
+     * employees_user_id_unique after drop column: no such column: user_id", so
+     * a developer rolling back on their own machine hit a failure that never
+     * happened on the deployed driver.
+     *
+     * Both columns were added with ->unique(), which is why both need it.
      */
     public function down(): void
     {
         Schema::table('employees', function (Blueprint $table) {
             $table->dropForeign(['user_id']);
+            $table->dropUnique('employees_user_id_unique');
             $table->dropColumn('user_id');
         });
 
@@ -54,6 +65,7 @@ return new class extends Migration
         });
 
         Schema::table('companies', function (Blueprint $table) {
+            $table->dropUnique('companies_code_unique');
             $table->dropColumn('code');
         });
     }
