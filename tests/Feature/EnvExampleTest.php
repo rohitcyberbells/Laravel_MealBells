@@ -124,8 +124,82 @@ class EnvExampleTest extends TestCase
     }
 
     /**
-     * Every knob this application invented is listed, commented or not. A
-     * variable that exists only in config/ is one an operator cannot discover.
+     * The config files this repository wrote, as opposed to the ones Laravel and
+     * its packages ship.
+     *
+     * That is the line for what has to be documented. Enforcing it over every
+     * config file would demand entries for 215 variables - Redis, SQS,
+     * Memcached, Papertrail and forty Sentry sub-flags nobody here will ever
+     * set - and an example file that long is one nobody reads, which loses the
+     * handful that matter. If we wrote the config, we own explaining its knobs.
+     *
+     * config/sentry.php is deliberately absent: the file is vendor-published and
+     * its forty tracing flags are the vendor's defaults. The five an operator
+     * actually sets are documented by hand.
+     *
+     * @var array<int, string>
+     */
+    protected const OUR_CONFIG_FILES = ['mealbells', 'hrms', 'health', 'backup', 'security'];
+
+    /**
+     * Every knob in those files is listed in BOTH example files, commented or
+     * not. A variable that exists only in config/ is one an operator cannot
+     * discover.
+     */
+    public function test_every_variable_from_our_own_config_is_documented(): void
+    {
+        $used = [];
+
+        foreach (self::OUR_CONFIG_FILES as $name) {
+            preg_match_all(
+                "/env\('([A-Z][A-Z0-9_]+)'/",
+                file_get_contents(config_path($name.'.php')),
+                $m,
+            );
+
+            foreach ($m[1] as $variable) {
+                $used[$variable] = $name;
+            }
+        }
+
+        $this->assertNotEmpty($used, 'no variables found in our own config files at all');
+
+        foreach (['.env.example', '.env.local.example'] as $file) {
+            $declared = $this->declaredNames($file);
+            $missing = array_diff(array_keys($used), $declared);
+
+            $this->assertEmpty(
+                $missing,
+                "absent from {$file}: ".implode(', ', array_map(
+                    fn (string $v) => $v.' (config/'.$used[$v].'.php)',
+                    $missing,
+                )),
+            );
+        }
+    }
+
+    /**
+     * The five Sentry variables an operator sets, as opposed to the forty the
+     * package exposes. Checked by name because the rule above cannot tell them
+     * apart.
+     */
+    public function test_the_sentry_variables_worth_setting_are_documented(): void
+    {
+        foreach (['.env.example', '.env.local.example'] as $file) {
+            $declared = $this->declaredNames($file);
+
+            foreach ([
+                'SENTRY_DSN', 'SENTRY_RELEASE', 'SENTRY_ENVIRONMENT',
+                'SENTRY_SAMPLE_RATE', 'SENTRY_TRACES_SAMPLE_RATE',
+            ] as $variable) {
+                $this->assertContains($variable, $declared, "{$variable} is absent from {$file}");
+            }
+        }
+    }
+
+    /**
+     * Kept for the prefixes it already covered, which is the strictest form of
+     * the rule: nothing this application invented may go undocumented.
      */
     public function test_every_app_specific_variable_is_documented(): void
     {
