@@ -41,6 +41,99 @@ class CyberPulseAdapter implements HrmsVendorAdapter
     }
 
     /**
+     * One whitelisted attendance row as the only thing MealBells keeps: had
+     * this person arrived by the time we had to order.
+     *
+     * The arrival time is read here and discarded here. Nothing downstream ever
+     * sees it, which is why no column holds one - we need a decision, not a
+     * record of anyone's movements.
+     *
+     * Returns null when the row cannot be judged at all: no employee
+     * reference, or clocked_in true with an unreadable time. Null travels all
+     * the way to the database as "we do not know", which the report is careful
+     * never to count as an absence. That is the whole fail-safe: an unreadable
+     * answer orders a meal.
+     *
+     * @param  array<string, mixed>  $row  a row from CyberPulseClient::ATTENDANCE_FIELDS
+     * @return array{reference: string, email: ?string, clocked_in_by_cutoff: ?bool, is_wfh: bool}|null
+     */
+    public function toAttendance(array $row, string $date, string $timezone, string $cutoffTime): ?array
+    {
+        $reference = trim((string) ($row['employee_id'] ?? ''));
+        $email = trim((string) ($row['email'] ?? ''));
+
+        if ($reference === '' && $email === '') {
+            return null;
+        }
+
+        $isWfh = (bool) ($row['is_wfh'] ?? false);
+
+        // Absent is the one answer we can take at face value: the vendor is
+        // telling us it has no clock-in for this person today.
+        if (! ($row['clocked_in'] ?? false)) {
+            return [
+                'reference' => $reference,
+                'email' => $email !== '' ? $email : null,
+                'clocked_in_by_cutoff' => false,
+                'is_wfh' => $isWfh,
+            ];
+        }
+
+        $clockedInAt = $this->parseClockIn($row['clock_in_at'] ?? null, $timezone);
+
+        if ($clockedInAt === null) {
+            // They clocked in, but we cannot tell when - which could be the
+            // encrypted value coming through unread. Unknown, not present and
+            // not absent, so nobody loses a meal over a vendor bug.
+            return [
+                'reference' => $reference,
+                'email' => $email !== '' ? $email : null,
+                'clocked_in_by_cutoff' => null,
+                'is_wfh' => $isWfh,
+            ];
+        }
+
+        [$hour, $minute] = array_map('intval', array_pad(explode(':', $cutoffTime), 2, '0'));
+
+        $cutoff = Carbon::createFromFormat('Y-m-d', $date, $timezone)->setTime($hour, $minute, 0);
+
+        return [
+            'reference' => $reference,
+            'email' => $email !== '' ? $email : null,
+            // On the cutoff minute counts as in time. Somebody clocking in at
+            // exactly 11:00 against an 11:00 cutoff should not lose lunch to a
+            // comparison operator.
+            'clocked_in_by_cutoff' => $clockedInAt->lessThanOrEqualTo($cutoff),
+            'is_wfh' => $isWfh,
+        ];
+    }
+
+    /**
+     * The vendor sends an ISO instant. Read in the company's timezone so the
+     * comparison against the cutoff is like for like.
+     *
+     * Anything unparseable - including the `enc:` ciphertext the real model
+     * stores, which comes through unread if the endpoint uses .lean() or an
+     * aggregation - returns null rather than a guess.
+     */
+    protected function parseClockIn(mixed $value, string $timezone): ?Carbon
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        if (str_starts_with($value, 'enc:')) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->setTimezone($timezone);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */

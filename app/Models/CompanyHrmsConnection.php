@@ -19,6 +19,11 @@ class CompanyHrmsConnection extends Model
         'pull_password',
         'pull_token',
         'pull_token_expires_at',
+        'attendance_api_key',
+        'last_attendance_pull_at',
+        'last_attendance_pull_status',
+        'last_attendance_pull_error',
+        'last_attendance_pull_summary',
         'pull_adapter',
         'last_pull_at',
         'last_pull_status',
@@ -36,6 +41,9 @@ class CompanyHrmsConnection extends Model
         'pull_email' => 'encrypted',
         'pull_password' => 'encrypted',
         'pull_token' => 'encrypted',
+        'attendance_api_key' => 'encrypted',
+        'last_attendance_pull_at' => 'datetime',
+        'last_attendance_pull_summary' => 'array',
         'secret_rotated_at' => 'datetime',
         'pull_token_expires_at' => 'datetime',
         'last_pull_at' => 'datetime',
@@ -54,6 +62,7 @@ class CompanyHrmsConnection extends Model
         'pull_email',
         'pull_password',
         'pull_token',
+        'attendance_api_key',
     ];
 
     /**
@@ -74,6 +83,18 @@ class CompanyHrmsConnection extends Model
         return ! empty($this->pull_base_url)
             && ! empty($this->pull_email)
             && ! empty($this->pull_password);
+    }
+
+    /**
+     * Whether attendance can be read for this company.
+     *
+     * Only the key, deliberately: the attendance endpoint needs no login, so a
+     * company can poll attendance without the leave pull being configured at
+     * all, and the reverse.
+     */
+    public function hasAttendanceCredentials(): bool
+    {
+        return ! empty($this->pull_base_url) && ! empty($this->attendance_api_key);
     }
 
     public function company(): BelongsTo
