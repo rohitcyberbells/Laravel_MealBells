@@ -99,7 +99,7 @@ suite runs on SQLite in memory.
 |---|---|
 | PHP | Laravel Herd, `~/Library/Application Support/Herd/bin/php` (8.4.16) |
 | PostgreSQL | Postgres.app 18.6 on `localhost:5432`, user `imac`, no password. Databases `mealbells_test` (suite) and `mealbells_rehearsal` (demo data) |
-| CyberPulse HRMS | the real app repo at `~/Desktop/Web_CyberPulse`, served on `:4040` — **do not edit or commit in it** |
+| CyberPulse HRMS | the real app repo at `~/Desktop/Web_CyberPulse`, served on `:4040` — **do not edit or commit in it**. Orientation: `docs/cyberpulse-orientation.md` |
 | CyberPulse local data | `~/cyberpulse-local-seed/` — mongod, seed, leave scenarios, and the attendance mock (§5) |
 | mongod | `~/Downloads/mongodb-macos-x86_64-7.0.37/bin/mongod` |
 
@@ -288,6 +288,7 @@ index with it. Both CI jobs now run a full rollback.
 | `docs/hrms-event-contract.md` | The HRMS webhook and pull contract |
 | `docs/attendance-design.md` | Attendance phases, decisions, and the four Phase 2 traps |
 | `docs/cyberpulse-attendance-endpoint-spec.md` | For the CyberPulse developer. No internals |
+| `docs/cyberpulse-orientation.md` | **Read before working on CyberPulse itself.** Their stack, how to run it locally, the encryption and timezone traps, and what looks wrong |
 | `NEXT-SESSION.md` | Short-lived working notes. **Deliberately not committed** |
 | `CLAUDE.md` / `AGENTS.md` | Conventions. Pint after every PHP change; `php artisan make:` for new files |
 

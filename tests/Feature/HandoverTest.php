@@ -39,6 +39,7 @@ class HandoverTest extends TestCase
             'hrms contract' => ['docs/hrms-event-contract.md'],
             'attendance design' => ['docs/attendance-design.md'],
             'attendance endpoint spec' => ['docs/cyberpulse-attendance-endpoint-spec.md'],
+            'cyberpulse orientation' => ['docs/cyberpulse-orientation.md'],
             'screen flows' => ['SCREEN_FLOWS.md'],
             'conventions' => ['CLAUDE.md'],
             'ci workflow' => ['.github/workflows/tests.yml'],
