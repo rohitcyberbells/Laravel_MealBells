@@ -31,6 +31,7 @@ class CompanySetting extends Model
         'cutoff_time',
         'timezone',
         'wfh_auto_skip',
+        'attendance_absence_enabled',
         'meal_days',
         'primary_admin_id',
         'backup_admin_id',
@@ -41,6 +42,7 @@ class CompanySetting extends Model
     protected $casts = [
         'settings_changed_at' => 'datetime',
         'wfh_auto_skip' => 'boolean',
+        'attendance_absence_enabled' => 'boolean',
         'meal_days' => 'array',
     ];
 
