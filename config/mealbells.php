@@ -19,6 +19,19 @@ return [
      */
     'max_import_rows' => env('MEALBELLS_MAX_IMPORT_ROWS', 2000),
 
+    /*
+     * The public landing page, built by `npm run build:landing`.
+     *
+     * A path rather than a boolean, and deliberately not an env() value: this
+     * is where the build puts the file, not something an operator tunes. It is
+     * config so the root route's two behaviours - serve the page, or send a
+     * guest to sign-in when it has not been built - can each be tested
+     * deterministically. Otherwise the suite would pass or fail depending on
+     * whether somebody had run the landing build, which is exactly the kind of
+     * flakiness that gets a test deleted.
+     */
+    'landing_page' => public_path('landing/index.html'),
+
     'allowed_extra_types' => ['guest', 'visitor', 'other'],
 
     // 'link' is reserved, MVP mein use nahi

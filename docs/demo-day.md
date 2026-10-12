@@ -180,14 +180,14 @@ Mention them before someone else spots them.
 ## 7. Two-minute pre-flight
 
 ```bash
-npm run build && rm -f public/hot
+npm run build && npm run build:landing && rm -f public/hot
 php artisan migrate:fresh --seed --seeder=DemoSeeder
 php artisan serve
 ```
 
 Then in a browser:
 
-- [ ] `/` sends you to the sign-in page
+- [ ] `/` shows the landing page, or the sign-in page if the landing build was skipped
 - [ ] the browser tab reads **MealBells**, not "Laravel"
 - [ ] sign in as `hr@acme.test` and open all seven sidebar links
 - [ ] **Dashboard** shows today's count and the week-ahead strip

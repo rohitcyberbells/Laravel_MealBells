@@ -28,8 +28,19 @@
 # deletes it after sending, but a crash mid-download would leave a zip of every
 # employee's name and address in the working tree.
 /storage/app/exports
+
+# Astro's output for the public landing page, built by `npm run build:landing`.
+# Build output, like public/build - the source is resources/landing.
+/public/landing
 /vendor
 _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Astro's generated artefacts inside the landing project. `.astro` holds the
+# types it regenerates on every build or dev start; `node_modules` is where its
+# nested Vite writes a dependency cache. The root /node_modules rule is
+# anchored, so it does not reach either of these.
+/resources/landing/.astro
+/resources/landing/node_modules

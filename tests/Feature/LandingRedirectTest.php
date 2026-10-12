@@ -9,6 +9,7 @@ use App\Models\TiffinService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\TestCase;
 
 /**
@@ -54,9 +55,62 @@ class LandingRedirectTest extends TestCase
         ]);
     }
 
-    public function test_a_guest_is_sent_to_the_sign_in_page(): void
+    /**
+     * A guest now meets the public landing page, which is static HTML built by
+     * `npm run build:landing` - Astro is its own build tool and cannot share
+     * the application's Vite pipeline.
+     */
+    public function test_a_guest_sees_the_landing_page_when_it_has_been_built(): void
     {
+        $landing = tempnam(sys_get_temp_dir(), 'landing').'.html';
+        file_put_contents($landing, '<!doctype html><title>MealBells</title><h1>Hello</h1>');
+
+        config()->set('mealbells.landing_page', $landing);
+
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
+        // response()->file() returns a BinaryFileResponse, whose body is not
+        // materialised in a test - so the file it is serving is asserted
+        // directly rather than its rendered content.
+        $this->assertInstanceOf(BinaryFileResponse::class, $response->baseResponse);
+        $this->assertSame($landing, $response->baseResponse->getFile()->getPathname());
+        $this->assertStringContainsString('Hello', file_get_contents($landing));
+
+        @unlink($landing);
+    }
+
+    /**
+     * And is sent to sign-in when it has not been.
+     *
+     * public/landing is gitignored build output, so a fresh clone, a CI job
+     * that only runs `npm run build`, or a deploy that forgets the second
+     * command all have no landing page. That must be a redirect, not a 500.
+     */
+    public function test_a_guest_is_sent_to_the_sign_in_page_when_the_landing_page_is_missing(): void
+    {
+        config()->set('mealbells.landing_page', '/tmp/mealbells-landing-that-does-not-exist.html');
+
         $this->get('/')->assertRedirect(route('login'));
+    }
+
+    /**
+     * Signed-in users are unaffected either way: they are redirected before the
+     * landing page is even looked for.
+     */
+    public function test_the_landing_page_never_shows_to_a_signed_in_user(): void
+    {
+        $landing = tempnam(sys_get_temp_dir(), 'landing').'.html';
+        file_put_contents($landing, '<!doctype html><h1>Public landing</h1>');
+
+        config()->set('mealbells.landing_page', $landing);
+
+        $this->actingAs($this->user('company_admin'))
+            ->get('/')
+            ->assertRedirect('/company-admin/dashboard');
+
+        @unlink($landing);
     }
 
     /** @return array<int, array<int, string>> */
@@ -93,6 +147,8 @@ class LandingRedirectTest extends TestCase
     public function test_the_scaffold_page_is_gone(): void
     {
         $this->assertFileDoesNotExist(resource_path('js/Pages/Welcome.vue'));
+
+        config()->set('mealbells.landing_page', '/tmp/mealbells-landing-that-does-not-exist.html');
 
         $body = $this->followingRedirects()->get('/')->getContent();
 

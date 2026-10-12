@@ -34,7 +34,13 @@ jobs:
       # through the Vite manifest. Without it every page test fails on a
       # missing manifest rather than on anything real.
       - name: Build assets
-        run: npm ci && npm run build
+        run: |
+          npm ci
+          npm run build
+          # Astro is its own build tool and cannot share the application's Vite
+          # pipeline, so the landing page is a second command. Built here so a
+          # change that breaks it fails CI rather than a deploy.
+          npm run build:landing
 
       - name: Pint
         run: vendor/bin/pint --test
@@ -106,7 +112,13 @@ jobs:
           php artisan key:generate
 
       - name: Build assets
-        run: npm ci && npm run build
+        run: |
+          npm ci
+          npm run build
+          # Astro is its own build tool and cannot share the application's Vite
+          # pipeline, so the landing page is a second command. Built here so a
+          # change that breaks it fails CI rather than a deploy.
+          npm run build:landing
 
       # Proves the schema builds on PostgreSQL from empty, which is what a
       # first deploy does, and that it unwinds again. One migration branches on

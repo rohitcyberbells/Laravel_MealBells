@@ -17,6 +17,11 @@ class ExampleTest extends TestCase
      */
     public function test_the_application_returns_a_successful_response(): void
     {
+        // With no landing page built - which is the state of a fresh clone and
+        // of CI, since public/landing is gitignored - a guest is sent to
+        // sign-in. The landing page itself is covered by LandingRedirectTest.
+        config()->set('mealbells.landing_page', '/tmp/mealbells-landing-that-does-not-exist.html');
+
         $this->get('/')->assertRedirect(route('login'));
 
         $this->get('/login')->assertStatus(200);
