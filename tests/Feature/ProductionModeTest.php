@@ -99,6 +99,8 @@ class ProductionModeTest extends TestCase
      */
     public function test_a_guest_is_sent_to_the_sign_in_page(): void
     {
+        config()->set('mealbells.landing_page', '/tmp/mealbells-landing-that-does-not-exist.html');
+
         $this->get('/')->assertRedirect('/login');
     }
 

@@ -36,9 +36,22 @@ Route::get('/', function () {
         };
     }
 
-    // Guests go straight to the sign-in page. There is nothing public to show:
-    // every screen in MealBells belongs to a signed-in role, so a separate
-    // landing page was only ever a developer smoke test.
+    /*
+     * Guests get the public landing page, which is static HTML built separately
+     * by `npm run build:landing` - Astro is its own build tool and cannot share
+     * the application's Vite pipeline.
+     *
+     * The existence check is not defensiveness: public/landing is gitignored
+     * build output, so a fresh clone, a CI job that only runs `npm run build`,
+     * or a deploy that forgets the second command all have no landing page. A
+     * guest should still reach the sign-in screen rather than a 500.
+     */
+    $landing = (string) config('mealbells.landing_page');
+
+    if (is_file($landing)) {
+        return response()->file($landing);
+    }
+
     return redirect()->route('login');
 });
 

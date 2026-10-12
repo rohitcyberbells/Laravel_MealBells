@@ -35,7 +35,7 @@ cutoff happen.
 ```bash
 git clone … /var/www/mealbells && cd /var/www/mealbells
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build
+npm ci && npm run build && npm run build:landing
 rm -f public/hot
 ```
 
@@ -245,7 +245,9 @@ curl -s https://your-host/login | grep -oE 'build/assets/[^"]+'  # built assets
 curl -s https://your-host/login | grep -c 5173                   # expect 0
 ```
 
-- [ ] `/` redirects to the sign-in page, and the tab reads **MealBells**
+- [ ] `/` serves the landing page, and the tab reads **MealBells**
+- [ ] `npm run build:landing` was run &mdash; without it `/` falls back to the
+      sign-in page, which is safe but not what you want in front of a visitor
 - [ ] an error page shows no stack trace
 - [ ] the session cookie carries `secure`
 - [ ] sign in as the super admin; `/super-admin/health` opens
@@ -279,7 +281,7 @@ php artisan mealbells:backup          # first, always
 
 git checkout <previous-tag>
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build
+npm ci && npm run build && npm run build:landing
 rm -f public/hot
 php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache
 php artisan queue:restart

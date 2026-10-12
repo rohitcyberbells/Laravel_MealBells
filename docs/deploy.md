@@ -111,7 +111,7 @@ overwrite a variable already set in the environment, so the shell wins.
 ```bash
 git pull
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build
+npm ci && npm run build && npm run build:landing
 rm -f public/hot                      # see §6
 
 php artisan migrate --force           # --force: no prompt on a server
@@ -269,7 +269,7 @@ file is still there.
 ```bash
 git checkout <previous-tag>
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build
+npm ci && npm run build && npm run build:landing
 rm -f public/hot
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 php artisan queue:restart
@@ -513,7 +513,9 @@ and would be most of the quota.
 
 ## 12. After the first deploy, check
 
-- [ ] `/` redirects to the sign-in page, and the tab reads **MealBells**
+- [ ] `/` serves the landing page, and the tab reads **MealBells**
+- [ ] `npm run build:landing` was run &mdash; without it `/` falls back to the
+      sign-in page
 - [ ] an error page shows no stack trace (`APP_DEBUG=false`)
 - [ ] `curl -sI https://your-host/login` shows `Strict-Transport-Security`
 - [ ] the session cookie carries `secure`
