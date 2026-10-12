@@ -91,7 +91,7 @@ A limit is worth having anyway so a bug on our side cannot hammer your server.
 |---|---|
 | `employee_id` | Your employee id. This is what we match on. |
 | `email` | A fallback for matching when we do not have the id yet. |
-| `clocked_in` | Did this person clock in on this date. |
+| `clocked_in` | Did this person clock in on this date. `true`, `false`, or `null` for "we cannot tell" — see below. |
 | `clock_in_at` | When, as an ISO timestamp with a timezone. We only use it to decide whether they were in **before our cutoff time**; we do not store it. |
 | `is_wfh` | Whether the clock-in was marked work-from-home. We treat those people differently, so we need to tell them apart. |
 
@@ -106,6 +106,21 @@ not order a meal, the other means order one anyway to be safe.
 
 So: one row per active employee, with `clocked_in: false` for those who did not
 turn up.
+
+**Please send `null` rather than `false` when you cannot tell.** `false` is a
+decision — we act on it and somebody does not get lunch. If a clock-in record
+exists but its time cannot be read, that is not an absence, it is a gap in what
+you can see. Send `clocked_in: null` and we treat that person as present and
+order them a meal anyway. The clock-in time being encrypted at rest makes this a
+real case rather than a hypothetical one, so it is worth getting right.
+
+Three values, three different meanings:
+
+| `clocked_in` | What we do |
+|---|---|
+| `true` | They were in. Compare `clock_in_at` against our cutoff. |
+| `false` | They did not turn up. This is the only value that can stop a meal. |
+| `null` | You cannot tell. We order the meal and report it as unknown. |
 
 **Please pin the day boundary to the organisation's timezone.** The existing code
 builds the day like this:

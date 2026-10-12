@@ -68,6 +68,25 @@ class CyberPulseAdapter implements HrmsVendorAdapter
 
         $isWfh = (bool) ($row['is_wfh'] ?? false);
 
+        /*
+         * An explicit null is the vendor saying "we do not know", not "no".
+         *
+         * This has to be checked before the falsy test below, because PHP holds
+         * that null is falsy and the row would otherwise be read as a known
+         * absence - withholding a meal on the strength of an answer the HR
+         * system never gave. The endpoint sends null when a clock-in record
+         * exists but its encrypted time cannot be read, which is precisely the
+         * case this fail-safe is for.
+         */
+        if (array_key_exists('clocked_in', $row) && $row['clocked_in'] === null) {
+            return [
+                'reference' => $reference,
+                'email' => $email !== '' ? $email : null,
+                'clocked_in_by_cutoff' => null,
+                'is_wfh' => $isWfh,
+            ];
+        }
+
         // Absent is the one answer we can take at face value: the vendor is
         // telling us it has no clock-in for this person today.
         if (! ($row['clocked_in'] ?? false)) {
