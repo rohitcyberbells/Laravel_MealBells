@@ -169,16 +169,93 @@ class LandingBuildTest extends TestCase
 
     /**
      * The page is served through Laravel, so the application's
-     * Content-Security-Policy applies to it - script-src is 'self' and
-     * 'unsafe-inline' only. Anything third-party has to be bundled, and the
-     * source says so rather than leaving somebody to discover it from a blank
-     * console.
+     * Content-Security-Policy applies to it: script-src is 'self' and
+     * 'unsafe-inline' only, and style-src does not reach a CDN either. A
+     * third-party script tag is therefore not a slow page, it is a silently
+     * dead one.
+     *
+     * This asserts the absence rather than the presence of a warning comment.
+     * The comment version passed only while nobody had rewritten the page, and
+     * broke the moment somebody did - it was testing documentation. This fails
+     * on the mistake itself, which is what it was meant to catch. Three.js
+     * belongs in package.json and in the Astro bundle, not on a CDN.
      */
-    public function test_the_source_warns_that_cdn_scripts_are_blocked(): void
+    public function test_the_landing_source_loads_nothing_from_a_cdn(): void
     {
-        $page = file_get_contents(base_path('resources/landing/src/pages/index.astro'));
+        foreach ($this->landingSourceFiles() as $path) {
+            $source = file_get_contents($path);
+            $relative = str_replace(base_path().'/', '', $path);
 
-        $this->assertStringContainsString('Content-Security-Policy', $page);
-        $this->assertStringContainsString('blocked', $page);
+            // \x27 rather than an escaped apostrophe, so the quote class stays
+            // readable inside a single-quoted PHP string.
+            $this->assertDoesNotMatchRegularExpression(
+                '#<script\b[^>]*\bsrc\s*=\s*["\x27](?:https?:)?//#i',
+                $source,
+                "{$relative} loads a script from another origin; the CSP will block it",
+            );
+
+            // An ESM import straight from a CDN inside a client script block,
+            // which the bundler leaves alone and the CSP then refuses.
+            $this->assertDoesNotMatchRegularExpression(
+                '#\bimport\s[^;\n]*["\x27](?:https?:)?//#i',
+                $source,
+                "{$relative} imports a module from another origin; the CSP will block it",
+            );
+
+            // Only the <link> rels that actually fetch something. A canonical
+            // link or an og:url is an absolute URL on purpose and has nothing
+            // to do with the CSP - an earlier version of this test failed on
+            // the canonical tag, which is what taught it the difference.
+            preg_match_all('#<link\b[^>]*>#i', $source, $tags);
+
+            foreach ($tags[0] as $tag) {
+                if (! preg_match('#\brel\s*=\s*["\x27]([^"\x27]+)#i', $tag, $rel)) {
+                    continue;
+                }
+
+                $fetching = array_intersect(
+                    preg_split('/\s+/', strtolower(trim($rel[1]))),
+                    ['stylesheet', 'preload', 'modulepreload', 'prefetch'],
+                );
+
+                if ($fetching === []) {
+                    continue;
+                }
+
+                $this->assertDoesNotMatchRegularExpression(
+                    '#\bhref\s*=\s*["\x27](?:https?:)?//#i',
+                    $tag,
+                    "{$relative} fetches {$rel[1]} from another origin; the CSP will block it",
+                );
+            }
+        }
+    }
+
+    /**
+     * Every hand-written source file in the landing project. Astro's own
+     * generated directories are excluded - they are build artefacts and are
+     * gitignored.
+     *
+     * @return array<int, string>
+     */
+    protected function landingSourceFiles(): array
+    {
+        $root = base_path('resources/landing/src');
+        $files = [];
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($iterator as $file) {
+            if (in_array($file->getExtension(), ['astro', 'html', 'js', 'ts', 'mjs', 'vue', 'css'], true)) {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        // A silently empty loop would make this test pass by doing nothing.
+        $this->assertNotEmpty($files, 'no landing source files were found to check');
+
+        return $files;
     }
 }
