@@ -1,63 +1,124 @@
 ---
 import '../styles/landing.css';
 
-/*
- * Scaffolding, not the finished page. It exists so the build pipeline is real
- * and tested; the design goes here.
- *
- * Two constraints worth knowing before adding to it:
- *
- * 1. This file is served through Laravel, so the application's
- *    Content-Security-Policy applies - script-src is 'self' and 'unsafe-inline'
- *    only. A <script src> from a CDN will be blocked. Anything third-party
- *    (a model viewer, an analytics snippet) has to be installed with npm so it
- *    is bundled and served from this origin.
- *
- * 2. There is no database access here. The page is static HTML built ahead of
- *    time. Anything dynamic needs an endpoint in Laravel and a fetch.
- */
 const appName = 'MealBells';
+const title = `${appName} — Smarter Meal Planning`;
+const description =
+  'MealBells helps companies and catering vendors plan meal preparation with better demand visibility.';
 ---
 
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{appName}</title>
-    <meta
-      name="description"
-      content="MealBells tells your tiffin vendor how many lunches to cook, every day, before the kitchen starts."
-    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f7f6fc" />
+
+    <link rel="canonical" href="https://your-domain.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content="https://your-domain.com/" />
   </head>
 
-  <body class="min-h-screen bg-slate-950 text-white antialiased">
-    <main class="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-16">
-      <div class="space-y-4">
-        <p class="text-sm font-semibold uppercase tracking-widest text-emerald-400">{appName}</p>
 
-        <h1 class="text-4xl font-bold leading-tight sm:text-5xl">
-          The kitchen gets one number, and it is the right one.
-        </h1>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="/" aria-label="MealBells home">
+        MealBells
+      </a>
 
-        <p class="max-w-xl text-base text-slate-400">
-          Employees say when they are not eating. MealBells counts, locks the number at your cutoff,
-          and tells the vendor &mdash; so nobody cooks forty lunches for twenty-eight people.
+      <nav aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#benefits">Benefits</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <a class="header-cta" href="#contact">
+        Get started
+      </a>
+    </header>
+
+    <main>
+      <section id="stage" class="stage">
+        <canvas id="scene" aria-hidden="true"></canvas>
+        <!-- beat divs yahan -->
+      </section>
+
+      <section
+        class="hero"
+        id="hero"
+        aria-labelledby="hero-title"
+      >
+        <!-- Shared Three.js canvas will be mounted here. -->
+        <div
+          class="scene-container"
+          id="mealbells-scene"
+          aria-hidden="true"
+        ></div>
+
+        <!-- Keep meaningful content in HTML, not inside WebGL. -->
+        <div class="hero-content">
+          <p class="eyebrow">Smarter meal planning</p>
+
+          <h1 id="hero-title">
+            Every meal.
+            <span>Better planned.</span>
+          </h1>
+
+          <p class="hero-description">
+            Give your catering team better visibility into expected
+            meals, so they can prepare smarter and reduce food waste.
+          </p>
+
+          <a class="primary-cta" href="#how-it-works">
+            Discover MealBells
+          </a>
+        </div>
+
+        <p class="scroll-hint" aria-hidden="true">
+          Scroll to explore
         </p>
-      </div>
+      </section>
 
-      <div class="flex flex-wrap gap-3">
-        <a
-          href="/login"
-          class="rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-emerald-400"
-        >
-          Sign in
+      <section id="how-it-works" class="content-section">
+        <p class="eyebrow">How it works</p>
+        <h2>Turn meal decisions into preparation clarity.</h2>
+        <p>
+          Understand expected meal demand before preparation begins.
+        </p>
+      </section>
+
+      <section id="benefits" class="content-section">
+        <p class="eyebrow">Why MealBells</p>
+        <h2>Better visibility for teams and vendors.</h2>
+        <p>
+          Make meal planning more predictable with clearer demand
+          information.
+        </p>
+      </section>
+
+      <section id="contact" class="content-section">
+        <h2>Let's plan smarter.</h2>
+        <a href="mailto:hello@your-domain.com">
+          Contact MealBells
         </a>
-      </div>
-
-      <p class="text-xs text-slate-600">
-        This page is scaffolding. The design is still to come.
-      </p>
+      </section>
     </main>
+
+    <footer class="site-footer">
+      <p>&copy; {new Date().getFullYear()} MealBells.</p>
+    </footer>
+
+    <script>
+      import { initExperience } from '../scripts/experience.js';
+
+      initExperience();
+    </script>
   </body>
 </html>

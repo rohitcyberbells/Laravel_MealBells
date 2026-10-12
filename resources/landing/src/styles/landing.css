@@ -5,3 +5,32 @@
  * bright marketing page handing over to a dark product is a jarring first
  * impression.
  */
+
+/*
+ * The WebGL stage.
+ *
+ * Structural only - no colours here, so the design stays an open decision. The
+ * sizing is not optional though: a <canvas> with no CSS is 300x150, and the
+ * stage would be an unnoticeable smudge rather than something visibly broken.
+ */
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  /* svh rather than vh: on a phone, vh is the viewport with the browser chrome
+     hidden, so a 100vh stage is taller than the screen and pushes the hero out
+     of sight until the toolbar collapses. */
+  min-height: 24rem;
+}
+
+/*
+ * The canvas is decoration - the page's meaning is in the HTML beside it, which
+ * is why it carries aria-hidden and takes no pointer events. Scrolling and
+ * clicking pass straight through to the page.
+ */
+.stage #scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
