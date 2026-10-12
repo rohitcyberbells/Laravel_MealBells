@@ -7,6 +7,7 @@ const props = defineProps({
     cutoff_time: String,
     timezone: String,
     wfh_auto_skip: Boolean,
+    attendance_absence_enabled: Boolean,
     meal_days: Array,
     primary_admin_id: Number,
     backup_admin_id: Number,
@@ -40,6 +41,7 @@ const form = useForm({
     cutoff_time: (props.cutoff_time || '11:00').slice(0, 5),
     timezone: props.timezone || 'Asia/Kolkata',
     wfh_auto_skip: !!props.wfh_auto_skip,
+    attendance_absence_enabled: !!props.attendance_absence_enabled,
     meal_days: [...(props.meal_days || [1, 2, 3, 4, 5])],
     primary_admin_id: props.primary_admin_id,
     backup_admin_id: props.backup_admin_id,
@@ -146,6 +148,22 @@ const addAdmin = () => {
                         <span class="text-sm font-semibold text-slate-200">Treat work-from-home as a skip</span>
                         <span class="block text-[11px] text-slate-500">
                             When off, a WFH record is ignored by both the CSV import and the HR feed, and the person is still counted.
+                        </span>
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input v-model="form.attendance_absence_enabled" type="checkbox" class="mt-0.5 accent-cyan-500 cursor-pointer" />
+                    <span>
+                        <span class="text-sm font-semibold text-slate-200">Read attendance from the HR system</span>
+                        <span class="block text-[11px] text-slate-500">
+                            Shortly before each cutoff, MealBells asks your HR system who had clocked in, and reports how
+                            many meals would not have been ordered. <span class="text-amber-400/90">It does not change any
+                            count and creates no skip</span> &mdash; see Reports &rarr; Attendance (shadow).
+                        </span>
+                        <span class="block text-[11px] text-slate-500 mt-1">
+                            Needs an attendance API key on the HRMS screen, and only applies to employees whose
+                            attendance source is <span class="font-mono text-slate-400">integrated</span>.
                         </span>
                     </span>
                 </label>

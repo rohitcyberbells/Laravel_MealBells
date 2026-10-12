@@ -165,6 +165,7 @@ class B1EndpointsTest extends TestCase
             'cutoff_time' => '11:30:00',
             'timezone' => 'Asia/Kolkata',
             'wfh_auto_skip' => false,
+            'attendance_absence_enabled' => false,
             'meal_days' => [1, 2, 3, 4, 5],
             'primary_admin_id' => $this->adminB->id,
         ]);

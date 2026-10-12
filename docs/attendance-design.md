@@ -238,6 +238,70 @@ that is switched off.
 
 ---
 
+## Backfilling, and why the number is a ceiling
+
+Attendance already exists in CyberPulse for past days, so the Phase 1 number
+does not have to be waited for — once the endpoint exists, a few weeks can be
+read at once:
+
+```bash
+for d in $(seq 0 27); do
+  php artisan hrms:pull-attendance ACME01 --date=$(date -v-${d}d +%Y-%m-%d)
+done
+```
+
+`--date` already takes one day at a time, so this needs no new code.
+
+**But a backfilled figure is an upper bound, and by a wide margin at first.**
+The report excludes somebody who was on approved leave only when a skip row
+exists for that date — and skip rows exist only for days MealBells was already
+recording. For any earlier day the leave is invisible, so that person is counted
+as absent and the saving looks larger than it was.
+
+The gap is not small. On this installation the earliest skip of any kind is
+2026-10-06 and the HRMS connection was created on the 7th, so a 28-day backfill
+would read roughly 22 days with **no leave data behind them at all**.
+
+So the report now says so rather than leaving it to be inferred. Each day
+carries `leave_known`, the screen leads with "this is an upper bound, not the
+saving" when any read day lacks leave data, the headline figure is labelled
+**(at most)**, and the affected rows are marked. Judge the decision on the days
+where `leave_known` is true.
+
+### Bringing historical leave in, for the report only
+
+It is possible, and the data is already reachable — `/api/leave/fetchAll`
+returns every leave the organisation has, with `startDate`, `endDate` and
+`status`, and takes no date filter. No new endpoint is needed from their side.
+
+The safe shape, if we do it:
+
+- a **separate read-only pass** that fetches leaves once and records, per
+  `attendance_days` row, whether a leave covered that employee on that date —
+  a new nullable column on that table, or its own small table
+- **nothing written to `skips`, no event recorded, no count touched.** The
+  moment this writes a skip it stops being a report and starts being Phase 2
+  through the back door
+- the report then subtracts those rows and can show a tighter figure beside the
+  ceiling, rather than replacing it
+
+Three caveats to carry into that work, because they decide how much the tighter
+figure is worth:
+
+**It is leave as it stands now, not as it stood then.** A leave approved last
+week for a date three weeks ago, or one since rejected, changes the historical
+picture. That is unavoidable from a single fetch and is usually an improvement —
+but it means the backfilled figure is not reproducible, and two runs a month
+apart can legitimately disagree.
+
+**Half-days are not absences either way.** The leave pull records a partial day
+as ignored, and somebody on a half-day almost certainly clocked in — so they
+should drop out of the ceiling for having clocked in, not for being on leave.
+
+**`fetchAll` grows without bound.** It is fine for a one-off pass and wrong as a
+scheduled job. Whatever we build should be a command run deliberately, not
+something on the scheduler.
+
 ## Open questions
 
 - **Is 11:00 the right cutoff for this?** Phase 1 will show how many people

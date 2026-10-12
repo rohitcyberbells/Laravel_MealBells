@@ -9,6 +9,7 @@ const props = defineProps({
     events: { type: Array, default: () => [] },
     employee_hints: { type: Array, default: () => [] },
     pull: { type: Object, default: () => ({ adapters: [] }) },
+    attendance: { type: Object, default: () => ({}) },
     pull_test: { type: Object, default: null },
     new_secret: { type: String, default: null },
     test_result: { type: Object, default: null },
@@ -37,6 +38,26 @@ const pullForm = useForm({
     password: '',
     adapter: props.pull.adapter || props.pull.adapters[0] || 'cyberpulse',
 });
+
+// Write-only, exactly like the pull password: the key is never sent to this
+// page, so the field starts blank and an empty value means "keep the stored
+// one". Someone opening this form and saving it without retyping a key they
+// cannot see must not clear it.
+const attendanceForm = useForm({ attendance_api_key: '' });
+
+const saveAttendanceKey = () => {
+    attendanceForm.post('/company-admin/hrms/attendance-key', {
+        preserveScroll: true,
+        onSuccess: () => attendanceForm.reset('attendance_api_key'),
+    });
+};
+
+const forgetAttendanceKey = () => {
+    if (!confirm('Remove the attendance API key? No attendance will be read until a new one is saved.')) {
+        return;
+    }
+    router.delete('/company-admin/hrms/attendance-key', { preserveScroll: true });
+};
 
 const savePull = () => {
     pullForm.post('/company-admin/hrms/pull-connection', {
@@ -223,6 +244,97 @@ const hasEvents = computed(() => props.events.length > 0);
                     </div>
 
                     <p v-for="warning in pull_test.warnings" :key="warning" class="text-xs text-amber-300 mt-1">{{ warning }}</p>
+                </div>
+            </div>
+
+            <!-- Attendance feed. A different endpoint, a different kind of
+                 credential, and - in shadow mode - no effect on any count. -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-white">🕒 Attendance feed</h3>
+                        <p class="text-xs text-slate-400">
+                            Reads who had clocked in by your cutoff and reports how many meals would not have been
+                            ordered. <span class="text-amber-400/90">It changes no count and creates no skip.</span>
+                        </p>
+                    </div>
+
+                    <span
+                        :class="[
+                            'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border',
+                            attendance.enabled && attendance.has_key
+                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                : 'bg-slate-800 text-slate-400 border-slate-700',
+                        ]"
+                    >
+                        {{ attendance.enabled && attendance.has_key ? 'reading' : 'not reading' }}
+                    </span>
+                </div>
+
+                <!-- Both switches have to be on, and they live in different
+                     places, so say which one is missing rather than leaving
+                     somebody to guess why nothing happens. -->
+                <p v-if="!attendance.base_url_set" class="text-xs text-amber-300">
+                    Save the HR system connection above first — the attendance feed uses the same base URL.
+                </p>
+                <p v-else-if="!attendance.has_key" class="text-xs text-amber-300">
+                    No attendance key stored, so nothing is being read. Your HR system generates this key.
+                </p>
+                <p v-else-if="!attendance.enabled" class="text-xs text-amber-300">
+                    A key is stored, but attendance is switched off in
+                    <span class="font-semibold">Settings &rarr; Read attendance from the HR system</span>.
+                </p>
+
+                <form @submit.prevent="saveAttendanceKey" class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Attendance API key</label>
+                        <input
+                            v-model="attendanceForm.attendance_api_key"
+                            type="password"
+                            autocomplete="off"
+                            :placeholder="attendance.has_key ? 'Stored — leave blank to keep it' : 'Paste the key from your HR system'"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                        />
+                        <p v-if="attendanceForm.errors.attendance_api_key" class="text-xs text-red-400 mt-1">
+                            {{ attendanceForm.errors.attendance_api_key }}
+                        </p>
+                        <p class="text-[10px] mt-1" :class="attendance.has_key ? 'text-emerald-400' : 'text-slate-500'">
+                            {{ attendance.has_key
+                                ? '✓ A key is stored. It is encrypted and never shown again.'
+                                : 'No key stored yet.' }}
+                        </p>
+                    </div>
+
+                    <div class="flex items-end gap-2 pt-5">
+                        <button type="submit" :disabled="attendanceForm.processing"
+                                class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 text-slate-950 font-bold rounded-lg text-sm cursor-pointer">
+                            Save key
+                        </button>
+                        <button v-if="attendance.has_key" type="button" @click="forgetAttendanceKey"
+                                class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-sm font-semibold cursor-pointer">
+                            Remove
+                        </button>
+                    </div>
+                </form>
+
+                <div v-if="attendance.last_pull_at" class="rounded-xl bg-slate-950/60 border border-slate-800 p-4 space-y-2">
+                    <p class="text-xs text-slate-400">
+                        Last read <span class="font-mono text-slate-300">{{ attendance.last_pull_at }}</span>
+                        <span v-if="attendance.last_pull_status"> — {{ attendance.last_pull_status }}</span>
+                        <span v-if="attendance.last_pull_error" class="text-red-400"> — {{ attendance.last_pull_error }}</span>
+                    </p>
+
+                    <div v-if="attendance.last_summary" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div v-for="metric in [
+                            { label: 'Clocked in', value: attendance.last_summary.present },
+                            { label: 'Absent', value: attendance.last_summary.absent },
+                            { label: 'Unknown', value: attendance.last_summary.unknown },
+                            { label: 'Not matched', value: attendance.last_summary.unmatched },
+                        ]" :key="metric.label" class="bg-slate-900 rounded-lg px-3 py-2 border border-slate-800">
+                            <span class="text-[10px] uppercase font-semibold text-slate-400">{{ metric.label }}</span>
+                            <div class="text-lg font-extrabold text-slate-100">{{ metric.value ?? '—' }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

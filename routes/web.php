@@ -144,6 +144,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/hrms/secret', [CompanyHrmsController::class, 'rotateSecret'])->name('company-admin.hrms.secret');
         Route::post('/hrms/test-event', [CompanyHrmsController::class, 'sendTestEvent'])->name('company-admin.hrms.test-event');
         Route::post('/hrms/pull-connection', [CompanyHrmsController::class, 'savePullConnection'])->name('company-admin.hrms.pull-connection');
+        Route::post('/hrms/attendance-key', [CompanyHrmsController::class, 'saveAttendanceKey'])->name('company-admin.hrms.attendance-key');
+        Route::delete('/hrms/attendance-key', [CompanyHrmsController::class, 'forgetAttendanceKey'])->name('company-admin.hrms.attendance-key.forget');
         Route::post('/hrms/pull-test', [CompanyHrmsController::class, 'testPullConnection'])->name('company-admin.hrms.pull-test');
 
         // Adoption Report

@@ -53,6 +53,18 @@ class CompanyHrmsController extends Controller
                 'last_pull_error' => $connection?->last_pull_error,
                 'adapters' => array_keys(config('hrms.pull_adapters', [])),
             ],
+            // The attendance feed is a different endpoint with different
+            // authentication - a key, not a login - so it is reported
+            // separately. Whether a key exists, never the key.
+            'attendance' => [
+                'has_key' => (bool) $connection?->attendance_api_key,
+                'enabled' => (bool) $company->setting?->attendance_absence_enabled,
+                'base_url_set' => ! empty($connection?->pull_base_url),
+                'last_pull_at' => $connection?->last_attendance_pull_at?->toDateTimeString(),
+                'last_pull_status' => $connection?->last_attendance_pull_status,
+                'last_pull_error' => $connection?->last_attendance_pull_error,
+                'last_summary' => $connection?->last_attendance_pull_summary,
+            ],
             'events' => $this->recentEvents($company->id),
             'employee_hints' => Employee::where('company_id', $company->id)
                 ->where('status', 'active')
@@ -136,6 +148,61 @@ class CompanyHrmsController extends Controller
         $connection->save();
 
         return back()->with('message', 'HRMS pull connection saved.');
+    }
+
+    /**
+     * Save the key the attendance feed is read with.
+     *
+     * Its own action rather than part of savePullConnection: that form requires
+     * a base URL, an address and a password, so folding the key into it would
+     * mean re-entering the HR system password to change an attendance key. The
+     * base URL is shared, which is why this refuses until the pull connection
+     * has set one.
+     */
+    public function saveAttendanceKey(Request $request)
+    {
+        $company = $this->company();
+
+        $validated = $request->validate([
+            // No Password::defaults() here - this is a machine key the HR
+            // system generates, not a passphrase a person chooses, and
+            // demanding letters and digits of it would reject a perfectly good
+            // one. Length is the only thing worth insisting on.
+            'attendance_api_key' => ['nullable', 'string', 'min:16', 'max:255'],
+        ]);
+
+        $connection = CompanyHrmsConnection::where('company_id', $company->id)->first();
+
+        if (! $connection || empty($connection->pull_base_url)) {
+            return back()->withErrors([
+                'attendance_api_key' => 'Save the HR system connection first - the attendance feed uses the same base URL.',
+            ]);
+        }
+
+        // Empty means "leave the key alone", the same as the pull password
+        // above. Someone opening this form and saving it without retyping a key
+        // they cannot see must not clear it.
+        if (! empty($validated['attendance_api_key'])) {
+            $connection->attendance_api_key = $validated['attendance_api_key'];
+            $connection->save();
+
+            return back()->with('message', 'Attendance API key saved.');
+        }
+
+        return back()->with('message', 'No change - the attendance key was left as it was.');
+    }
+
+    /**
+     * Remove the key, which stops attendance being read at all.
+     */
+    public function forgetAttendanceKey()
+    {
+        $company = $this->company();
+
+        CompanyHrmsConnection::where('company_id', $company->id)
+            ->first()?->forceFill(['attendance_api_key' => null])->save();
+
+        return back()->with('message', 'Attendance API key removed. No attendance will be read.');
     }
 
     /**
