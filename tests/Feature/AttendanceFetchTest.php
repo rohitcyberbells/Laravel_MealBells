@@ -257,6 +257,44 @@ class AttendanceFetchTest extends TestCase
         }
     }
 
+    /**
+     * The same fail-safe, reached the other way.
+     *
+     * The HR system reports "we do not know" as clocked_in: null, with no time
+     * at all - not as clocked_in: true with an unreadable one. Null is falsy in
+     * PHP, so without an explicit check this row read as a known absence and a
+     * meal would have been withheld on an answer the HR system never gave.
+     * Found by pointing MealBells at the real endpoint instead of the mock.
+     */
+    public function test_an_explicit_null_clocked_in_is_unknown_rather_than_absent(): void
+    {
+        $decision = (new CyberPulseAdapter)->toAttendance(
+            ['employee_id' => 'x', 'clocked_in' => null, 'clock_in_at' => null],
+            '2026-10-09', 'Asia/Kolkata', '11:00:00',
+        );
+
+        $this->assertNull(
+            $decision['clocked_in_by_cutoff'],
+            'a null clocked_in was read as an absence, which withholds a meal',
+        );
+    }
+
+    /**
+     * A row that never mentions clocked_in at all is a different thing from one
+     * that says null: the vendor is not answering the question rather than
+     * answering it with "unknown". Absent is the safe reading there - it is
+     * what a row carrying only an id and no attendance means.
+     */
+    public function test_a_missing_clocked_in_key_is_still_an_absence(): void
+    {
+        $decision = (new CyberPulseAdapter)->toAttendance(
+            ['employee_id' => 'x'],
+            '2026-10-09', 'Asia/Kolkata', '11:00:00',
+        );
+
+        $this->assertFalse($decision['clocked_in_by_cutoff']);
+    }
+
     public function test_a_row_with_no_employee_reference_is_refused(): void
     {
         $this->assertNull((new CyberPulseAdapter)->toAttendance(
