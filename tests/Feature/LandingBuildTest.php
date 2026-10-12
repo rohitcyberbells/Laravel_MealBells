@@ -258,4 +258,76 @@ class LandingBuildTest extends TestCase
 
         return $files;
     }
+
+    /**
+     * The landing project must not carry its own package.json.
+     *
+     * A nested manifest looks harmless and is not: its dependencies install
+     * into resources/landing/node_modules, which is gitignored, so a fresh
+     * clone and both CI jobs would run `npm ci` at the root, never install
+     * them, and fail the landing build on a missing module. Node resolution
+     * walks upwards, so the root manifest serves the landing page perfectly
+     * well - and it is the one CI already installs.
+     */
+    public function test_the_landing_project_has_no_manifest_of_its_own(): void
+    {
+        foreach (['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'] as $file) {
+            $this->assertFileDoesNotExist(
+                base_path("resources/landing/{$file}"),
+                "resources/landing/{$file} exists; its dependencies would install into a gitignored node_modules and never reach a fresh clone or CI",
+            );
+        }
+    }
+
+    /**
+     * Every library the landing page imports is declared in the root manifest.
+     *
+     * Asserted by reading the imports rather than by naming three and gsap, so
+     * the next library added is covered without anybody remembering to extend
+     * this test - which is how the first two ended up in a nested manifest.
+     */
+    public function test_every_landing_import_is_declared_in_the_root_manifest(): void
+    {
+        $manifest = json_decode(file_get_contents(base_path('package.json')), true);
+
+        $declared = array_keys(array_merge(
+            $manifest['dependencies'] ?? [],
+            $manifest['devDependencies'] ?? [],
+            $manifest['optionalDependencies'] ?? [],
+        ));
+
+        $imported = [];
+
+        foreach ($this->landingSourceFiles() as $path) {
+            $source = file_get_contents($path);
+
+            // import x from 'pkg', import 'pkg', and import('pkg').
+            preg_match_all('#\bimport\s*\(?\s*(?:[^\x27"()]*?\bfrom\s*)?["\x27]([^"\x27]+)["\x27]#', $source, $matches);
+
+            foreach ($matches[1] as $specifier) {
+                // Relative and absolute paths are files in this project, and
+                // astro: / node: are built into the runtime.
+                if (preg_match('#^[./]|^astro:|^node:|^https?:|^//#', $specifier)) {
+                    continue;
+                }
+
+                // A subpath import such as three/addons/x.js is satisfied by
+                // the package itself, so only the package name is checked.
+                $parts = explode('/', $specifier);
+                $package = str_starts_with($specifier, '@')
+                    ? implode('/', array_slice($parts, 0, 2))
+                    : $parts[0];
+
+                $imported[$package] = str_replace(base_path().'/', '', $path);
+            }
+        }
+
+        foreach ($imported as $package => $usedIn) {
+            $this->assertContains(
+                $package,
+                $declared,
+                "{$usedIn} imports '{$package}', which the root package.json does not declare, so a fresh clone cannot build the landing page",
+            );
+        }
+    }
 }
