@@ -208,6 +208,98 @@ class AttendanceShadowReportTest extends TestCase
         $this->assertFalse($this->report()['enabled']);
     }
 
+    // ---------------------------------------------------- the upper bound
+
+    /**
+     * The honesty problem with backfilling. A person on approved leave is
+     * excluded from "would not have ordered" only when a skip row exists for
+     * that date - and skip rows exist only for days MealBells was already
+     * recording. Earlier days count them as absent, so the figure is a ceiling.
+     *
+     * Presenting that as the saving would make the case for acting on
+     * attendance look better than it is, which is the one way this feature
+     * could mislead the decision it exists to inform.
+     */
+    public function test_a_day_before_any_leave_was_recorded_is_marked_as_such(): void
+    {
+        // MealBells started recording on the 5th.
+        Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->employees[1]->id,
+            'date' => '2026-10-05', 'source' => 'leave', 'created_by' => $this->admin->id,
+        ]);
+
+        // Attendance backfilled for an earlier day, and for the 5th.
+        $this->attendance(2, false, '2026-10-01');
+        $this->attendance(3, true, '2026-10-01');
+        $this->attendance(2, false, '2026-10-05');
+
+        $report = $this->report(14);
+
+        $earlier = collect($report['days'])->firstWhere('date', '2026-10-01');
+        $covered = collect($report['days'])->firstWhere('date', '2026-10-05');
+
+        $this->assertFalse($earlier['leave_known'], 'a day with no leave data was presented as if it had some');
+        $this->assertTrue($covered['leave_known']);
+
+        $this->assertTrue($report['is_upper_bound']);
+        $this->assertSame(1, $report['days_without_leave_data']);
+        $this->assertSame('2026-10-05', $report['first_known_skip_date']);
+    }
+
+    public function test_a_range_entirely_covered_by_leave_data_is_not_an_upper_bound(): void
+    {
+        Skip::create([
+            'company_id' => $this->company->id, 'employee_id' => $this->employees[1]->id,
+            'date' => '2026-10-02', 'source' => 'leave', 'created_by' => $this->admin->id,
+        ]);
+
+        $this->attendance(2, false, '2026-10-05');
+        $this->attendance(3, true, '2026-10-05');
+
+        $report = $this->report(7);
+
+        $this->assertFalse($report['is_upper_bound'], 'a fully covered range was labelled as a ceiling');
+        $this->assertSame(0, $report['days_without_leave_data']);
+    }
+
+    /**
+     * A company that has never recorded a skip at all has no boundary, so every
+     * day read is a ceiling.
+     */
+    public function test_with_no_skips_ever_recorded_every_day_is_an_upper_bound(): void
+    {
+        $this->attendance(1, false, '2026-10-05');
+
+        $report = $this->report();
+
+        $this->assertNull($report['first_known_skip_date']);
+        $this->assertTrue($report['is_upper_bound']);
+        $this->assertSame(1, $report['days_without_leave_data']);
+    }
+
+    /**
+     * An unread day cannot be a ceiling for anything, so it must not be counted
+     * as one and inflate the warning.
+     */
+    public function test_unread_days_do_not_count_towards_the_warning(): void
+    {
+        $report = $this->report();
+
+        $this->assertSame(0, $report['days_read']);
+        $this->assertSame(0, $report['days_without_leave_data']);
+        $this->assertFalse($report['is_upper_bound']);
+    }
+
+    public function test_the_screen_says_it_is_a_ceiling_and_which_days_to_trust(): void
+    {
+        $page = file_get_contents(resource_path('js/Pages/CompanyAdmin/Reports/Attendance.vue'));
+
+        $this->assertStringContainsString('upper bound, not the saving', $page);
+        $this->assertStringContainsString('counted here as absent', $page);
+        $this->assertStringContainsString('(at most)', $page);
+        $this->assertStringContainsString('Leave known', $page);
+    }
+
     // ------------------------------------------------------- it changes nothing
 
     /**

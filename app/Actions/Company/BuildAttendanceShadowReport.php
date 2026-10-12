@@ -54,6 +54,23 @@ class BuildAttendanceShadowReport
             ->where('attendance_source', 'integrated')
             ->count();
 
+        /*
+         * How far back MealBells can actually explain an absence.
+         *
+         * A person on approved leave is excluded from "would not have ordered"
+         * only if a skip row exists for that date - and skip rows exist only
+         * for days MealBells was already recording. For any earlier day the
+         * leave is invisible here, so that person counts as absent and the
+         * figure is too high.
+         *
+         * The earliest skip of any kind is the honest boundary: before it,
+         * MealBells held no reason-to-skip at all for this company.
+         */
+        $firstKnownSkipDate = Skip::where('company_id', $company->id)->min('date');
+        $firstKnownSkipDate = $firstKnownSkipDate
+            ? Carbon::parse($firstKnownSkipDate)->toDateString()
+            : null;
+
         $days = [];
         $cursor = Carbon::parse($fromDate);
         $end = Carbon::parse($toDate);
@@ -75,6 +92,7 @@ class BuildAttendanceShadowReport
                     'date' => $date,
                     'day_name' => Carbon::parse($date)->format('D'),
                     'read' => false,
+                    'leave_known' => false,
                     'present' => 0,
                     'absent' => 0,
                     'unknown' => 0,
@@ -97,6 +115,10 @@ class BuildAttendanceShadowReport
                 'date' => $date,
                 'day_name' => Carbon::parse($date)->format('D'),
                 'read' => true,
+                // Whether MealBells was recording reasons-to-skip on this date
+                // at all. Where it was not, 'would_be_absent' counts people who
+                // were on leave, so the day's figure is an upper bound.
+                'leave_known' => $firstKnownSkipDate !== null && $date >= $firstKnownSkipDate,
                 'present' => $rows->whereStrict('clocked_in_by_cutoff', true)->count(),
                 'absent' => $absent->count(),
                 'unknown' => $rows->whereNull('clocked_in_by_cutoff')->count(),
@@ -111,6 +133,15 @@ class BuildAttendanceShadowReport
         $readDays = array_values(array_filter($days, fn (array $day) => $day['read']));
         $totalWouldBeAbsent = array_sum(array_column($readDays, 'would_be_absent'));
 
+        // Days read but with no leave data behind them. If there are any, the
+        // total is an upper bound and the screen has to say so - a number
+        // presented as the saving, when it silently includes people who were on
+        // approved leave, would make the case for acting look better than it is.
+        $daysWithoutLeave = array_values(array_filter(
+            $readDays,
+            fn (array $day) => $day['leave_known'] === false,
+        ));
+
         return [
             'from' => $fromDate,
             'to' => $toDate,
@@ -121,6 +152,9 @@ class BuildAttendanceShadowReport
             'days' => $days,
             'days_read' => count($readDays),
             'meal_days' => count($days),
+            'first_known_skip_date' => $firstKnownSkipDate,
+            'days_without_leave_data' => count($daysWithoutLeave),
+            'is_upper_bound' => count($daysWithoutLeave) > 0,
             'total_would_be_absent' => $totalWouldBeAbsent,
             // The figure the decision turns on. An average over the days
             // actually read, not over the range - a range with three unread

@@ -61,6 +61,7 @@ class CompanySettingsPageTest extends TestCase
             'cutoff_time' => '10:30',
             'timezone' => 'Asia/Kolkata',
             'wfh_auto_skip' => false,
+            'attendance_absence_enabled' => false,
             'meal_days' => [1, 2, 3, 4, 5, 6],
             'primary_admin_id' => $this->admin->id,
             'backup_admin_id' => $this->secondAdmin->id,

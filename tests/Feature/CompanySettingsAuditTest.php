@@ -57,6 +57,7 @@ class CompanySettingsAuditTest extends TestCase
                 'cutoff_time' => '11:00',
                 'timezone' => 'Asia/Kolkata',
                 'wfh_auto_skip' => true,
+                'attendance_absence_enabled' => false,
                 'meal_days' => [1, 2, 3, 4, 5],
                 'primary_admin_id' => null,
                 'backup_admin_id' => null,

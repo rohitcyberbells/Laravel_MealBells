@@ -58,10 +58,34 @@ const changeRange = (newRange) => {
                 </p>
             </div>
 
+            <!-- Said before the number it qualifies. A figure that silently
+                 includes people who were on approved leave would make the case
+                 for acting on attendance look better than it is. -->
+            <div v-if="report.is_upper_bound" class="bg-slate-900 border border-amber-500/40 rounded-xl p-5">
+                <h2 class="font-bold text-amber-300">This is an upper bound, not the saving</h2>
+                <p class="text-xs text-slate-400 mt-1">
+                    {{ report.days_without_leave_data }} of the
+                    {{ report.days_read }} {{ report.days_read === 1 ? 'day' : 'days' }} read
+                    {{ report.days_without_leave_data === 1 ? 'is from' : 'are from' }}
+                    before MealBells held any leave records for your company, so anyone who was on approved leave or
+                    working from home on those days is counted here as absent. The real saving is lower &mdash;
+                    possibly much lower.
+                </p>
+                <p v-if="report.first_known_skip_date" class="text-xs text-slate-500 mt-2">
+                    Leave and WFH are accounted for from
+                    <span class="font-mono text-slate-400">{{ report.first_known_skip_date }}</span> onwards. Days on or
+                    after that date are marked <span class="text-emerald-400">leave known</span> in the table below;
+                    judge the number on those.
+                </p>
+            </div>
+
             <!-- The figure the decision turns on -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                    <p class="text-[11px] uppercase font-semibold text-slate-500">Meals we would not have ordered</p>
+                    <p class="text-[11px] uppercase font-semibold text-slate-500">
+                        Meals we would not have ordered
+                        <span v-if="report.is_upper_bound" class="text-amber-400">(at most)</span>
+                    </p>
                     <p class="text-3xl font-bold text-white mt-1">
                         {{ report.average_per_day ?? '—' }}
                         <span class="text-sm font-normal text-slate-400">per day</span>
@@ -114,6 +138,7 @@ const changeRange = (newRange) => {
                             <th class="text-right py-3 px-4" title="The HR system had no answer for these people">Unknown</th>
                             <th class="text-right py-3 px-4" title="Already on leave, WFH, a recurring rule, or entered by hand">Already not eating</th>
                             <th class="text-right py-3 px-4">Would not have ordered</th>
+                            <th class="text-right py-3 px-4" title="Whether MealBells held leave and WFH records for this date">Leave known</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
@@ -132,16 +157,20 @@ const changeRange = (newRange) => {
                                 <td class="text-right py-3 px-4 text-slate-500">{{ day.already_not_eating }}</td>
                                 <td class="text-right py-3 px-4 font-bold" :class="day.would_be_absent > 0 ? 'text-white' : 'text-slate-500'">
                                     {{ day.would_be_absent }}
+                                    <span v-if="!day.leave_known" class="text-amber-400 font-normal" title="Counts people who may have been on leave">↑</span>
+                                </td>
+                                <td class="text-right py-3 px-4 text-xs" :class="day.leave_known ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ day.leave_known ? 'yes' : 'no' }}
                                 </td>
                             </template>
 
-                            <td v-else colspan="5" class="text-right py-3 px-4 text-xs text-slate-600 italic">
+                            <td v-else colspan="6" class="text-right py-3 px-4 text-xs text-slate-600 italic">
                                 not read — a failed or suspicious reading records nothing rather than guessing
                             </td>
                         </tr>
 
                         <tr v-if="!report.days.length">
-                            <td colspan="6" class="py-10 text-center text-sm text-slate-500">
+                            <td colspan="7" class="py-10 text-center text-sm text-slate-500">
                                 No meal days in this range.
                             </td>
                         </tr>
@@ -164,6 +193,11 @@ const changeRange = (newRange) => {
                     A day where more than 40% looked absent is recorded as not read. That much of a company is rarely
                     away; the HR system is more likely to have been having a bad morning, and a wasted meal costs less
                     than somebody going without lunch.
+                </p>
+                <p>
+                    <span class="text-slate-300">Leave known</span> says whether MealBells held leave and WFH records
+                    for that date. Where it does not, the day's figure counts people who may well have been away, so it
+                    is a ceiling rather than a saving. Marked <span class="text-amber-400">&uarr;</span> in the table.
                 </p>
                 <p>
                     Employee headcount is today's, not a reconstruction of each past day — so a range spanning a

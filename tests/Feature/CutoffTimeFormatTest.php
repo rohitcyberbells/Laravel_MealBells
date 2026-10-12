@@ -48,6 +48,7 @@ class CutoffTimeFormatTest extends TestCase
             'cutoff_time' => $cutoff,
             'timezone' => 'Asia/Kolkata',
             'wfh_auto_skip' => false,
+            'attendance_absence_enabled' => false,
             'meal_days' => [1, 2, 3, 4, 5],
         ];
     }
