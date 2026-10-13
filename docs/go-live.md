@@ -304,10 +304,20 @@ Restore steps: [backup-restore.md](backup-restore.md).
 | Confirm an alert mail actually arrives | Stop the worker for ten minutes and see whether you hear about it |
 | Rehearse a restore once | Into a scratch database. An untested backup is a guess |
 | Re-run `composer audit` and `npm audit` monthly | Two `league/commonmark` advisories are open with no fixed release yet; see [deploy.md](deploy.md) |
+| Connecting attendance to a live HRMS | A separate exercise, and all configuration — [live-trial.md](live-trial.md) |
 
 ### Still not built, so do not promise it
 
-- **Calendar has no bulk control** — holidays are declared one day at a time
-- **The landing page is a redirect** — guests go straight to sign-in
+- **Attendance is shadow mode only.** It reads who clocked in and reports how
+  many meals would not have been ordered. It creates no skip and changes no
+  count, and acting on it is a separate decision — see
+  [live-trial.md](live-trial.md)
 - **Deleting a tiffin service or a company archives it**; nothing hard-deletes a
   tenant, but there is no purge either
+
+### Two things that were on this list and are not any more
+
+- The calendar takes a **range** now, not one day at a time
+- `/` serves a **landing page**, built by `npm run build:landing`. It still
+  redirects to sign-in when that output is absent, which is the deliberate
+  fallback rather than a missing feature
