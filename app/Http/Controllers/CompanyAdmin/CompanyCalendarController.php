@@ -45,6 +45,11 @@ class CompanyCalendarController extends Controller
             'month' => $month,
             'days' => $calendarDays,
             'meal_days' => $mealDays,
+            // The company's today, not the browser's. A bulk range silently
+            // passes over days that can no longer be edited, so the screen has
+            // to count them before the click - and a browser in another zone
+            // would count the wrong ones.
+            'today' => Carbon::today($timezone)->toDateString(),
         ]);
     }
 

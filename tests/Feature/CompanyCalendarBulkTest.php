@@ -269,4 +269,61 @@ class CompanyCalendarBulkTest extends TestCase
 
         $this->assertDatabaseCount('company_calendar_days', 0);
     }
+
+    /**
+     * The bulk UI counts how many days in a range it can still act on, and it
+     * has to count them in the company's day, not the browser's.
+     *
+     * The clock is frozen at Monday 2026-10-05 08:00 IST, which is still
+     * Sunday 2026-10-04 in New York. A screen using the browser's date would
+     * offer to edit a day the server has already passed, and then report having
+     * changed fewer days than it said it would.
+     */
+    public function test_the_calendar_page_carries_the_company_s_own_today(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/company-admin/calendar')
+            ->assertInertia(fn ($page) => $page
+                ->component('CompanyAdmin/Calendar/Index')
+                ->where('today', '2026-10-05'));
+
+        $this->company->setting->update(['timezone' => 'America/New_York']);
+
+        /*
+         * A fresh user instance, deliberately.
+         *
+         * actingAs holds on to the object it is given, so its company.setting
+         * relation stays loaded from the request above and the second request
+         * reads the old timezone - the first version of this assertion was
+         * testing the test harness rather than the controller. In production
+         * every request loads the user from the session, which is what fresh()
+         * reproduces.
+         */
+        $this->actingAs($this->admin->fresh())
+            ->get('/company-admin/calendar')
+            ->assertInertia(fn ($page) => $page->where('today', '2026-10-04'));
+    }
+
+    /**
+     * What the range form posts: the expanded list of days, not a start and an
+     * end. The endpoint takes `dates`, so a UI that sent a range instead would
+     * be rejected - this pins the contract the screen is written against.
+     */
+    public function test_a_range_posted_as_expanded_dates_marks_every_day_in_it(): void
+    {
+        $this->bulk([
+            'dates' => ['2026-10-06', '2026-10-07', '2026-10-08'],
+            'type' => 'holiday',
+            'note' => 'Diwali week',
+        ])->assertSessionHas('message', 'Updated 3 calendar days successfully.');
+
+        $this->assertSame(
+            ['2026-10-06', '2026-10-07', '2026-10-08'],
+            CompanyCalendarDay::where('company_id', $this->company->id)
+                ->orderBy('date')
+                ->pluck('date')
+                ->map(fn ($date) => Carbon::parse($date)->toDateString())
+                ->all(),
+        );
+    }
 }
