@@ -14,6 +14,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         if (! app()->environment('local', 'testing')) {
+            /*
+             * Say so. Returning in silence means `db:seed --force` on a server
+             * prints "Seeding database." and exits 0 having done nothing, which
+             * leaves the operator with no way to tell a guard that fired from a
+             * seeder that ran. DemoSeeder already says it; this one did not.
+             */
+            $this->command?->error('DatabaseSeeder only runs in local or testing.');
+
             return;
         }
 
