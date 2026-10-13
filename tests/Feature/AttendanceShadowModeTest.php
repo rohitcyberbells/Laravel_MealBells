@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\Hrms\PullAttendance;
 use App\Actions\Meal\CalculateExpectedMeals;
+use App\Exceptions\MealRuleViolation;
 use App\Models\AttendanceDay;
 use App\Models\Company;
 use App\Models\CompanyHrmsConnection;
@@ -15,6 +16,7 @@ use App\Models\MealCount;
 use App\Models\Skip;
 use App\Models\TiffinService;
 use App\Models\User;
+use App\Services\MealGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -535,5 +537,46 @@ class AttendanceShadowModeTest extends TestCase
         $this->pull();
 
         $this->assertTrue(AttendanceDay::firstOrFail()->is_wfh);
+    }
+
+    // ============================================ the boundary around Phase 1
+
+    /**
+     * Attendance is not a skip source, and the engine will not accept one.
+     *
+     * The tests above prove the pull writes no skip. This proves the next thing:
+     * that nothing *could*, by any route. MealGuard refuses a source outside the
+     * canonical list, and 'attendance' is deliberately not on it - so a future
+     * Phase 2 cannot be half-built by a code path that quietly starts writing
+     * skips without the list, the guard and this test all being changed on
+     * purpose.
+     *
+     * That config array had no test at all, so adding 'attendance' to it broke
+     * nothing. It does now.
+     */
+    public function test_attendance_is_not_an_acceptable_skip_source(): void
+    {
+        $this->assertNotContains(
+            'attendance',
+            config('mealbells.canonical_skip_sources'),
+            'attendance became a canonical skip source, which is Phase 2 and not a config change',
+        );
+
+        $this->expectException(MealRuleViolation::class);
+
+        MealGuard::assertValidSource('attendance');
+    }
+
+    /**
+     * The control. Without it the assertion above would pass against a guard
+     * that rejected everything, including the sources the engine depends on.
+     */
+    public function test_the_sources_the_engine_actually_uses_are_still_accepted(): void
+    {
+        foreach (['leave', 'wfh', 'hr', 'self', 'link', 'recurring'] as $source) {
+            MealGuard::assertValidSource($source);
+        }
+
+        $this->addToAssertionCount(6);
     }
 }
