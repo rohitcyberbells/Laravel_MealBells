@@ -295,6 +295,31 @@ class AttendanceFetchTest extends TestCase
         $this->assertFalse($decision['clocked_in_by_cutoff']);
     }
 
+    /**
+     * The address comes from the company's own connection, never from the code.
+     *
+     * This is what makes going live a config change: the vendor's host is set
+     * per company through the UI, so there is nothing to edit and redeploy when
+     * their endpoint moves from a laptop to a real domain.
+     *
+     * Worth asserting rather than assuming. The Http::fake above matches
+     * '*​/api/integration/attendance/daily*', and that wildcard accepts any
+     * host - so a hardcoded localhost:4040 would have passed every other test
+     * in this file.
+     */
+    public function test_the_request_goes_to_the_host_configured_for_the_company(): void
+    {
+        $this->connection->forceFill(['pull_base_url' => 'https://hrms.acme.example'])->save();
+        $this->fakeVendor(['date' => '2026-10-09', 'employees' => []]);
+
+        app(CyberPulseClient::class)->fetchAttendance($this->connection->fresh(), '2026-10-09');
+
+        Http::assertSent(fn ($request) => str_starts_with(
+            $request->url(),
+            'https://hrms.acme.example/api/integration/attendance/daily',
+        ));
+    }
+
     public function test_a_row_with_no_employee_reference_is_refused(): void
     {
         $this->assertNull((new CyberPulseAdapter)->toAttendance(

@@ -1,6 +1,13 @@
 # Attendance-based absence — design note
 
-**Status:** design only. Nothing is built.
+> Operating it once the HRMS is live, including what each fail-safe message
+> means: [live-trial.md](live-trial.md).
+
+**Status:** Phase 1 is built and shipped — the table, the fetch, the pull
+command, the guards and the shadow report. It changes no count. Phase 2 is still
+only a decision, and the whole point of Phase 1 is to produce the evidence for
+it. This note is kept as the design it was written as; where it says "would",
+read it as what Phase 1 now does.
 
 The CyberPulse developer suggested building the meal count from attendance
 (clock-in) rather than from leave: *whoever clocked in gets a meal, whoever did
