@@ -37,15 +37,25 @@ class ProductionModeTest extends TestCase
      * deploy script does - and then the seeder's own check is the only thing
      * left.
      */
+    protected ?Command $recordingCommand = null;
+
     protected function runDefaultSeeder(): void
     {
         $seeder = new DatabaseSeeder;
         $seeder->setContainer(app());
-        $seeder->setCommand(new class extends Command
+        $seeder->setCommand($this->recordingCommand = new class extends Command
         {
+            /** @var array<int, string> */
+            public array $errors = [];
+
             public function info($string, $verbosity = null): void {}
 
             public function line($string, $style = null, $verbosity = null): void {}
+
+            public function error($string, $verbosity = null): void
+            {
+                $this->errors[] = $string;
+            }
         });
 
         $seeder->run();
@@ -59,6 +69,15 @@ class ProductionModeTest extends TestCase
 
         $this->assertSame(0, Company::count());
         $this->assertSame(0, User::count());
+
+        // And it has to say so. Refusing in silence leaves `db:seed --force` on
+        // a server printing "Seeding database." and exiting 0, with no way to
+        // tell a guard that fired from a seeder that ran.
+        $this->assertContains(
+            'DatabaseSeeder only runs in local or testing.',
+            $this->recordingCommand->errors,
+            'the seeder refused without saying anything',
+        );
     }
 
     /**
