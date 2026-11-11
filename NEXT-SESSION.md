@@ -15,9 +15,13 @@ nothing is unpushed: `origin/main` and local `main` are both at `9be9185`.
 
 | | |
 |---|---|
-| Tests | **1228 green on SQLite** (4428 assertions), re-run 2026-11-11. The PostgreSQL 18.6 job was last green at 1220/4390 on 2026-10-12 and has **not** been re-run since |
+| Tests | **1228 green on SQLite** (4428 assertions) and **1228 green on PostgreSQL 18.6** (4424), both re-run 2026-11-11 |
 | Skips | none |
-| Pint | clean as of 2026-10-12; no PHP has changed since, so unchanged · `npm run build` clean (verified 2026-11-11) · `npm run build:landing` not re-run |
+| Pint | clean (`--dirty`, 2026-11-11) · `npm run build` clean (2026-11-11) · `npm run build:landing` not re-run, and no landing file has changed |
+
+The migrate/rollback gate was **not** re-run, deliberately: no migration was
+touched today, and that gate exists to catch a `down()` that works on one
+driver and not the other.
 
 Two builds now. `npm run build` does the application; `npm run build:landing`
 does the Astro landing page into `public/landing`. Both CI jobs run both. If `/`
