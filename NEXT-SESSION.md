@@ -58,6 +58,12 @@ Added since, and already on `origin/main`:
 
 ## The one decision waiting
 
+> **Doing this tomorrow? Go straight to
+> [docs/cyberpulse-push-plan.md](docs/cyberpulse-push-plan.md).** It is the
+> ordered runbook: the two code fixes to settle first, the git steps, the three
+> checks after `git fetch`, the traps, and what is still to do once it merges.
+> The rest of this section is the background behind it.
+
 **The CyberPulse endpoint is committed locally and not pushed.**
 
 `~/Desktop/Web_CyberPulse`, branch `feat/mealbells-integration`, commit
