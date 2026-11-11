@@ -152,7 +152,7 @@ way an event arrives.
 |---|---|---|
 | **Leave pull** | `hrms:pull` signs in as a CyberPulse user (`POST /api/employee/login`) and reads `GET /api/leave/fetchAll`. Eight whitelisted fields are kept and the rest is discarded at parse time. Approved, future leave becomes `leave` skips with `external_ref = cp:leave:{id}:{state}` | Built, tested against a local CyberPulse |
 | **Webhook** | `POST /api/hrms/{company_code}/events`. HMAC-SHA256 signature (preferred) or a bearer token | Built. CyberPulse does not send webhooks today |
-| **Attendance** | `hrms:pull-attendance` calls `GET /api/integration/attendance/daily?date=&tz=` with `X-API-Key` | **Shadow mode only.** It reports what it *would* have saved and changes no count. The endpoint does not exist in CyberPulse yet |
+| **Attendance** | `hrms:pull-attendance` calls `GET /api/integration/attendance/daily?date=&tz=` with `X-API-Key` | **Shadow mode only.** It reports what it *would* have saved and changes no count. The endpoint is built on a CyberPulse branch (§7.0) but not yet merged or deployed |
 
 Cancellation is inferred: CyberPulse deletes a withdrawn leave instead of
 marking it cancelled, so the only signal is that the leave is missing from the
@@ -266,7 +266,7 @@ Everything below was read from `origin/main` at `2512d48`, after a
 
 | | Status on `origin/main` |
 |---|---|
-| Attendance endpoint (`/api/integration/attendance/daily`, `X-API-Key`) | **Not built.** No integration route and no API-key auth exist anywhere in `backend/` |
+| Attendance endpoint (`/api/integration/attendance/daily`, `X-API-Key`) | **Built, but not on `origin/main`.** See §7.0a — it lives on a branch in a different clone, which is why this row read "not built" when only `origin/main` was looked at |
 | Leave pull dependencies: `POST /api/employee/login`, `GET /api/leave/fetchAll` | **Still compatible.** Same route, same `{ success, data }` shape. It still populates `employeeId` with `name email …`, and the leave fields MealBells keeps are unchanged. JWTs now last 30 days (`695939a`), which only means fewer re-logins |
 | Organisation timezone | **CyberPulse stores none.** No model has a timezone field. The new endpoint must therefore honour the `tz` query parameter MealBells already sends, rather than looking up a zone of its own |
 | `.lean()` in `superAdminController` (line 94) | Still there |
@@ -299,9 +299,78 @@ Everything below was read from `origin/main` at `2512d48`, after a
 > - Get the change reviewed by whoever owns CyberPulse.
 > - Do not push straight to the branch that deploys.
 
+### 7.0a The endpoint exists, on a branch — read 2026-11-11
+
+§7.0 looked at `origin/main` in the Windows clone and concluded "not built".
+That was true of `origin/main` and wrong about the work: the endpoint had
+already been written on the **office iMac**, in a clone at
+`~/Desktop/RED/Web_CyberPulse`, on branch `feat/mealbells-integration`.
+
+Commit `0768520`, 2026-10-12. Three files, +282 lines, purely additive: a new
+`backend/controller/mealbellsIntegrationController.js`, a new
+`backend/route/mealbellsIntegrationRoute.js`, and two lines in `index.js`. No
+existing controller, model, route or middleware was touched.
+
+**Read against the §7.1 checklist on 2026-11-11, and it meets it.** Verified by
+reading the code, not by trusting the commit message:
+
+| §7.1 item | In `0768520` |
+|---|---|
+| Own router, not under `/api/attendance` | Yes — mounted at `/api/integration`, so the bare `GET /:employeeId` cannot shadow it |
+| `X-API-Key`, `401` on a bad key | Yes, and compared with `crypto.timingSafeEqual` without an early break |
+| One row per active employee, absences included | Yes |
+| `clocked_in` three-valued | Yes — no record is `false`, an unreadable time is `null` |
+| Day boundary in the asked-for zone, echoed back | Yes — `moment-timezone`, strict parsing, `tz` honoured |
+| No `.lean()`, no aggregation | Yes, and it calls `decryptTime()` defensively as well |
+| `200` with `[]`, never `404`; `400` on a bad date | Yes |
+| Only the five agreed fields | Yes |
+| Rate limit | Reuses the existing `apiRateLimiter` |
+| Same host as the login API | Yes — same Express app, so one `pull_base_url` serves both |
+
+It also scopes attendance by the organisation's employee ids rather than by the
+attendance document's own `organizationId`, which is optional in that schema —
+a record saved without it would otherwise vanish and its employee be reported
+absent. That was not in the spec and is a better answer than the one asked for.
+
+**Three things still open on their side**, none of them blocking a review:
+
+1. **`status: { $ne: "0" }`** follows the schema, which declares `status` a
+   String enum. Their own `attendanceController.js:376` uses
+   `$nin: ["0", 0]`, guarding against a numeric `0` as well. If any legacy
+   document holds the number, an inactive employee is returned as active. Worth
+   a `countDocuments({ status: 0 })` against production before deciding.
+2. **`type: { $ne: 1 }`** excludes every admin, not only the platform super
+   admin. The query already filters by `organizationId`, and the platform super
+   admin is the one with *no* `organizationId`, so it cannot appear anyway —
+   which means this clause only removes the company's own admins. They clock in
+   like anyone else, so the filter should go.
+3. **The API key lives in `MEALBELLS_API_KEYS`**, an env var of
+   `key:organizationId` pairs, rather than hashed on `organizationSettingsModel`
+   as §7.0 suggested. It works, but rotation needs a process restart, and the
+   variable is documented nowhere — there is no `.env.example` in that repo.
+
+**And one that is theirs, not ours, but now matters more:**
+`app.set('trust proxy', true)` in `backend/index.js:45` with an IP-keyed
+limiter means `X-Forwarded-For` can be forged. Until this endpoint existed that
+was untidy; now it is the only brake on guessing an API key, because the route
+is deliberately unauthenticated. `1` (or whatever their real hop count is)
+fixes it. A 256-bit key makes it moot either way.
+
+**The branch is the urgent part.** As of 2026-11-11 that clone had no git
+remote at all, so `0768520` existed on one machine and nowhere else. Access has
+since been granted and it is to be pushed to a branch on the main repository
+for review.
+
 ### 7.1 Required — the attendance endpoint
 
 The full spec, written to hand over: `docs/cyberpulse-attendance-endpoint-spec.md`.
+
+> **The boxes below are all ticked by `0768520` except the last two** — a public
+> https hostname and seeded attendance rows in their dev data, both of which are
+> deployment rather than code. They are left unticked because this list is what
+> was *asked for*, and §7.0a records what was *delivered* against it. Read the
+> two together rather than either alone.
+
 In short:
 
 - [ ] **New route** `GET /api/integration/attendance/daily?date=YYYY-MM-DD&tz=Asia/Kolkata`.
@@ -384,7 +453,10 @@ No code change is needed, only configuration (`docs/live-trial.md`):
    green on this machine.
 2. Update the Symfony packages (finding #1) once approved, and re-run the
    suite.
-3. Build the CyberPulse attendance endpoint (§7.1), against their local seed.
+3. ~~Build the CyberPulse attendance endpoint (§7.1), against their local
+   seed.~~ **Done** — `0768520`, see §7.0a. What remains on that side is to
+   push the branch, settle the three open points in §7.0a, get it merged and
+   deploy it on a public https host with `MEALBELLS_API_KEYS` set.
 4. Deploy MealBells to staging following `docs/go-live.md`.
 5. Connect the two, run the shadow trial, and decide on Phase 2 from the
    number.

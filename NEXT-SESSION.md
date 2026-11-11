@@ -15,7 +15,7 @@ nothing is unpushed: `origin/main` and local `main` are both at `9be9185`.
 
 | | |
 |---|---|
-| Tests | **1225 green on SQLite** (4423 assertions), re-run 2026-11-11. The PostgreSQL 18.6 job was last green at 1220/4390 on 2026-10-12 and has **not** been re-run since |
+| Tests | **1228 green on SQLite** (4428 assertions), re-run 2026-11-11. The PostgreSQL 18.6 job was last green at 1220/4390 on 2026-10-12 and has **not** been re-run since |
 | Skips | none |
 | Pint | clean as of 2026-10-12; no PHP has changed since, so unchanged · `npm run build` clean (verified 2026-11-11) · `npm run build:landing` not re-run |
 
@@ -104,11 +104,14 @@ Two things that came out of that read and are not yet written down anywhere else
   means `X-Forwarded-For` can be forged, so the limiter on the new route can be
   bypassed. That route is unauthenticated by design, so the limiter is the only
   thing slowing a brute force against the API key. `'loopback'` or `1` fixes it.
-- **`docs/system-overview.md` §7.1 claims MealBells rejects a reply whose
-  timezone is not the one it asked for.** It does not —
-  `CyberPulseClient::fetchAttendance` compares only `date`. The endpoint does
-  honour `tz`, so the risk is low, but the doc promises a check that no code
-  performs. Either add the comparison or correct the claim.
+- ~~**`docs/system-overview.md` §7.1 claims MealBells rejects a reply whose
+  timezone is not the one it asked for.** It does not.~~ **Fixed 2026-11-11.**
+  `CyberPulseClient::fetchAttendance` compared only `date`, so a vendor that
+  ignored `tz` and cut the day in its own zone would have answered with the
+  right-looking date and the wrong sixteen hours. It now refuses an echoed zone
+  that is not the one it sent, tolerates the field being absent, and three
+  tests cover it — the refusal one was mutation-checked by disabling the guard
+  and watching it fail.
 
 ---
 

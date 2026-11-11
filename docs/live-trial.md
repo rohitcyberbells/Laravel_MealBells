@@ -33,14 +33,18 @@ Only one employee field matters: an employee whose `attendance_source` is not
 not asked about. That is how you run a trial on ten people instead of the whole
 company.
 
-Four env knobs exist and the defaults are the tested ones. Leave them alone
-unless there is a reason:
+Three env knobs govern the attendance read, and the defaults are the tested
+ones. Leave them alone unless there is a reason:
 
 ```
 HRMS_CP_TIMEOUT=15                          # seconds
 HRMS_CP_MAX_ABSENT_SHARE=0.4                # above this a day records nothing
 HRMS_CP_ATTENDANCE_BEFORE_CUTOFF_MINUTES=5  # when the scheduled read happens
 ```
+
+Nine `HRMS_CP_*` knobs exist in all; the other six belong to the leave pull and
+the login it performs. `config/hrms.php` is the full list with its defaults —
+read that rather than trusting any count written in prose, this one included.
 
 ### 2. The base URL must be https
 
@@ -108,6 +112,7 @@ like a day when nobody came in.
 | `CyberPulse returned 401 for the attendance fetch.` | The API key is wrong, or revoked, or their process has not restarted since it changed. | Re-enter the key. Their server reads it once at startup, so they must restart. |
 | `Could not reach CyberPulse for the attendance fetch.` | DNS, TLS, firewall or timeout. The message is deliberately ours — theirs can carry the request, and the request carries the key. | Check the host from the server itself. |
 | `CyberPulse answered for <date> when asked about <date>.` | They replied about a different day. | Their day boundary is probably built from their server's clock rather than the organisation's timezone. |
+| `CyberPulse answered in <zone> when asked for <zone>.` | They echoed a timezone that is not the one we sent as `tz`. | The date would look right while the day was cut in the wrong zone, so every early arrival lands on the day before. Their endpoint must honour `tz` rather than using its server's zone. A vendor that omits the field entirely is tolerated; one that disagrees is not. |
 | `CyberPulse returned no employees at all.` | An empty list. Not "nobody came in" — the HR system told us nothing. | Check the key maps to the right organisation. |
 | `<N>% of eligible employees look absent, over the 40% limit.` | More than `HRMS_CP_MAX_ABSENT_SHARE` looked absent. | Almost always their end: mis-scoped, mid-restart, or a holiday they do not know about. Raise the limit only if you have proven the day is real. |
 | `No attendance API key is configured for this company.` | The key is not set, or the base URL is missing — the key cannot be saved without one. | Set the base URL first, then the key. |
@@ -132,10 +137,17 @@ anyone still unaccounted for is genuinely unaccounted for.
 
 ---
 
-## The one thing that would need code
+## The one thing that would need code — answered, and it is not needed
 
-If CyberPulse serves the attendance endpoint from a **different host** than their
-login API, one base URL cannot address both. `pull_base_url` is shared, so that
-case needs a second column and a second field — a small change, but a change.
+If CyberPulse served the attendance endpoint from a **different host** than their
+login API, one base URL could not address both. `pull_base_url` is shared, so
+that case would need a second column and a second field — a small change, but a
+change.
 
-Worth asking them before the trial. Everything else here is configuration.
+**Checked 2026-11-11 by reading their code: it is the same host.** The new
+router is mounted on the same Express app as the login route —
+`app.use("/api/integration", routerMealbellsIntegration)` sits beside the rest
+in their `backend/index.js`. One `pull_base_url` addresses both, so no change is
+needed and the whole of this runbook is configuration after all.
+
+Re-check this if they ever put the integration route behind its own hostname.

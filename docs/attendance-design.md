@@ -356,13 +356,19 @@ savepoint fix.
 
 ## The endpoint
 
-CyberPulse does not have a usable attendance endpoint yet.
-`GET /api/attendance/fetchAll` takes no filter and returns every record the
-organisation has ever had, selfie paths included.
-`GET /api/attendance/currentEmpAttendance?date=…` is close to what we need and
-shows the query is already written — it just returns far more than we should
-receive.
+**Built 2026-10-12, awaiting review and deployment.** When this note was
+written CyberPulse had no usable attendance endpoint: `GET
+/api/attendance/fetchAll` takes no filter and returns every record the
+organisation has ever had, selfie paths included, and `GET
+/api/attendance/currentEmpAttendance?date=…` was close to what we need but
+returned far more than we should receive.
 
-What we are asking their developer to build is specified separately, in
+`GET /api/integration/attendance/daily` now exists, on the CyberPulse branch
+`feat/mealbells-integration`. It was read against the spec on 2026-11-11 and
+meets it; what it does and what is still open on their side is recorded in
+[system-overview.md](system-overview.md) §7.0a. Nothing here changes: shadow
+mode is still shadow mode, and Phase 2 still waits on the numbers.
+
+What was asked for is specified separately, in
 [cyberpulse-attendance-endpoint-spec.md](cyberpulse-attendance-endpoint-spec.md),
 written to be handed over without any MealBells internals in it.
