@@ -3,7 +3,7 @@
 What MealBells does end to end, how the code is laid out, whether that layout
 holds up, what is still open, and what has to change on the CyberPulse side.
 
-Written 2026-11-10 from a full read of the repository at `5ad4e05`, on the
+Written 2026-11-10 from a full read of the repository at `aef307c`, on the
 Windows machine. For history and the reasons behind individual decisions, the
 commit messages and `HANDOVER.md` remain the primary record.
 
@@ -212,7 +212,7 @@ What is weaker. None of it is structural, and all of it is small:
 | 3 | Low | **The "locked" check is not under a row lock.** `MealGuard` checks `locked_at` outside any transaction (its comment says `lockForUpdate`, the code does not use one), and `ConfirmDailyCount` computes the count before its own transaction. A skip that lands in the same instant as a lock can be stored but missing from the snapshot. The window is milliseconds and the cutoff guard narrows it further. Note it; do not chase it before go-live |
 | 4 | Low | **A missed cutoff is never caught up.** `process-cutoff` only looks at *today*. If the scheduler is down from before the cutoff until after midnight, that day never locks and the vendor is never told. The Health page's scheduler heartbeat is what is meant to catch this, so it needs a real alert recipient |
 | 5 | Low (UI) | The HRMS secret panel on `SuperAdmin/Dashboard.vue` (line ~189) is nested inside the tab row and renders as a flex item beside the tabs. Two-line fix |
-| 6 | Done | The company dashboard forecast that `NEXT-SESSION.md` called dead data is now shown. Calendar bulk now has a screen (`b9aac11`) |
+| 6 | Done | The company dashboard forecast that `NEXT-SESSION.md` called dead data is now shown. Calendar bulk now has a screen (`a9211ae`) |
 | 7 | Environment | **This Windows machine cannot run the app as it stands.** `C:\xampp\php` is PHP 8.0.30 and the project needs ≥ 8.4.1. Install PHP 8.4 (Laravel Herd for Windows is the simplest) and put it ahead of XAMPP on `PATH` |
 | 8 | Environment | `package-lock.json` shows as modified. That is a Windows `npm install` rewriting it (name changed, `libc` fields dropped), not a real change. Do not commit it: `git checkout package-lock.json` |
 

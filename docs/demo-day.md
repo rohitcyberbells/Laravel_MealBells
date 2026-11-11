@@ -196,4 +196,4 @@ Then in a browser:
 - [ ] **Employees → Bulk CSV Import** previews and confirms a small file
 
 If the last one errors, you are on an old build — `git log` and check
-`f81c48b` is in.
+`f5f7950` is in.

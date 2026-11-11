@@ -174,7 +174,7 @@ the fallback query fails with `25P02`. Today it needs a genuine race to trigger.
 With an attendance pull and a leave pull both able to write for the same employee
 and date in the same minute near the cutoff, it stops being theoretical. **Fix
 it before Phase 2**, the same way the webhook intake and the leave pull were
-fixed in `a56d215`: nest the insert in its own transaction so the violation rolls
+fixed in `5659785`: nest the insert in its own transaction so the violation rolls
 back a savepoint.
 
 ---

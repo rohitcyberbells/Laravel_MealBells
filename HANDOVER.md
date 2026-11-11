@@ -3,7 +3,15 @@
 Read this first if you are picking the project up cold. It is written for
 whoever (or whatever) continues the work, and it assumes nothing.
 
-Last updated 2026-10-09, at `adfeb69`.
+Last updated 2026-10-09, at `f2c268c`.
+
+> **Every commit hash changed on 2026-11-11.** The history was rewritten with
+> `git filter-repo` to normalise contributor identity, so all 125 commits were
+> given new hashes and the rewrite was pushed. A hash quoted in an older note,
+> an issue, a chat log or a stale clone will not resolve. The mapping from old
+> to new is kept in `.git/filter-repo/commit-map` on the machine that ran it —
+> look there before assuming a referenced commit is gone. Hashes inside this
+> repository's own docs were repointed at the same time.
 
 > **`KT.md` and `PROGRESS_LOG.md` are stale.** They describe an MVP plan with
 > MySQL and a Flutter app, none of which happened. Trust this file, `docs/`, and
@@ -39,7 +47,7 @@ in this codebase traces back to one of those two.
 
 | | |
 |---|---|
-| Branch | `main`, pushed, `origin/main == adfeb69` |
+| Branch | `main`, pushed. This note describes `f2c268c`; `main` has advanced since |
 | Tests | **1159 green on SQLite**, **1159 green on PostgreSQL 18.6**, zero skipped |
 | Pint | clean. `npm run build` clean |
 | CI | `.github/workflows/tests.yml` — two jobs, SQLite and Postgres, both run migrate + full rollback |
