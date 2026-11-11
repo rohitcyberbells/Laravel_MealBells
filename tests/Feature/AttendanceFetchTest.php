@@ -111,6 +111,58 @@ class AttendanceFetchTest extends TestCase
         $this->assertStringContainsString('answered for 2026-10-08', (string) $result->error);
     }
 
+    /**
+     * The same date in another zone is a different sixteen hours of arrivals.
+     *
+     * A vendor that ignores `tz` and builds the day from its own server clock
+     * answers with the date we asked for, so the date check above sees nothing
+     * wrong. The echoed zone is the only place that disagreement shows.
+     */
+    public function test_an_answer_in_the_wrong_timezone_is_a_failure(): void
+    {
+        $this->fakeVendor([
+            'date' => '2026-10-09',
+            'timezone' => 'UTC',
+            'employees' => [['employee_id' => 'x', 'clocked_in' => true]],
+        ]);
+
+        $result = app(CyberPulseClient::class)->fetchAttendance($this->connection, '2026-10-09');
+
+        $this->assertFalse($result->ok, 'a day built in the wrong zone was accepted');
+        $this->assertStringContainsString('answered in UTC', (string) $result->error);
+        $this->assertStringContainsString('asked for Asia/Kolkata', (string) $result->error);
+    }
+
+    public function test_the_asked_for_timezone_echoed_back_is_accepted(): void
+    {
+        $this->fakeVendor([
+            'date' => '2026-10-09',
+            'timezone' => 'Asia/Kolkata',
+            'employees' => [['employee_id' => 'x', 'clocked_in' => true]],
+        ]);
+
+        $result = app(CyberPulseClient::class)->fetchAttendance($this->connection, '2026-10-09');
+
+        $this->assertTrue($result->ok, 'the zone we asked for was rejected');
+    }
+
+    /**
+     * Tolerated, like a missing date: not echoing the field is not the same as
+     * disagreeing about it, and refusing here would break a vendor that simply
+     * answers with less than the spec suggests.
+     */
+    public function test_a_missing_timezone_is_tolerated(): void
+    {
+        $this->fakeVendor([
+            'date' => '2026-10-09',
+            'employees' => [['employee_id' => 'x', 'clocked_in' => true]],
+        ]);
+
+        $result = app(CyberPulseClient::class)->fetchAttendance($this->connection, '2026-10-09');
+
+        $this->assertTrue($result->ok, 'a vendor that omits the zone was refused');
+    }
+
     public function test_an_empty_day_is_a_success_not_a_failure(): void
     {
         $this->fakeVendor(['date' => '2026-10-09', 'employees' => []]);

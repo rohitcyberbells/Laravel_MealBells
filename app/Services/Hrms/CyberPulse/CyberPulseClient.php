@@ -181,6 +181,23 @@ class CyberPulseClient
             );
         }
 
+        // The same calendar date in a different zone is a different sixteen
+        // hours of clock-ins. A vendor that ignored `tz` and answered from its
+        // server's own zone would return the right-looking date built from the
+        // wrong boundary, and every early arrival would land on the day before.
+        // The date check above cannot see that; only the echo can.
+        //
+        // Absent is tolerated, like the date: a vendor that does not echo the
+        // field is not thereby disagreeing with us. A vendor that echoes a
+        // different zone is.
+        $answeredZone = (string) ($body['timezone'] ?? '');
+
+        if ($answeredZone !== '' && $answeredZone !== $timezone) {
+            return CyberPulseResult::failure(
+                "CyberPulse answered in {$answeredZone} when asked for {$timezone}."
+            );
+        }
+
         return CyberPulseResult::success($this->whitelistAttendance($body['employees']));
     }
 
