@@ -1,121 +1,181 @@
-# Next session — plan
+# Next session — the landing page, and one decision waiting
 
-_Written 2026-10-06, after pushing today's work._
+_Rewritten 2026-10-12, end of day. Committed on 2026-11-11, by request — it had
+been kept out of git until then._
 
-## Where things stand
+## Where to start
 
-- `origin/main` = `d4e36d4`. Nothing local, nothing uncommitted, no stashes.
-- `release-candidate` points at the same commit, as a rollback ref. Delete it when
-  it stops being useful: `git push origin --delete release-candidate`
-- Suite: **463/463 green**, 1922 assertions. `pint --test` clean project-wide.
-  `npm run build` clean.
-- Today: 5 commits, 24 new tests.
+**Branch: `main`.** Nothing is parked on a side branch in this repo, and
+nothing is unpushed: `origin/main` and local `main` are both at `9be9185`.
 
-| Commit | What |
+> **Every hash below changed on 2026-11-11.** The history was rewritten with
+> `git filter-repo` to normalise contributor identity. The hashes in this file
+> have been repointed to their successors; anything quoted elsewhere from before
+> that date will not resolve. See the note at the top of `HANDOVER.md`.
+
+| | |
 |---|---|
-| `183900e` | Super admin reset password — flash reached no render; plus the UI to trigger it |
-| `081c039` | Company admin can reset an employee's password from the roster |
-| `46eff3a` | Employee portal's Active/Paused button never worked (sent no state) |
-| `acc3238` | HR can manage an employee's recurring skips from the roster |
-| `d4e36d4` | Employee can skip a date range from the portal |
+| Tests | **1225 green on SQLite** (4423 assertions), re-run 2026-11-11. The PostgreSQL 18.6 job was last green at 1220/4390 on 2026-10-12 and has **not** been re-run since |
+| Skips | none |
+| Pint | clean as of 2026-10-12; no PHP has changed since, so unchanged · `npm run build` clean (verified 2026-11-11) · `npm run build:landing` not re-run |
+
+Two builds now. `npm run build` does the application; `npm run build:landing`
+does the Astro landing page into `public/landing`. Both CI jobs run both. If `/`
+shows the sign-in page instead of the landing page, the second command has not
+been run — that fallback is deliberate, not a bug.
+
+Today's commits, newest first:
+
+| | |
+|---|---|
+| `4a20409` | The landing page builds, and the stage renders |
+| `0d793a7` | Landing dependencies install on a fresh clone |
+| `b46b661` | Catch a CDN asset on the landing page, not a missing comment |
+| `533e222` | A null `clocked_in` is unknown, not an absence |
+| `fa8059f` | Astro for the landing page, and a public page at `/` |
+
+Added 2026-10-13, after the push:
+
+| | |
+|---|---|
+| `a9211ae` | Mark a range of calendar days at once (the deferred bulk UI) |
+| `04c3174` | The default seeder says when it refuses |
+
+Added since, and already on `origin/main`:
+
+| | |
+|---|---|
+| `9be9185` | System overview, review findings and the CyberPulse work list |
+| `def093b` | Day and night themes and a 3D meal-flow strip on the company dashboard |
+| `aef307c` | Pin that attendance can never become a skip source |
+| `880d19f` | Connecting attendance to a live HRMS, and one untested claim |
 
 ---
 
-## 1. Browser pass on the four new screens — DONE 2026-10-07
+## The one decision waiting
 
-Driven in a real headless Chrome against a throwaway copy of the dev database.
-**28/28 checks passed, zero console or page errors.** All four components mount
-and every click round-trips.
+**The CyberPulse endpoint is committed locally and not pushed.**
 
-- [x] **`/super-admin/dashboard`** — admin accounts list renders; Reset password
-      produces the amber panel with a 12-character password, names the right
-      account, and is gone after a reload.
-- [x] **`/company-admin/employees`** — the Recurring modal opens, adds a rule
-      ("Every Friday"), pauses it, resumes it and deletes it back to the empty
-      state. The `recurring_rules` string-vs-number key worry was unfounded.
-- [x] **`/company-admin/employees`** — Reset password renders the credentials
-      panel ("1 login generated"), names the right employee, carries the
-      shown-once warning and the Copy all button.
-- [x] **`/employee/dashboard`** — the range form opens and submitting
-      2026-10-12..16 reported "Skips recorded for 4 meal days". Four, not five,
-      because the seeded recurring Monday skip already covered Oct 12 — so
-      first-source-wins behaved correctly.
+`~/Desktop/Web_CyberPulse`, branch `feat/mealbells-integration`, commit
+`0768520`. Three files, 282 insertions, additive only — a new controller, a new
+route file, and two lines in `index.js`. Nothing existing was touched. Tested
+end to end against the local `cyberpulse_test` database.
 
-**One cosmetic artifact, not a bug.** The add-rule POST shows as
-`net::ERR_ABORTED` in the console: an in-flight XHR superseded by Inertia's
-redirect. Verified harmless — the rule is created exactly once, and the rule
-count returns to its seeded value after the delete, so there is no double
-submit.
+It was not pushed because that repo belongs to the CyberPulse team, and pushing
+a branch into somebody else's repo is their call rather than ours. The code was
+given in chat first, as asked.
 
-### If you redo this pass, two traps
+**Correction to what I said on 2026-10-13.** I wrote that pushing it was
+`git push -u origin feat/mealbells-integration`, "a second's work". It is not:
+that clone has **no remote configured at all** — `git remote -v` is empty — so
+there is nothing to push to and no way to fetch their repo either. I had not
+checked, and the command I gave would have failed.
 
-- **`php artisan serve` does not pass `DB_DATABASE` to its subprocess.** Setting
-  it on the command line looks like it works (`config()` resolves it for other
-  artisan calls) but the server still reads `database/database.sqlite`. Prove
-  isolation before trusting it: rename a company in the copy and check the
-  served page shows the new name. Use
-  `PHP_CLI_SERVER_WORKERS=8 DB_DATABASE=/path/copy.sqlite php -S 127.0.0.1:8899 -t public router.php`
-  with a router that returns false for existing files, otherwise static assets
-  404 and Vue never mounts.
-- **Do not reset the account you are about to sign in as.** Resetting
-  `hr@acme.test` or `ACME001` mid-run locks the rest of the run out, and the
-  failure looks like a broken login rather than a spent password.
+Two real options:
 
-Worth capturing as a project skill via `/run-skill-generator` — the harness
-needed `puppeteer-core`, a router script, and the two traps above.
+1. **Add the remote**, which needs the URL and access from their side:
+   `git remote add origin <url>` then push the branch.
+2. **Send the patch**, which needs nothing from us. Verified on 2026-10-27 to
+   apply cleanly onto that clone's `main`:
 
----
+```bash
+cd ~/Desktop/Web_CyberPulse
+git format-patch main..HEAD -o ~/Desktop/
+# the dev applies it with:  git am 0001-*.patch
+```
 
-## 2. Remaining audit findings
+Their `.env` needs `MEALBELLS_API_KEYS=<key>:<organizationId>` and a restart —
+dotenv reads the file once at startup, so a revoked key keeps working until the
+process restarts. Worth telling them.
 
-From the audit on 2026-10-06. Both still open; neither was in the four tasks.
+**Re-checked 2026-11-11, read-only, nothing changed.** The clone is now at
+`~/Desktop/RED/Web_CyberPulse`. Branch `feat/mealbells-integration` is still one
+commit ahead of its `main` and still has **no remote** — so the work exists on
+that machine and nowhere else, which makes pushing or patching the most urgent
+thing left on that side. The controller was read against the spec and meets it:
+`X-API-Key` with a timing-safe compare, one row per active employee with
+absences included, three-valued `clocked_in`, `moment-timezone` day bounds that
+honour `tz`, no `.lean()` and no aggregation, `200` with an empty list instead
+of `404`, and only the five agreed fields.
 
-- [ ] **Calendar bulk has no UI and no test.** `POST /company-admin/calendar/bulk`
-      marks many dates holiday/working at once. The calendar page only does
-      single-day post and delete. This is the weakest-supported endpoint in the
-      app — no test either, so there is no proof it works. Worth writing the
-      test before the UI.
-- [ ] **The company dashboard computes a 7-day forecast and throws it away.**
-      `CompanyAdminController` sends `todayStats` and `forecast`;
-      `Dashboard.vue` declares neither. The loop runs `CalculateExpectedMeals`
-      eight times on every dashboard load for nothing. Either surface it or stop
-      computing it — right now it is both dead data and wasted queries.
+Two things that came out of that read and are not yet written down anywhere else:
+
+- **`trust proxy: true` plus an IP-keyed rate limiter** (`backend/index.js:45`)
+  means `X-Forwarded-For` can be forged, so the limiter on the new route can be
+  bypassed. That route is unauthenticated by design, so the limiter is the only
+  thing slowing a brute force against the API key. `'loopback'` or `1` fixes it.
+- **`docs/system-overview.md` §7.1 claims MealBells rejects a reply whose
+  timezone is not the one it asked for.** It does not —
+  `CyberPulseClient::fetchAttendance` compares only `date`. The endpoint does
+  honour `tz`, so the risk is low, but the doc promises a check that no code
+  performs. Either add the comparison or correct the claim.
 
 ---
 
-## 3. Smaller things noticed and deliberately left alone
+## Landing page — where it got to
 
-- [ ] **SuperAdmin dashboard: the HRMS secret panel is nested wrong.** It sits
-      *inside* the `flex space-x-4 border-b` tabs row, so it renders as a flex
-      item beside the three tab buttons. Pre-existing, unrelated to today's
-      work, roughly a two-line fix. Today's password panel was deliberately
-      placed outside that div.
-- [ ] **No JS test runner in the project** (`package.json` has no vitest or
-      playwright). Adding vitest would let the four components be mount-tested
-      and would close the gap in section 1 permanently, instead of relying on a
-      manual pass each time. It needs one dev dependency — your call.
+The page builds and the WebGL stage renders a placeholder box. What is left is
+design, and two concrete pieces:
+
+1. **The beat divs.** `index.astro` has `<!-- beat divs yahan -->` inside
+   `<section id="stage">`. That is where the scroll beats go.
+2. **The lunchbox model.** `assets/Lunchbox.glb` is now tracked (committed
+   2026-11-11) but still not wired up. Loading it means serving the file from
+   `resources/landing/public` and adding a `GLTFLoader` call in
+   `src/scripts/experience.js`. The question of whether the binary belonged in
+   the repo was settled by committing it: at 9.5 KB for the `.glb` and 79 KB for
+   the `.skp` source it is not worth the ceremony of keeping it elsewhere.
+
+   Note that the 3D strip on the **company dashboard** (`def093b`) does not use
+   this model at all — that scene is built procedurally in
+   `resources/js/Pages/CompanyAdmin/Dashboard/mealFlowScene.js`. The `.glb` is
+   for the landing page only, so do not go looking for where it is loaded.
+
+Three constraints that will bite otherwise:
+
+- **No CDN.** The page is served through Laravel, whose `script-src` is `'self'`
+  and `'unsafe-inline'` only. Install with npm so it is bundled; a test fails if
+  anything slips in.
+
+  Correction to what I said earlier: that header goes out as
+  `Content-Security-Policy-Report-Only` unless `SECURITY_CSP_ENFORCE=true`, so
+  **today a CDN script would be reported, not blocked** — it would work, and the
+  breakage would arrive later, on the day enforcement is switched on. Found by
+  rehearsing the deploy. The rule still stands; the reason is "so enforcement
+  can be turned on" rather than "it is blocked now".
+- **No nested `package.json`** in `resources/landing`. Its dependencies would
+  install into a gitignored `node_modules` and never reach a fresh clone or CI.
+  `three` and `gsap` live in the root manifest. A test fails if one reappears.
+- **No database.** It is static HTML built ahead of time. Anything dynamic needs
+  an endpoint and a fetch.
+
+The CSS added is structural only — sizing and position, no colours. The design
+is still an open decision.
 
 ---
 
-## 4. Older open questions, still unanswered
+## Still open, in rough order
 
-These predate today and are decisions, not bugs:
+1. **Landing design** — the actual look, the beats, the model.
+2. **Historical leave in the attendance report.** The report currently labels
+   itself an upper bound for days before MealBells held any leave records,
+   because anyone on approved leave then counts as absent. Bringing that history
+   in needs a leaves adapter change, which is yours to specify.
+3. **Staging deploy** — the code side is proven; it needs a host. Rehearsed on
+   2026-10-13 against a fresh clone, `composer install --no-dev` and an empty
+   PostgreSQL database in production mode: migrations, caches, both builds,
+   smoke test and the `/health/ping` chain all pass. What is missing is a
+   server, a database and a domain. Pick one of Laravel Cloud, a VPS or Forge
+   and it can go up.
 
-- [ ] **Post-cutoff leave from HRMS** — what should happen when the HR system
-      approves leave for a day whose cutoff has already closed? Today the engine
-      refuses it, which is correct but silent.
-- [ ] **What `attendance_source = 'integrated'` is supposed to mean** for an
-      employee — whether it should block manual skips, and what it implies if
-      the HR feed goes quiet.
-- [ ] **`RestHrmsClient` and the command wiring have no `Http::fake()` coverage.**
-      The reconciliation path is tested; the outbound client is not.
+## Standing rules, still in force
 
----
-
-## Suggested order
-
-1. Section 1 (browser pass) — cheap, and it either clears today's work or hands
-   you a small fix list.
-2. Fix whatever section 1 turns up.
-3. Section 2, calendar bulk first (test, then UI), then the dead forecast.
-4. Decide on vitest and the section 4 questions when you want to, not before.
+- Dev DB is not to be touched. Test on a copy; `php artisan serve` silently
+  ignores a command-line `DB_DATABASE`, a direct `php artisan` command does not.
+- Do not remove tests.
+- Acme's demo secret stays as it is.
+- The app's dark theme and colours are not to be changed.
+- ~~`git add -A` is not to be used — `assets/` and this file are yours.~~
+  **Lifted 2026-11-11**: both were committed on request. `git add -A` is still
+  worth avoiding out of habit, but there is no longer anything in the tree that
+  is deliberately being kept out of git.
