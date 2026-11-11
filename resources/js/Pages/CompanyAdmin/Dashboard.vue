@@ -1,5 +1,7 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
+import MealFlowStrip from './Dashboard/MealFlowStrip.vue';
+import ThemeToggle from './Dashboard/ThemeToggle.vue';
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -48,38 +50,51 @@ const getPlannedMeal = (day) => {
 
 <template>
     <AppLayout>
-    <div class="p-6">
-        <div class="max-w-7xl mx-auto pb-6 border-b border-slate-800 mb-8">
+    <!-- Paints its own page background: the layout around it stays dark, and
+         only this screen has adopted the theme tokens so far. -->
+    <div class="mb-theme min-h-screen bg-mb-page p-6">
+        <div class="max-w-7xl mx-auto pb-6 border-b border-mb-line mb-8 flex flex-wrap items-start justify-between gap-4">
             <div>
                 <div class="flex items-center space-x-3">
-                    <h1 class="text-3xl font-bold text-cyan-400">{{ company?.name || 'Company Dashboard' }}</h1>
-                    <span v-if="tiffinService" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-3 py-1 rounded-full font-semibold">
+                    <h1 class="text-3xl font-bold text-mb-cyan">{{ company?.name || 'Company Dashboard' }}</h1>
+                    <span v-if="tiffinService" class="bg-mb-tint-emerald/20 text-mb-emerald-soft border border-mb-tint-emerald/30 text-xs px-3 py-1 rounded-full font-semibold">
                         Assigned Tiffin: {{ tiffinService.name }}
                     </span>
-                    <span v-else class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs px-3 py-1 rounded-full font-semibold">
+                    <span v-else class="bg-mb-tint-amber/20 text-mb-amber-soft border border-mb-tint-amber/30 text-xs px-3 py-1 rounded-full font-semibold">
                         No Tiffin Service Assigned Yet
                     </span>
                 </div>
-                <p class="text-slate-400 text-sm mt-1">Employee Meal Portal & Daily Menu Overview</p>
+                <p class="text-mb-text-muted text-sm mt-1">Employee Meal Portal & Daily Menu Overview</p>
             </div>
+            <ThemeToggle data-diff-ignore />
         </div>
 
         <main class="max-w-7xl mx-auto space-y-8">
             <!-- Unassigned Banner -->
-            <section v-if="!tiffinService" class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 text-center">
-                <h2 class="text-xl font-bold text-amber-400 mb-2">Notice: Account Pending Pairing</h2>
-                <p class="text-slate-300 text-sm max-w-lg mx-auto">
+            <section v-if="!tiffinService" class="bg-mb-tint-amber/10 border border-mb-tint-amber/30 rounded-xl p-6 text-center">
+                <h2 class="text-xl font-bold text-mb-amber mb-2">Notice: Account Pending Pairing</h2>
+                <p class="text-mb-text-soft text-sm max-w-lg mx-auto">
                     Your company is not yet paired with an assigned tiffin service. Please contact the Super Admin to pair your account.
                 </p>
             </section>
 
             <template v-else>
+                <MealFlowStrip
+                    v-if="todayStats"
+                    data-diff-ignore
+                    :company="company"
+                    :tiffin-service="tiffinService"
+                    :today-stats="todayStats"
+                    :today-meal="todayMeal"
+                    :expected="expectedFor(todayStats)"
+                />
+
                 <!-- 🍽️ Today's count and the week ahead -->
-                <section v-if="todayStats" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <section v-if="todayStats" class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
                     <div class="flex items-start justify-between flex-wrap gap-3 mb-5">
                         <div>
-                            <h2 class="text-xl font-bold text-cyan-400">🍽️ Meal count</h2>
-                            <p class="text-xs text-slate-400 mt-0.5">
+                            <h2 class="text-xl font-bold text-mb-cyan">🍽️ Meal count</h2>
+                            <p class="text-xs text-mb-text-muted mt-0.5">
                                 Everyone eligible is counted unless a skip says otherwise.
                             </p>
                         </div>
@@ -87,15 +102,15 @@ const getPlannedMeal = (day) => {
                             :class="[
                                 'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border',
                                 todayStats.is_locked
-                                    ? 'bg-slate-700/40 text-slate-300 border-slate-600'
-                                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                    ? 'bg-mb-tint-slate/40 text-mb-text-soft border-mb-line-strong'
+                                    : 'bg-mb-tint-emerald/15 text-mb-emerald border-mb-tint-emerald/30'
                             ]"
                         >
                             {{ todayStats.is_locked ? 'Locked · sent to kitchen' : 'Open · still an estimate' }}
                         </span>
                     </div>
 
-                    <div v-if="!todayStats.is_meal_day" class="text-sm text-slate-400 bg-slate-950 border border-slate-800 rounded-xl p-4">
+                    <div v-if="!todayStats.is_meal_day" class="text-sm text-mb-text-muted bg-mb-inset border border-mb-line rounded-xl p-4">
                         No meal today — it is not a meal day for your company.
                     </div>
 
@@ -103,71 +118,71 @@ const getPlannedMeal = (day) => {
                         <!-- Expected = base − skips + extra, the same arithmetic
                              the engine locks at cutoff. -->
                         <div class="flex flex-wrap items-end gap-3 text-center">
-                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
-                                <span class="text-[10px] uppercase font-semibold text-slate-400">Eligible</span>
-                                <div class="text-2xl font-extrabold text-slate-200">{{ todayStats.base_eligible_count }}</div>
+                            <div class="bg-mb-inset border border-mb-line rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-mb-text-muted">Eligible</span>
+                                <div class="text-2xl font-extrabold text-mb-text">{{ todayStats.base_eligible_count }}</div>
                             </div>
-                            <span class="text-xl text-slate-500 pb-3">−</span>
-                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
-                                <span class="text-[10px] uppercase font-semibold text-slate-400">Skips</span>
-                                <div class="text-2xl font-extrabold text-amber-400">{{ todayStats.skip_count }}</div>
+                            <span class="text-xl text-mb-text-faint pb-3">−</span>
+                            <div class="bg-mb-inset border border-mb-line rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-mb-text-muted">Skips</span>
+                                <div class="text-2xl font-extrabold text-mb-amber">{{ todayStats.skip_count }}</div>
                             </div>
-                            <span class="text-xl text-slate-500 pb-3">+</span>
-                            <div class="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 min-w-[6rem]">
-                                <span class="text-[10px] uppercase font-semibold text-slate-400">Extra</span>
-                                <div class="text-2xl font-extrabold text-cyan-300">{{ todayStats.extra_count }}</div>
+                            <span class="text-xl text-mb-text-faint pb-3">+</span>
+                            <div class="bg-mb-inset border border-mb-line rounded-xl px-4 py-3 min-w-[6rem]">
+                                <span class="text-[10px] uppercase font-semibold text-mb-text-muted">Extra</span>
+                                <div class="text-2xl font-extrabold text-mb-cyan-soft">{{ todayStats.extra_count }}</div>
                             </div>
-                            <span class="text-xl text-slate-500 pb-3">=</span>
-                            <div class="bg-cyan-500/10 border border-cyan-500/40 rounded-xl px-5 py-3 min-w-[7rem]">
-                                <span class="text-[10px] uppercase font-semibold text-cyan-300">Expected</span>
-                                <div class="text-3xl font-extrabold text-cyan-300">{{ expectedFor(todayStats) }}</div>
+                            <span class="text-xl text-mb-text-faint pb-3">=</span>
+                            <div class="bg-mb-tint-cyan/10 border border-mb-tint-cyan/40 rounded-xl px-5 py-3 min-w-[7rem]">
+                                <span class="text-[10px] uppercase font-semibold text-mb-cyan-soft">Expected</span>
+                                <div class="text-3xl font-extrabold text-mb-cyan-soft">{{ expectedFor(todayStats) }}</div>
                             </div>
                         </div>
                     </template>
 
-                    <div v-if="forecastDays.length" class="mt-6 pt-5 border-t border-slate-800">
-                        <p class="text-[11px] uppercase font-semibold text-slate-400 mb-3">Next meal days</p>
+                    <div v-if="forecastDays.length" class="mt-6 pt-5 border-t border-mb-line">
+                        <p class="text-[11px] uppercase font-semibold text-mb-text-muted mb-3">Next meal days</p>
                         <div class="flex flex-wrap gap-2">
                             <div
                                 v-for="day in forecastDays"
                                 :key="day.date"
                                 :title="`${day.date} · ${day.base_eligible_count} − ${day.skip_count} + ${day.extra_count} = ${expectedFor(day)}`"
-                                class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-center min-w-[4.5rem]"
+                                class="bg-mb-inset border border-mb-line rounded-xl px-3 py-2 text-center min-w-[4.5rem]"
                             >
-                                <span class="block text-[10px] uppercase font-semibold text-slate-500">
+                                <span class="block text-[10px] uppercase font-semibold text-mb-text-faint">
                                     {{ dayLabel(day.date) }} {{ dayNumber(day.date) }}
                                 </span>
-                                <span class="block text-lg font-extrabold text-slate-200">{{ expectedFor(day) }}</span>
+                                <span class="block text-lg font-extrabold text-mb-text">{{ expectedFor(day) }}</span>
                                 <!-- Both adjustments, not just skips: showing
                                      "−4" beside 30 against a base of 28 reads as
                                      arithmetic that does not add up. -->
                                 <span v-if="dayDelta(day)" class="block text-[10px] whitespace-nowrap">
-                                    <span v-if="day.skip_count" class="text-amber-400">−{{ day.skip_count }}</span>
-                                    <span v-if="day.skip_count && day.extra_count" class="text-slate-600"> </span>
-                                    <span v-if="day.extra_count" class="text-cyan-300">+{{ day.extra_count }}</span>
+                                    <span v-if="day.skip_count" class="text-mb-amber">−{{ day.skip_count }}</span>
+                                    <span v-if="day.skip_count && day.extra_count" class="text-mb-text-ghost"> </span>
+                                    <span v-if="day.extra_count" class="text-mb-cyan-soft">+{{ day.extra_count }}</span>
                                 </span>
-                                <span v-else class="block text-[10px] text-slate-600">full</span>
+                                <span v-else class="block text-[10px] text-mb-text-ghost">full</span>
                             </div>
                         </div>
-                        <p class="text-[10px] text-slate-500 mt-2">
+                        <p class="text-[10px] text-mb-text-faint mt-2">
                             Non-meal days are left out. Figures move until each day's cutoff.
                         </p>
                     </div>
                 </section>
 
                 <!-- 🔔 Recent Notifications Feed -->
-                <section v-if="notifications && notifications.length" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-                    <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
+                <section v-if="notifications && notifications.length" class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
+                    <h2 class="text-xl font-bold text-mb-amber flex items-center gap-2 mb-4">
                         🔔 Recent Alerts & Notifications
                     </h2>
                     <div class="space-y-3">
-                        <div v-for="notif in notifications" :key="notif.id" class="bg-slate-950 border border-slate-800 rounded-lg p-4 flex items-start justify-between">
+                        <div v-for="notif in notifications" :key="notif.id" class="bg-mb-inset border border-mb-line rounded-lg p-4 flex items-start justify-between">
                             <div>
-                                <h3 class="text-sm font-semibold text-white">{{ notif.data.title }}</h3>
-                                <p class="text-xs text-slate-300 mt-1">{{ notif.data.message }}</p>
-                                <p v-if="notif.data.reason" class="text-xs text-amber-300 mt-1">Reason: {{ notif.data.reason }}</p>
+                                <h3 class="text-sm font-semibold text-mb-text-strong">{{ notif.data.title }}</h3>
+                                <p class="text-xs text-mb-text-soft mt-1">{{ notif.data.message }}</p>
+                                <p v-if="notif.data.reason" class="text-xs text-mb-amber-soft mt-1">Reason: {{ notif.data.reason }}</p>
                             </div>
-                            <span class="text-[10px] text-slate-500 whitespace-nowrap ml-4">
+                            <span class="text-[10px] text-mb-text-faint whitespace-nowrap ml-4">
                                 {{ new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
                             </span>
                         </div>
@@ -175,51 +190,51 @@ const getPlannedMeal = (day) => {
                 </section>
 
                 <!-- 🍱 Today's Featured Meal Card -->
-                <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <section class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-emerald-400 flex items-center gap-2">
+                        <h2 class="text-xl font-bold text-mb-emerald flex items-center gap-2">
                              Today's Meal
                         </h2>
-                        <span v-if="todayMeal?.is_override" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold px-3 py-1 rounded-full">
+                        <span v-if="todayMeal?.is_override" class="bg-mb-tint-amber/20 text-mb-amber-soft border border-mb-tint-amber/40 text-xs font-semibold px-3 py-1 rounded-full">
                              Daily Kitchen Override Active
                         </span>
                     </div>
 
-                    <div v-if="todayMeal" class="bg-slate-950 border border-slate-800 rounded-lg p-5">
-                        <p class="text-lg font-bold text-white">{{ todayMeal.meal_description }}</p>
-                        <p v-if="todayMeal.reason" class="text-xs text-amber-300 mt-2 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                    <div v-if="todayMeal" class="bg-mb-inset border border-mb-line rounded-lg p-5">
+                        <p class="text-lg font-bold text-mb-text-strong">{{ todayMeal.meal_description }}</p>
+                        <p v-if="todayMeal.reason" class="text-xs text-mb-amber-soft mt-2 bg-mb-tint-amber/10 p-2 rounded border border-mb-tint-amber/20">
                             <strong>Note from kitchen:</strong> {{ todayMeal.reason }}
                         </p>
                     </div>
 
-                    <div v-else class="bg-slate-950 border border-slate-800 rounded-lg p-5 text-center">
-                        <p class="text-slate-400 text-sm italic">No meal schedule published for today yet.</p>
+                    <div v-else class="bg-mb-inset border border-mb-line rounded-lg p-5 text-center">
+                        <p class="text-mb-text-muted text-sm italic">No meal schedule published for today yet.</p>
                     </div>
                 </section>
 
                 <!--  Published Weekly Menu (Monday - Friday) -->
-                <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <section class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
                     <div class="flex justify-between items-center mb-6">
                         <div>
-                            <h2 class="text-xl font-bold text-white"> Published Weekly Menu</h2>
-                            <p class="text-slate-400 text-xs">Official menu provided by <span class="text-emerald-400 font-semibold">{{ tiffinService.name }}</span></p>
+                            <h2 class="text-xl font-bold text-mb-text-strong"> Published Weekly Menu</h2>
+                            <p class="text-mb-text-muted text-xs">Official menu provided by <span class="text-mb-emerald font-semibold">{{ tiffinService.name }}</span></p>
                         </div>
-                        <div v-if="tiffinService.contact_phone" class="text-xs text-slate-400">
-                            Kitchen Contact: <span class="text-slate-200 font-semibold">{{ tiffinService.contact_phone }}</span>
+                        <div v-if="tiffinService.contact_phone" class="text-xs text-mb-text-muted">
+                            Kitchen Contact: <span class="text-mb-text font-semibold">{{ tiffinService.contact_phone }}</span>
                         </div>
                     </div>
 
                     <div v-if="weeklyMenu?.items?.length" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        <div v-for="day in daysOfWeek" :key="day" class="bg-slate-950 border border-slate-800 rounded-lg p-4">
-                            <h3 class="text-xs uppercase font-bold text-cyan-400 mb-2">{{ day }}</h3>
-                            <p class="text-sm text-slate-200">
+                        <div v-for="day in daysOfWeek" :key="day" class="bg-mb-inset border border-mb-line rounded-lg p-4">
+                            <h3 class="text-xs uppercase font-bold text-mb-cyan mb-2">{{ day }}</h3>
+                            <p class="text-sm text-mb-text">
                                 {{ getPlannedMeal(day)?.meal_description || 'No meal scheduled' }}
                             </p>
                         </div>
                     </div>
 
-                    <div v-else class="text-center py-8 bg-slate-950 rounded-lg border border-slate-800">
-                        <p class="text-slate-400 text-sm">The tiffin service has not published the weekly menu yet.</p>
+                    <div v-else class="text-center py-8 bg-mb-inset rounded-lg border border-mb-line">
+                        <p class="text-mb-text-muted text-sm">The tiffin service has not published the weekly menu yet.</p>
                     </div>
                 </section>
             </template>
