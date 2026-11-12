@@ -24,15 +24,22 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 // shows far more depth. The city is built wider than this on purpose: the
 // roads run off every edge, which is what makes it read as a city rather than
 // as a model of one.
-const FRUSTUM_HEIGHT = 52;
+const FRUSTUM_HEIGHT = 62;
 const SKY_VIEWBOX = [1100, 560];
-const TARGET = new THREE.Vector3(18, 0, -7);
+const TARGET = new THREE.Vector3(32, 0, -10);
 /*
  * The kitchen moved to the far block so the van has somewhere to come from.
  * Everything inside the kitchen group is still written in the coordinates it
  * was drawn in; this shifts the group as a whole.
  */
 const KITCHEN_OFFSET = new THREE.Vector3(-8, 0, -17);
+
+/*
+ * And the office moved a block east, across the far avenue, so the van's last
+ * leg is a run down the main road rather than a few units of it. Same trick:
+ * the group is drawn where it always was and shifted whole.
+ */
+const OFFICE_OFFSET = new THREE.Vector3(32, 0, 0);
 
 /*
  * The van's round trip, as corners on the street centre lines: it loads at the
@@ -47,7 +54,7 @@ const VAN_ROUTE = [
     [0, -16.5],
     [19.5, -16.5],
     [19.5, 3.5],
-    [27, 3.5],
+    [59, 3.5],
 ];
 const VAN_SPEED = 7.5;
 const FADE_SECONDS = 0.6;
@@ -253,10 +260,10 @@ export function createMealFlowScene(host, options) {
      * reads as a toy, and this is meant to read as a town the office is in.
      */
     const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-    const GROUND = { x0: -30, x1: 70, z0: -36, z1: 36 };
+    const GROUND = { x0: -34, x1: 124, z0: -58, z1: 40 };
     // Each street as [start, end] on its cross axis. H runs along x, V along z.
-    const H_STREETS = [[-20, -13], [0, 7], [18, 25]];
-    const V_STREETS = [[-20, -13], [16, 23], [48, 55]];
+    const H_STREETS = [[-38, -31], [-20, -13], [0, 7], [18, 25]];
+    const V_STREETS = [[-20, -13], [16, 23], [48, 55], [78, 85]];
     // The one the van uses, and the one everything else is measured against.
     const MAIN = H_STREETS[1];
 
@@ -388,6 +395,7 @@ export function createMealFlowScene(host, options) {
     tiers.castShadow = true;
     tiffins.add(tiers, lids);
     office.add(tiffins);
+    office.position.copy(OFFICE_OFFSET);
     scene.add(office);
 
     /*
@@ -406,10 +414,12 @@ export function createMealFlowScene(host, options) {
         // West of the avenue.
         [-29, -22.5, -13, -3, 6],
         [-29, -22.5, 9.6, 16, 5],
-        // East of the avenue.
-        [58, 68, -14, -3, 10],
-        [58, 67, 9.6, 17, 7],
+        // East of the far avenue. The office has the near plot, and nothing is
+        // built opposite its door for the same reason as before.
         [58, 66, -30, -21.6, 6],
+        [86, 98, -13, -3, 9],
+        [86, 97, 9.6, 16, 6],
+        [86, 96, -30, -21.6, 7],
         // South of the main road, either side of the avenue the van comes down.
         // Nothing is built opposite the office door: a block there stands between
         // the camera and the one spot the van is driving to.
@@ -419,9 +429,21 @@ export function createMealFlowScene(host, options) {
         // North, beyond the cross street. The kitchen has the western plot.
         [8, 14.4, -30, -21.6, 10],
         [24.6, 36, -30, -21.6, 6],
+        // The block the office used to stand on, and its neighbours.
+        [26, 37, -13, -4, 8],
+        [-8, 4, -13, -3, 6],
+        [36, 45, -30, -21.6, 7],
         // The far side of town.
         [-8, 4, 27.6, 35, 6],
         [24.6, 36, 27.6, 34, 9],
+        [40, 48, 27.6, 34, 6],
+        [58, 70, 27.6, 35, 8],
+        // The streets beyond, which mostly leave the frame.
+        [-6, 6, -52, -39.6, 8],
+        [12, 26, -52, -39.6, 11],
+        [32, 44, -52, -39.6, 7],
+        [52, 66, -52, -39.6, 9],
+        [86, 98, -52, -39.6, 8],
     ];
 
     const city = new THREE.Group();
@@ -542,9 +564,9 @@ export function createMealFlowScene(host, options) {
     // same CSS tokens as everything else.
     const labels = {
         kitchen: { text: 'Kitchen', at: () => new THREE.Vector3(8.5, 10.4, -8).add(kitchen.position) },
-        office: { text: 'Office', at: () => new THREE.Vector3(31.5, 14.6 + office.position.y, -8.5) },
+        office: { text: 'Office', at: () => new THREE.Vector3(31.5, 14.6, -8.5).add(office.position) },
         van: { text: 'Van', at: () => van.position.clone().add(new THREE.Vector3(0, 4.8, 0)) },
-        tiffins: { text: options.state.tiffinLabel, at: () => new THREE.Vector3(37, 0, 1.4) },
+        tiffins: { text: options.state.tiffinLabel, at: () => new THREE.Vector3(37, 0, 1.4).add(office.position) },
     };
     for (const label of Object.values(labels)) {
         label.el = document.createElement('span');
