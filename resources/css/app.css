@@ -15,21 +15,26 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /*
- * Theme tokens for the company dashboard, the only themed screen so far.
+ * Theme tokens. Every themed surface is inside .mb-theme, which AppLayout
+ * puts on the application shell - so adopting the tokens is all a page has to
+ * do to follow the toggle.
  *
  * The dark values are the palette variables the old literal classes compiled
  * to (bg-slate-900 is var(--color-slate-900)), so the dark theme renders
  * exactly as it did. Tint tokens carry no alpha of their own: the markup keeps
  * its /10, /20, /40 modifiers, which is what keeps those identical too.
  *
- * Scoped to .mb-theme rather than :root, so a page that has not adopted the
- * tokens stays dark whatever the toggle says.
+ * Scoped to .mb-theme rather than :root, so anything outside the shell - the
+ * sign-in screens, a stray fragment - stays dark whatever the toggle says.
  */
 @theme inline {
     --color-mb-page: var(--mb-page);
     --color-mb-card: var(--mb-card);
     --color-mb-inset: var(--mb-inset);
+    --color-mb-raised: var(--mb-raised);
+    --color-mb-chip: var(--mb-chip);
     --color-mb-line: var(--mb-line);
+    --color-mb-line-mid: var(--mb-line-mid);
     --color-mb-line-strong: var(--mb-line-strong);
     --color-mb-text-strong: var(--mb-text-strong);
     --color-mb-text: var(--mb-text);
@@ -37,15 +42,22 @@
     --color-mb-text-muted: var(--mb-text-muted);
     --color-mb-text-faint: var(--mb-text-faint);
     --color-mb-text-ghost: var(--mb-text-ghost);
+    --color-mb-on-accent: var(--mb-on-accent);
     --color-mb-cyan: var(--mb-cyan);
     --color-mb-cyan-soft: var(--mb-cyan-soft);
     --color-mb-amber: var(--mb-amber);
     --color-mb-amber-soft: var(--mb-amber-soft);
     --color-mb-emerald: var(--mb-emerald);
     --color-mb-emerald-soft: var(--mb-emerald-soft);
+    --color-mb-rose: var(--mb-rose);
+    --color-mb-rose-soft: var(--mb-rose-soft);
+    --color-mb-indigo: var(--mb-indigo);
+    --color-mb-indigo-soft: var(--mb-indigo-soft);
     --color-mb-tint-cyan: var(--mb-tint-cyan);
     --color-mb-tint-amber: var(--mb-tint-amber);
     --color-mb-tint-emerald: var(--mb-tint-emerald);
+    --color-mb-tint-rose: var(--mb-tint-rose);
+    --color-mb-tint-indigo: var(--mb-tint-indigo);
     --color-mb-tint-slate: var(--mb-tint-slate);
 }
 
@@ -53,7 +65,10 @@
     --mb-page: var(--color-slate-950);
     --mb-card: var(--color-slate-900);
     --mb-inset: var(--color-slate-950);
+    --mb-raised: var(--color-slate-800);
+    --mb-chip: var(--color-slate-700);
     --mb-line: var(--color-slate-800);
+    --mb-line-mid: var(--color-slate-700);
     --mb-line-strong: var(--color-slate-600);
     --mb-text-strong: var(--color-white);
     --mb-text: var(--color-slate-200);
@@ -61,27 +76,42 @@
     --mb-text-muted: var(--color-slate-400);
     --mb-text-faint: var(--color-slate-500);
     --mb-text-ghost: var(--color-slate-600);
+    --mb-on-accent: var(--color-slate-950);
     --mb-cyan: var(--color-cyan-400);
     --mb-cyan-soft: var(--color-cyan-300);
     --mb-amber: var(--color-amber-400);
     --mb-amber-soft: var(--color-amber-300);
     --mb-emerald: var(--color-emerald-400);
     --mb-emerald-soft: var(--color-emerald-300);
+    --mb-rose: var(--color-red-400);
+    --mb-rose-soft: var(--color-red-300);
+    --mb-indigo: var(--color-indigo-400);
+    --mb-indigo-soft: var(--color-indigo-300);
     --mb-tint-cyan: var(--color-cyan-500);
     --mb-tint-amber: var(--color-amber-500);
     --mb-tint-emerald: var(--color-emerald-500);
+    --mb-tint-rose: var(--color-red-500);
+    --mb-tint-indigo: var(--color-indigo-500);
     --mb-tint-slate: var(--color-slate-700);
 }
 
 /*
  * Light accents are the 700/800 shades: the 400s the dark theme uses fall
  * below 4.5:1 on white, and so do the 600s (cyan 3.7, amber 3.2, emerald 3.8).
+ *
+ * --mb-on-accent does not flip. It is the text printed on a filled emerald or
+ * amber button, where the background is the same strong colour in both themes,
+ * so near-black is the readable choice in both. Flipping it to white would put
+ * white on amber-500.
  */
 [data-theme='light'] .mb-theme {
     --mb-page: var(--color-slate-50);
     --mb-card: var(--color-white);
     --mb-inset: var(--color-slate-50);
+    --mb-raised: var(--color-slate-100);
+    --mb-chip: var(--color-slate-200);
     --mb-line: var(--color-slate-200);
+    --mb-line-mid: var(--color-slate-300);
     --mb-line-strong: var(--color-slate-300);
     --mb-text-strong: var(--color-slate-900);
     --mb-text: var(--color-slate-800);
@@ -95,9 +125,15 @@
     --mb-amber-soft: var(--color-amber-800);
     --mb-emerald: var(--color-emerald-700);
     --mb-emerald-soft: var(--color-emerald-800);
+    --mb-rose: var(--color-red-700);
+    --mb-rose-soft: var(--color-red-800);
+    --mb-indigo: var(--color-indigo-700);
+    --mb-indigo-soft: var(--color-indigo-800);
     --mb-tint-cyan: var(--color-cyan-600);
     --mb-tint-amber: var(--color-amber-500);
     --mb-tint-emerald: var(--color-emerald-600);
+    --mb-tint-rose: var(--color-red-600);
+    --mb-tint-indigo: var(--color-indigo-600);
     --mb-tint-slate: var(--color-slate-300);
 }
 

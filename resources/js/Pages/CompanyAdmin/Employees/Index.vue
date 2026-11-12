@@ -130,19 +130,19 @@ watch([search, status], () => {
     <AppLayout>
         <div class="space-y-6">
             <!-- Top Action Banner & Stats -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl backdrop-blur-md shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-mb-card/60 border border-mb-line p-6 rounded-2xl backdrop-blur-md shadow-xl">
                 <div>
-                    <h1 class="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                    <h1 class="text-2xl font-black text-mb-text-strong tracking-tight flex items-center gap-2">
                         👥 Employee Roster
                     </h1>
-                    <p class="text-xs text-slate-400 mt-1">
+                    <p class="text-xs text-mb-text-muted mt-1">
                         Manage company employees, meal eligibility, and attendance settings
                     </p>
                 </div>
                 <div class="flex items-center space-x-3">
                     <button
                         @click="openCsvModal"
-                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition shadow-sm cursor-pointer"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-mb-text bg-mb-raised hover:bg-mb-chip border border-mb-line-mid transition shadow-sm cursor-pointer"
                     >
                         <span>📥</span>
                         <span>Bulk CSV Import</span>
@@ -150,21 +150,21 @@ watch([search, status], () => {
                     <button
                         v-if="selectedForLogins.length"
                         @click="createLogins"
-                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 transition shadow-sm cursor-pointer"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-mb-amber-soft bg-mb-tint-amber/15 hover:bg-mb-tint-amber/25 border border-mb-tint-amber/40 transition shadow-sm cursor-pointer"
                     >
                         <span>🔑</span>
                         <span>Create logins ({{ selectedForLogins.length }})</span>
                     </button>
                     <button
                         @click="showSkipImportModal = true"
-                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition shadow-sm cursor-pointer"
+                        class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold text-mb-text bg-mb-raised hover:bg-mb-chip border border-mb-line-mid transition shadow-sm cursor-pointer"
                     >
                         <span>🗓️</span>
                         <span>Leave / WFH Import</span>
                     </button>
                     <button
                         @click="openCreateModal"
-                        class="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 shadow-lg shadow-cyan-500/20 transition cursor-pointer"
+                        class="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold text-mb-on-accent bg-gradient-to-r from-mb-cyan to-mb-emerald hover:from-mb-cyan-soft hover:to-mb-emerald-soft shadow-lg shadow-mb-tint-cyan/20 transition cursor-pointer"
                     >
                         <span>➕</span>
                         <span>Add Employee</span>
@@ -176,14 +176,14 @@ watch([search, status], () => {
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <!-- Search Input -->
                 <div class="sm:col-span-2 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm pointer-events-none">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-mb-text-faint text-sm pointer-events-none">
                         🔍
                     </span>
                     <input
                         v-model="search"
                         type="text"
                         placeholder="Search by employee code, name, or email..."
-                        class="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition shadow-sm"
+                        class="w-full pl-10 pr-4 py-2.5 bg-mb-card border border-mb-line rounded-xl text-mb-text-strong text-sm focus:outline-none focus:border-mb-tint-cyan focus:ring-1 focus:ring-mb-tint-cyan transition shadow-sm"
                     />
                 </div>
 
@@ -191,7 +191,7 @@ watch([search, status], () => {
                 <div>
                     <select
                         v-model="status"
-                        class="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition shadow-sm cursor-pointer"
+                        class="w-full px-4 py-2.5 bg-mb-card border border-mb-line rounded-xl text-mb-text-strong text-sm focus:outline-none focus:border-mb-tint-cyan focus:ring-1 focus:ring-mb-tint-cyan transition shadow-sm cursor-pointer"
                     >
                         <option value="">All Statuses (Active & Inactive)</option>
                         <option value="active">🟢 Active Only</option>
@@ -207,10 +207,10 @@ watch([search, status], () => {
             />
 
             <!-- Employee Data Table -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-mb-card border border-mb-line rounded-2xl shadow-xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs border-collapse">
-                        <thead class="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+                        <thead class="bg-mb-inset/80 border-b border-mb-line text-mb-text-muted uppercase tracking-wider font-semibold">
                             <tr>
                                 <th class="p-4 w-10"></th>
                                 <th class="p-4">Employee Code</th>
@@ -221,11 +221,11 @@ watch([search, status], () => {
                                 <th class="p-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-800/60 font-medium">
+                        <tbody class="divide-y divide-mb-line/60 font-medium">
                             <tr
                                 v-for="emp in employees.data"
                                 :key="emp.id"
-                                class="hover:bg-slate-800/40 transition-colors group"
+                                class="hover:bg-mb-raised/40 transition-colors group"
                             >
                                 <td class="p-4">
                                     <!-- Only employees without an account can be
@@ -235,28 +235,28 @@ watch([search, status], () => {
                                         type="checkbox"
                                         :checked="selectedForLogins.includes(emp.id)"
                                         @change="toggleForLogins(emp.id)"
-                                        class="accent-cyan-500 cursor-pointer"
+                                        class="accent-mb-tint-cyan cursor-pointer"
                                         :aria-label="`Select ${emp.name} for a login`"
                                     />
-                                    <span v-else class="text-emerald-400 text-xs" title="Already has a login">✓</span>
+                                    <span v-else class="text-mb-emerald text-xs" title="Already has a login">✓</span>
                                 </td>
                                 <td class="p-4 whitespace-nowrap">
-                                    <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-cyan-500/30 text-cyan-400 font-mono font-bold tracking-wide">
+                                    <span class="px-2.5 py-1 rounded-md bg-mb-inset border border-mb-tint-cyan/30 text-mb-cyan font-mono font-bold tracking-wide">
                                         {{ emp.employee_code }}
                                     </span>
                                 </td>
                                 <td class="p-4 whitespace-nowrap">
                                     <div class="flex flex-col">
-                                        <span class="text-white font-bold text-sm group-hover:text-cyan-300 transition-colors">
+                                        <span class="text-mb-text-strong font-bold text-sm group-hover:text-mb-cyan-soft transition-colors">
                                             {{ emp.name }}
                                         </span>
-                                        <span class="text-slate-400 text-[11px]">
+                                        <span class="text-mb-text-muted text-[11px]">
                                             {{ emp.email || 'No email provided' }}
                                         </span>
                                     </div>
                                 </td>
                                 <td class="p-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 text-[11px] font-semibold capitalize">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-mb-inset border border-mb-line text-mb-text-soft text-[11px] font-semibold capitalize">
                                         {{ emp.attendance_source || 'manual' }}
                                     </span>
                                 </td>
@@ -265,8 +265,8 @@ watch([search, status], () => {
                                         :class="[
                                             'px-2.5 py-1 rounded-full text-[11px] font-semibold border',
                                             emp.is_meal_eligible
-                                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                                                : 'bg-slate-800 text-slate-400 border-slate-700'
+                                                ? 'bg-mb-tint-emerald/10 text-mb-emerald-soft border-mb-tint-emerald/30'
+                                                : 'bg-mb-raised text-mb-text-muted border-mb-line-mid'
                                         ]"
                                     >
                                         {{ emp.is_meal_eligible ? ' Eligible' : ' Ineligible' }}
@@ -277,8 +277,8 @@ watch([search, status], () => {
                                         :class="[
                                             'px-2.5 py-1 rounded-full text-[11px] font-semibold border',
                                             emp.status === 'active'
-                                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                                                : 'bg-red-500/10 text-red-400 border-red-500/30'
+                                                ? 'bg-mb-tint-emerald/10 text-mb-emerald-soft border-mb-tint-emerald/30'
+                                                : 'bg-mb-tint-rose/10 text-mb-rose border-mb-tint-rose/30'
                                         ]"
                                     >
                                         {{ emp.status === 'active' ? '🟢 Active' : '🔴 Inactive' }}
@@ -289,22 +289,22 @@ watch([search, status], () => {
                                          rest are provisioned via Create logins. -->
                                     <button
                                         @click="openRecurringModal(emp)"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-mb-amber-soft hover:text-mb-text-strong bg-mb-raised hover:bg-mb-chip border border-mb-line-mid transition cursor-pointer"
                                         :title="`Recurring skips for ${emp.name}`"
                                     >
                                         🔄 Recurring
-                                        <span v-if="activeRuleCount(emp.id)" class="text-amber-400 font-bold">({{ activeRuleCount(emp.id) }})</span>
+                                        <span v-if="activeRuleCount(emp.id)" class="text-mb-amber font-bold">({{ activeRuleCount(emp.id) }})</span>
                                     </button>
                                     <button
                                         v-if="emp.user_id"
                                         @click="resetPassword(emp)"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition cursor-pointer"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-mb-amber hover:text-mb-text-strong bg-mb-tint-amber/10 hover:bg-mb-tint-amber/20 border border-mb-tint-amber/30 transition cursor-pointer"
                                     >
                                         Reset password
                                     </button>
                                     <button
                                         @click="openEditModal(emp)"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-400 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition cursor-pointer"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-mb-cyan hover:text-mb-text-strong bg-mb-tint-cyan/10 hover:bg-mb-tint-cyan/20 border border-mb-tint-cyan/30 transition cursor-pointer"
                                     >
                                         Edit
                                     </button>
@@ -313,12 +313,12 @@ watch([search, status], () => {
                                     <button
                                         v-if="!emp.anonymised_at"
                                         @click="beginAnonymise(emp)"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition cursor-pointer"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-mb-rose hover:text-mb-text-strong bg-mb-tint-rose/10 hover:bg-mb-tint-rose/20 border border-mb-tint-rose/30 transition cursor-pointer"
                                         :title="`Remove ${emp.name}'s personal details at their request`"
                                     >
                                         Remove details
                                     </button>
-                                    <span v-else class="px-3 py-1.5 text-xs text-slate-500 italic">
+                                    <span v-else class="px-3 py-1.5 text-xs text-mb-text-faint italic">
                                         details removed
                                     </span>
                                 </td>
@@ -328,12 +328,12 @@ watch([search, status], () => {
                                  it has to sit next to the row it is about. -->
                             <tr v-if="anonymising">
                                 <td colspan="7" class="p-0">
-                                    <div class="bg-red-500/10 border-y border-red-500/40 p-5 space-y-3">
+                                    <div class="bg-mb-tint-rose/10 border-y border-mb-tint-rose/40 p-5 space-y-3">
                                         <div>
-                                            <h4 class="font-bold text-red-300">
+                                            <h4 class="font-bold text-mb-rose-soft">
                                                 Remove {{ anonymising.name }}'s personal details?
                                             </h4>
-                                            <p class="text-xs text-red-200/80 mt-1">
+                                            <p class="text-xs text-mb-rose-soft/80 mt-1">
                                                 Their name, email, employee code, HR system id and login are removed
                                                 and cannot be restored. Their past meals stay counted, so your daily
                                                 totals and the figures the kitchen was given do not change. Any reason
@@ -341,15 +341,15 @@ watch([search, status], () => {
                                             </p>
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] uppercase font-semibold text-red-200/70 mb-1">
-                                                Type <span class="font-mono text-red-200">{{ anonymising.name }}</span> to confirm
+                                            <label class="block text-[11px] uppercase font-semibold text-mb-rose-soft/70 mb-1">
+                                                Type <span class="font-mono text-mb-rose-soft">{{ anonymising.name }}</span> to confirm
                                             </label>
                                             <input
                                                 v-model="anonymiseForm.confirm_name"
-                                                class="w-full max-w-md bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                                                class="w-full max-w-md bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-sm text-mb-text-strong font-mono"
                                                 :placeholder="anonymising.name"
                                             />
-                                            <p v-if="anonymiseForm.errors.confirm_name" class="text-xs text-red-300 mt-1">
+                                            <p v-if="anonymiseForm.errors.confirm_name" class="text-xs text-mb-rose-soft mt-1">
                                                 {{ anonymiseForm.errors.confirm_name }}
                                             </p>
                                         </div>
@@ -357,13 +357,13 @@ watch([search, status], () => {
                                             <button
                                                 @click="anonymise"
                                                 :disabled="anonymiseForm.processing || anonymiseForm.confirm_name !== anonymising.name"
-                                                class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-lg text-sm cursor-pointer"
+                                                class="px-4 py-2 bg-mb-tint-rose hover:bg-mb-tint-rose disabled:opacity-40 text-mb-text-strong font-bold rounded-lg text-sm cursor-pointer"
                                             >
                                                 Remove their details
                                             </button>
                                             <button
                                                 @click="anonymising = null"
-                                                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm border border-slate-700 cursor-pointer"
+                                                class="px-4 py-2 bg-mb-raised hover:bg-mb-chip text-mb-text rounded-lg text-sm border border-mb-line-mid cursor-pointer"
                                             >
                                                 Cancel
                                             </button>
@@ -377,13 +377,13 @@ watch([search, status], () => {
                                 <td colspan="7" class="p-12 text-center">
                                     <div class="max-w-xs mx-auto space-y-3">
                                         <div class="text-4xl">🔍</div>
-                                        <h3 class="text-base font-bold text-white">No Employees Found</h3>
-                                        <p class="text-xs text-slate-400">
+                                        <h3 class="text-base font-bold text-mb-text-strong">No Employees Found</h3>
+                                        <p class="text-xs text-mb-text-muted">
                                             No employee records match your search or filter criteria.
                                         </p>
                                         <button
                                             @click="openCreateModal"
-                                            class="inline-block px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition"
+                                            class="inline-block px-4 py-2 rounded-xl text-xs font-bold text-mb-on-accent bg-mb-cyan hover:bg-mb-cyan-soft transition"
                                         >
                                             Add First Employee
                                         </button>
@@ -395,8 +395,8 @@ watch([search, status], () => {
                 </div>
 
                 <!-- Pagination -->
-                <div v-if="employees.links && employees.links.length > 3" class="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between">
-                    <span class="text-xs text-slate-400">
+                <div v-if="employees.links && employees.links.length > 3" class="p-4 bg-mb-inset/60 border-t border-mb-line flex items-center justify-between">
+                    <span class="text-xs text-mb-text-muted">
                         Showing {{ employees.from || 0 }} to {{ employees.to || 0 }} of {{ employees.total }} employees
                     </span>
                     <div class="flex items-center space-x-1">
@@ -408,10 +408,10 @@ watch([search, status], () => {
                             :class="[
                                 'px-3 py-1.5 rounded-lg text-xs font-semibold transition',
                                 link.active
-                                    ? 'bg-cyan-500 text-slate-950 font-bold'
+                                    ? 'bg-mb-tint-cyan text-mb-on-accent font-bold'
                                     : link.url
-                                        ? 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                                        : 'bg-slate-950 text-slate-600 cursor-not-allowed'
+                                        ? 'bg-mb-card text-mb-text-soft hover:bg-mb-raised border border-mb-line'
+                                        : 'bg-mb-inset text-mb-text-ghost cursor-not-allowed'
                             ]"
                         />
                     </div>

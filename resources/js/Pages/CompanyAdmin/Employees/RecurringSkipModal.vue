@@ -69,69 +69,69 @@ const remove = (rule) => {
 </script>
 
 <template>
-    <div v-if="show && employee" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-        <div class="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-start justify-between gap-4 p-6 border-b border-slate-800">
+    <div v-if="show && employee" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-mb-inset/80 backdrop-blur-sm">
+        <div class="w-full max-w-2xl bg-mb-card border border-mb-line rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-4 p-6 border-b border-mb-line">
                 <div>
-                    <h2 class="text-lg font-bold text-white">🔄 Recurring skips</h2>
-                    <p class="text-xs text-slate-400 mt-0.5">
+                    <h2 class="text-lg font-bold text-mb-text-strong">🔄 Recurring skips</h2>
+                    <p class="text-xs text-mb-text-muted mt-0.5">
                         {{ employee.name }}
-                        <span class="font-mono text-cyan-400">{{ employee.employee_code }}</span>
+                        <span class="font-mono text-mb-cyan">{{ employee.employee_code }}</span>
                     </p>
                 </div>
-                <button @click="emit('close')" class="text-slate-400 hover:text-white text-xl leading-none cursor-pointer" aria-label="Close">×</button>
+                <button @click="emit('close')" class="text-mb-text-muted hover:text-mb-text-strong text-xl leading-none cursor-pointer" aria-label="Close">×</button>
             </div>
 
             <div class="p-6 space-y-6">
-                <p class="text-xs text-slate-400">
+                <p class="text-xs text-mb-text-muted">
                     A rule skips this employee's meal every week on the chosen day. Skips are generated a
                     few days ahead, so a change takes effect from the next generated day onward — it does
                     not reopen a count that has already locked.
                 </p>
 
-                <form @submit.prevent="submit" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <form @submit.prevent="submit" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end bg-mb-inset p-4 rounded-xl border border-mb-line">
                     <div>
-                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Weekday</label>
-                        <select v-model.number="form.weekday" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500 cursor-pointer">
+                        <label class="block text-[11px] uppercase font-semibold text-mb-text-muted mb-1">Weekday</label>
+                        <select v-model.number="form.weekday" class="w-full px-3 py-2 bg-mb-card border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan cursor-pointer">
                             <option v-for="(label, num) in WEEKDAYS" :key="num" :value="Number(num)">{{ label }}</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Starts on</label>
-                        <input v-model="form.starts_on" type="date" required class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500" />
+                        <label class="block text-[11px] uppercase font-semibold text-mb-text-muted mb-1">Starts on</label>
+                        <input v-model="form.starts_on" type="date" required class="w-full px-3 py-2 bg-mb-card border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan" />
                     </div>
                     <div>
-                        <label class="block text-[11px] uppercase font-semibold text-slate-400 mb-1">Ends on</label>
-                        <input v-model="form.ends_on" type="date" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500" />
-                        <p class="text-[10px] text-slate-500 mt-1">Leave blank for no end.</p>
+                        <label class="block text-[11px] uppercase font-semibold text-mb-text-muted mb-1">Ends on</label>
+                        <input v-model="form.ends_on" type="date" class="w-full px-3 py-2 bg-mb-card border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan" />
+                        <p class="text-[10px] text-mb-text-faint mt-1">Leave blank for no end.</p>
                     </div>
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="w-full px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold text-xs rounded-xl transition cursor-pointer"
+                        class="w-full px-4 py-2 bg-mb-tint-amber hover:bg-mb-amber disabled:opacity-40 text-mb-on-accent font-bold text-xs rounded-xl transition cursor-pointer"
                     >
                         Add rule
                     </button>
                 </form>
 
-                <p v-if="form.errors.recurring" class="text-xs text-red-400">{{ form.errors.recurring }}</p>
-                <p v-if="form.errors.weekday" class="text-xs text-red-400">{{ form.errors.weekday }}</p>
-                <p v-if="form.errors.starts_on" class="text-xs text-red-400">{{ form.errors.starts_on }}</p>
-                <p v-if="form.errors.ends_on" class="text-xs text-red-400">{{ form.errors.ends_on }}</p>
+                <p v-if="form.errors.recurring" class="text-xs text-mb-rose">{{ form.errors.recurring }}</p>
+                <p v-if="form.errors.weekday" class="text-xs text-mb-rose">{{ form.errors.weekday }}</p>
+                <p v-if="form.errors.starts_on" class="text-xs text-mb-rose">{{ form.errors.starts_on }}</p>
+                <p v-if="form.errors.ends_on" class="text-xs text-mb-rose">{{ form.errors.ends_on }}</p>
 
                 <div class="space-y-3">
                     <div
                         v-for="rule in sortedRules"
                         :key="rule.id"
-                        class="flex items-center justify-between gap-3 p-3.5 bg-slate-950 border border-slate-800 rounded-xl"
+                        class="flex items-center justify-between gap-3 p-3.5 bg-mb-inset border border-mb-line rounded-xl"
                     >
                         <div>
-                            <p class="font-bold text-white text-sm">Every {{ WEEKDAYS[rule.weekday] }}</p>
-                            <p class="text-[11px] text-slate-400">
+                            <p class="font-bold text-mb-text-strong text-sm">Every {{ WEEKDAYS[rule.weekday] }}</p>
+                            <p class="text-[11px] text-mb-text-muted">
                                 From {{ rule.starts_on }}
                                 <span v-if="rule.ends_on">until {{ rule.ends_on }}</span>
                                 <span v-else>onwards</span>
-                                <span v-if="rule.active && !isRunning(rule)" class="text-slate-500"> — not in effect today</span>
+                                <span v-if="rule.active && !isRunning(rule)" class="text-mb-text-faint"> — not in effect today</span>
                             </p>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -141,22 +141,22 @@ const remove = (rule) => {
                                 :class="[
                                     'px-3 py-1 rounded-lg text-xs font-semibold border cursor-pointer',
                                     rule.active
-                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                                        ? 'bg-mb-tint-emerald/20 text-mb-emerald-soft border-mb-tint-emerald/30'
+                                        : 'bg-mb-raised text-mb-text-muted border-mb-line-mid'
                                 ]"
                             >
                                 {{ rule.active ? 'Active' : 'Paused' }}
                             </button>
                             <button
                                 @click="remove(rule)"
-                                class="px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold cursor-pointer"
+                                class="px-3 py-1 bg-mb-tint-rose/10 hover:bg-mb-tint-rose/20 text-mb-rose border border-mb-tint-rose/30 rounded-lg text-xs font-semibold cursor-pointer"
                             >
                                 Delete
                             </button>
                         </div>
                     </div>
 
-                    <p v-if="!sortedRules.length" class="text-xs text-slate-500 italic">
+                    <p v-if="!sortedRules.length" class="text-xs text-mb-text-faint italic">
                         No recurring skip rules for this employee.
                     </p>
                 </div>

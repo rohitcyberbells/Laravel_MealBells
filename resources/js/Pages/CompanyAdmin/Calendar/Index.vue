@@ -127,64 +127,64 @@ const removeDay = (dayId) => {
     <AppLayout>
         <div class="space-y-6">
             <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-mb-card border border-mb-line p-6 rounded-2xl shadow-xl">
                 <div>
-                    <h1 class="text-2xl font-black text-white flex items-center gap-2">
+                    <h1 class="text-2xl font-black text-mb-text-strong flex items-center gap-2">
                         📅 Company Calendar & Holidays
                     </h1>
-                    <p class="text-xs text-slate-400 mt-1">
+                    <p class="text-xs text-mb-text-muted mt-1">
                         Override default working days with company holidays or compensatory working days
                     </p>
                 </div>
 
                 <div class="flex items-center space-x-3">
-                    <label class="text-xs font-semibold text-slate-400">Select Month:</label>
+                    <label class="text-xs font-semibold text-mb-text-muted">Select Month:</label>
                     <input
                         v-model="selectedMonth"
                         type="month"
                         @change="changeMonth"
-                        class="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                        class="px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                     />
                 </div>
             </div>
 
             <!-- Set Calendar Day Form Card -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-                <h3 class="text-sm font-bold text-slate-200">➕ Add / Update Calendar Override</h3>
+            <div class="bg-mb-card border border-mb-line p-6 rounded-2xl shadow-xl space-y-4">
+                <h3 class="text-sm font-bold text-mb-text">➕ Add / Update Calendar Override</h3>
                 <form @submit.prevent="saveDay" class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Date</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">Date</label>
                         <input
                             v-model="form.date"
                             type="date"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">Type</label>
                         <select
                             v-model="form.type"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                         >
                             <option value="holiday">🔴 Company Holiday</option>
                             <option value="working_day">🟢 Working Day (Compensatory)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Note / Reason</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">Note / Reason</label>
                         <input
                             v-model="form.note"
                             type="text"
                             placeholder="e.g. Diwali, Independence Day"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                         />
                     </div>
                     <div>
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="w-full px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
+                            class="w-full px-4 py-2 bg-mb-tint-cyan hover:bg-mb-cyan text-mb-on-accent font-bold text-xs rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
                         >
                             Save Override
                         </button>
@@ -195,10 +195,10 @@ const removeDay = (dayId) => {
             <!-- Mark a whole range at once. The single form above is one day;
                  a festival week or a shutdown is the common case and was
                  fifteen clicks. -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div class="bg-mb-card border border-mb-line p-6 rounded-2xl shadow-xl space-y-4">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-200">🗓️ Mark a range of days</h3>
-                    <p class="text-xs text-slate-400 mt-1">
+                    <h3 class="text-sm font-bold text-mb-text">🗓️ Mark a range of days</h3>
+                    <p class="text-xs text-mb-text-muted mt-1">
                         Every day between the two dates, inclusive — a shutdown week, a festival, or a
                         run of compensatory working days.
                     </p>
@@ -206,49 +206,49 @@ const removeDay = (dayId) => {
 
                 <form @submit.prevent="saveBulk" class="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">From</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">From</label>
                         <input
                             v-model="bulkStart"
                             type="date"
                             :min="today"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">To</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">To</label>
                         <input
                             v-model="bulkEnd"
                             type="date"
                             :min="bulkStart || today"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">Type</label>
                         <select
                             v-model="bulkForm.type"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                         >
                             <option value="holiday">🔴 Company Holiday</option>
                             <option value="working_day">🟢 Working Day (Compensatory)</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Note / Reason</label>
+                        <label class="block text-xs font-semibold text-mb-text-muted mb-1">Note / Reason</label>
                         <input
                             v-model="bulkForm.note"
                             type="text"
                             placeholder="e.g. Diwali week"
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-cyan-500"
+                            class="w-full px-3 py-2 bg-mb-inset border border-mb-line rounded-xl text-mb-text-strong text-xs focus:outline-none focus:border-mb-tint-cyan"
                         />
                     </div>
                     <div>
                         <button
                             type="submit"
                             :disabled="!canSubmitBulk"
-                            class="w-full px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                            class="w-full px-4 py-2 bg-mb-tint-cyan hover:bg-mb-cyan text-mb-on-accent font-bold text-xs rounded-xl shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
                             {{ bulkForm.processing ? 'Saving…' : `Mark ${bulkEditable || ''} ${bulkEditable === 1 ? 'day' : 'days'}`.trim() }}
                         </button>
@@ -259,44 +259,44 @@ const removeDay = (dayId) => {
                      days it can no longer edit, so a range of ten reporting
                      "Updated 3 days" would read as a failure. -->
                 <div v-if="bulkDates.length" class="text-xs space-y-1">
-                    <p v-if="bulkTooLong" class="text-red-300 font-semibold">
+                    <p v-if="bulkTooLong" class="text-mb-rose-soft font-semibold">
                         That range is longer than {{ MAX_RANGE_DAYS }} days. Narrow it — this writes one
                         row per day, and a mistyped year should not become thousands of them.
                     </p>
 
                     <template v-else>
-                        <p class="text-slate-300">
-                            <span class="font-semibold text-white">{{ bulkEditable }}</span>
+                        <p class="text-mb-text-soft">
+                            <span class="font-semibold text-mb-text-strong">{{ bulkEditable }}</span>
                             {{ bulkEditable === 1 ? 'day' : 'days' }} will be marked as
                             {{ bulkForm.type === 'holiday' ? 'a company holiday' : 'a working day' }}.
                         </p>
-                        <p v-if="bulkSkipped" class="text-amber-400">
+                        <p v-if="bulkSkipped" class="text-mb-amber">
                             {{ bulkSkipped }} {{ bulkSkipped === 1 ? 'day is' : 'days are' }} already past and
                             will be left alone — a day that has been counted cannot be rewritten.
                         </p>
-                        <p v-if="bulkEditable === 0" class="text-amber-400">
+                        <p v-if="bulkEditable === 0" class="text-mb-amber">
                             Nothing in that range can still be edited.
                         </p>
                     </template>
                 </div>
 
-                <p v-if="bulkForm.errors.calendar" class="text-xs text-red-300">
+                <p v-if="bulkForm.errors.calendar" class="text-xs text-mb-rose-soft">
                     {{ bulkForm.errors.calendar }}
                 </p>
-                <p v-if="bulkForm.errors.dates" class="text-xs text-red-300">
+                <p v-if="bulkForm.errors.dates" class="text-xs text-mb-rose-soft">
                     {{ bulkForm.errors.dates }}
                 </p>
             </div>
 
             <!-- Overrides Table -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-white">Active Calendar Overrides for {{ month }}</h3>
-                    <span class="text-xs text-slate-400">{{ days.length }} Overrides</span>
+            <div class="bg-mb-card border border-mb-line rounded-2xl shadow-xl overflow-hidden">
+                <div class="p-4 border-b border-mb-line flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-mb-text-strong">Active Calendar Overrides for {{ month }}</h3>
+                    <span class="text-xs text-mb-text-muted">{{ days.length }} Overrides</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                        <thead class="bg-mb-inset border-b border-mb-line text-mb-text-muted uppercase font-semibold">
                             <tr>
                                 <th class="p-3">Date</th>
                                 <th class="p-3">Type</th>
@@ -304,29 +304,29 @@ const removeDay = (dayId) => {
                                 <th class="p-3 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-800/60">
-                            <tr v-for="day in days" :key="day.id" class="hover:bg-slate-800/40">
-                                <td class="p-3 font-bold font-mono text-cyan-400">{{ day.date }}</td>
+                        <tbody class="divide-y divide-mb-line/60">
+                            <tr v-for="day in days" :key="day.id" class="hover:bg-mb-raised/40">
+                                <td class="p-3 font-bold font-mono text-mb-cyan">{{ day.date }}</td>
                                 <td class="p-3">
                                     <span :class="[
                                         'px-2.5 py-1 rounded-full text-[10px] font-bold border',
-                                        day.type === 'holiday' ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                        day.type === 'holiday' ? 'bg-mb-tint-rose/20 text-mb-rose-soft border-mb-tint-rose/30' : 'bg-mb-tint-emerald/20 text-mb-emerald-soft border-mb-tint-emerald/30'
                                     ]">
                                         {{ day.type === 'holiday' ? '🔴 Holiday' : '🟢 Special Working Day' }}
                                     </span>
                                 </td>
-                                <td class="p-3 text-slate-300">{{ day.note || '-' }}</td>
+                                <td class="p-3 text-mb-text-soft">{{ day.note || '-' }}</td>
                                 <td class="p-3 text-right">
                                     <button
                                         @click="removeDay(day.id)"
-                                        class="text-red-400 hover:text-red-300 font-semibold cursor-pointer"
+                                        class="text-mb-rose hover:text-mb-rose-soft font-semibold cursor-pointer"
                                     >
                                         Delete
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="!days || !days.length">
-                                <td colspan="4" class="p-8 text-center text-slate-500">
+                                <td colspan="4" class="p-8 text-center text-mb-text-faint">
                                     No custom calendar overrides configured for this month.
                                 </td>
                             </tr>

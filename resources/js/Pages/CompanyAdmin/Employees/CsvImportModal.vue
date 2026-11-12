@@ -64,20 +64,20 @@ const closeModal = () => {
 </script>
 
 <template>
-    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-        <div class="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] flex flex-col">
+    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-mb-inset/80 backdrop-blur-sm animate-fade-in">
+        <div class="relative w-full max-w-3xl bg-mb-card border border-mb-line rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] flex flex-col">
             <!-- Header -->
-            <div class="flex items-center justify-between border-b border-slate-800 pb-4 shrink-0">
+            <div class="flex items-center justify-between border-b border-mb-line pb-4 shrink-0">
                 <div class="flex items-center space-x-3">
-                    <div class="p-2 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
+                    <div class="p-2 bg-mb-tint-emerald/10 rounded-xl text-mb-emerald border border-mb-tint-emerald/20">
                         📄
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-white">Bulk CSV Import</h2>
-                        <p class="text-xs text-slate-400">Upload CSV file to preview & import employees</p>
+                        <h2 class="text-xl font-bold text-mb-text-strong">Bulk CSV Import</h2>
+                        <p class="text-xs text-mb-text-muted">Upload CSV file to preview & import employees</p>
                     </div>
                 </div>
-                <button @click="closeModal" class="text-slate-400 hover:text-white text-lg p-1 transition-colors">
+                <button @click="closeModal" class="text-mb-text-muted hover:text-mb-text-strong text-lg p-1 transition-colors">
                     ✕
                 </button>
             </div>
@@ -85,19 +85,19 @@ const closeModal = () => {
             <div class="overflow-y-auto space-y-6 pr-1 grow">
                 <!-- CSV Format Sample & Dropzone -->
                 <div v-if="!csvPreview" class="space-y-4">
-                    <div class="p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-2 text-slate-300">
-                        <p class="font-semibold text-cyan-400">💡 Expected CSV Headers:</p>
-                        <code class="block bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-300">
+                    <div class="p-4 bg-mb-inset border border-mb-line rounded-xl text-xs space-y-2 text-mb-text-soft">
+                        <p class="font-semibold text-mb-cyan">💡 Expected CSV Headers:</p>
+                        <code class="block bg-mb-card p-2.5 rounded-lg border border-mb-line font-mono text-[11px] text-mb-emerald-soft">
                             employee_code,name,email,attendance_source,is_meal_eligible,status
                         </code>
-                        <p class="text-slate-400 text-[11px]">
-                            • Required columns: <strong class="text-white">employee_code</strong>, <strong class="text-white">name</strong>.<br>
-                            • Optional: <strong class="text-white">email</strong>, <strong class="text-white">attendance_source</strong> (manual, integrated, none), <strong class="text-white">is_meal_eligible</strong> (true/false or 1/0), <strong class="text-white">status</strong> (active/inactive).
+                        <p class="text-mb-text-muted text-[11px]">
+                            • Required columns: <strong class="text-mb-text-strong">employee_code</strong>, <strong class="text-mb-text-strong">name</strong>.<br>
+                            • Optional: <strong class="text-mb-text-strong">email</strong>, <strong class="text-mb-text-strong">attendance_source</strong> (manual, integrated, none), <strong class="text-mb-text-strong">is_meal_eligible</strong> (true/false or 1/0), <strong class="text-mb-text-strong">status</strong> (active/inactive).
                         </p>
                     </div>
 
                     <!-- File Picker -->
-                    <div class="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl p-8 text-center transition bg-slate-950/50">
+                    <div class="border-2 border-dashed border-mb-line hover:border-mb-tint-cyan/50 rounded-2xl p-8 text-center transition bg-mb-inset/50">
                         <input
                             ref="fileInput"
                             type="file"
@@ -108,10 +108,10 @@ const closeModal = () => {
                         />
                         <label for="csv_file_input" class="cursor-pointer space-y-3 block">
                             <div class="text-4xl">📥</div>
-                            <div class="text-sm font-semibold text-slate-200">
+                            <div class="text-sm font-semibold text-mb-text">
                                 {{ selectedFile ? selectedFile.name : 'Click to select CSV file' }}
                             </div>
-                            <div class="text-xs text-slate-500">Supported formats: .csv, .txt (max 2MB)</div>
+                            <div class="text-xs text-mb-text-faint">Supported formats: .csv, .txt (max 2MB)</div>
                         </label>
                     </div>
 
@@ -119,7 +119,7 @@ const closeModal = () => {
                         <button
                             @click="uploadPreview"
                             :disabled="isUploading"
-                            class="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 shadow-lg shadow-cyan-500/20 disabled:opacity-50 transition cursor-pointer"
+                            class="px-5 py-2.5 rounded-xl text-xs font-bold text-mb-on-accent bg-gradient-to-r from-mb-cyan to-mb-emerald hover:from-mb-cyan-soft hover:to-mb-emerald-soft shadow-lg shadow-mb-tint-cyan/20 disabled:opacity-50 transition cursor-pointer"
                         >
                             {{ isUploading ? 'Analyzing CSV...' : 'Preview CSV Rows 🔍' }}
                         </button>
@@ -130,22 +130,22 @@ const closeModal = () => {
                 <div v-else class="space-y-6">
                     <!-- Summary Stats -->
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
-                            <span class="block text-[11px] text-slate-400 uppercase font-semibold">Valid Rows</span>
-                            <span class="text-2xl font-black text-emerald-400">
+                        <div class="bg-mb-inset border border-mb-line p-4 rounded-xl">
+                            <span class="block text-[11px] text-mb-text-muted uppercase font-semibold">Valid Rows</span>
+                            <span class="text-2xl font-black text-mb-emerald">
                                 {{ csvPreview.valid_rows?.length || 0 }}
                             </span>
                         </div>
-                        <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl">
-                            <span class="block text-[11px] text-slate-400 uppercase font-semibold">Validation Errors</span>
-                            <span :class="['text-2xl font-black', csvPreview.errors?.length ? 'text-red-400' : 'text-slate-400']">
+                        <div class="bg-mb-inset border border-mb-line p-4 rounded-xl">
+                            <span class="block text-[11px] text-mb-text-muted uppercase font-semibold">Validation Errors</span>
+                            <span :class="['text-2xl font-black', csvPreview.errors?.length ? 'text-mb-rose' : 'text-mb-text-muted']">
                                 {{ csvPreview.errors?.length || 0 }}
                             </span>
                         </div>
-                        <div class="col-span-2 sm:col-span-1 bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-center">
+                        <div class="col-span-2 sm:col-span-1 bg-mb-inset border border-mb-line p-4 rounded-xl flex items-center justify-center">
                             <button
                                 @click="page.props.flash.csvPreview = null"
-                                class="text-xs font-semibold text-cyan-400 hover:text-cyan-300 underline"
+                                class="text-xs font-semibold text-mb-cyan hover:text-mb-cyan-soft underline"
                             >
                                 🔄 Select Different File
                             </button>
@@ -153,12 +153,12 @@ const closeModal = () => {
                     </div>
 
                     <!-- Validation Errors List if Any -->
-                    <div v-if="csvPreview.errors && csvPreview.errors.length" class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 space-y-2">
-                        <h4 class="text-xs font-bold text-red-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <div v-if="csvPreview.errors && csvPreview.errors.length" class="bg-mb-tint-rose/10 border border-mb-tint-rose/30 rounded-xl p-4 space-y-2">
+                        <h4 class="text-xs font-bold text-mb-rose-soft uppercase tracking-wider flex items-center gap-1.5">
                             ⚠️ Row Errors (Will be Skipped):
                         </h4>
-                        <div class="max-h-32 overflow-y-auto space-y-1.5 text-xs text-red-200 font-mono">
-                            <div v-for="(err, idx) in csvPreview.errors" :key="idx" class="bg-slate-950/60 p-2 rounded border border-red-500/20">
+                        <div class="max-h-32 overflow-y-auto space-y-1.5 text-xs text-mb-rose-soft font-mono">
+                            <div v-for="(err, idx) in csvPreview.errors" :key="idx" class="bg-mb-inset/60 p-2 rounded border border-mb-tint-rose/20">
                                 Line {{ err.row }}: <span class="font-bold">{{ err.field }}</span> - {{ err.message }}
                             </div>
                         </div>
@@ -166,12 +166,12 @@ const closeModal = () => {
 
                     <!-- Valid Rows Preview Table -->
                     <div v-if="csvPreview.valid_rows && csvPreview.valid_rows.length" class="space-y-3">
-                        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                        <h4 class="text-xs font-bold text-mb-text-soft uppercase tracking-wider">
                             Ready to Import ({{ csvPreview.valid_rows.length }} Records)
                         </h4>
-                        <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950">
+                        <div class="overflow-x-auto border border-mb-line rounded-xl bg-mb-inset">
                             <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                                <thead class="bg-mb-card border-b border-mb-line text-mb-text-muted uppercase tracking-wider">
                                     <tr>
                                         <th class="p-3 font-semibold">Code</th>
                                         <th class="p-3 font-semibold">Name</th>
@@ -180,16 +180,16 @@ const closeModal = () => {
                                         <th class="p-3 font-semibold">Eligibility</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-800/60">
-                                    <tr v-for="(row, idx) in csvPreview.valid_rows.slice(0, 10)" :key="idx" class="hover:bg-slate-900/40">
-                                        <td class="p-3 font-mono text-cyan-400 font-bold">{{ row.employee_code }}</td>
-                                        <td class="p-3 font-medium text-white">{{ row.name }}</td>
-                                        <td class="p-3 text-slate-400">{{ row.email || '-' }}</td>
-                                        <td class="p-3 text-slate-300 capitalize">{{ row.attendance_source || 'manual' }}</td>
+                                <tbody class="divide-y divide-mb-line/60">
+                                    <tr v-for="(row, idx) in csvPreview.valid_rows.slice(0, 10)" :key="idx" class="hover:bg-mb-card/40">
+                                        <td class="p-3 font-mono text-mb-cyan font-bold">{{ row.employee_code }}</td>
+                                        <td class="p-3 font-medium text-mb-text-strong">{{ row.name }}</td>
+                                        <td class="p-3 text-mb-text-muted">{{ row.email || '-' }}</td>
+                                        <td class="p-3 text-mb-text-soft capitalize">{{ row.attendance_source || 'manual' }}</td>
                                         <td class="p-3">
                                             <span :class="[
                                                 'px-2 py-0.5 rounded-full text-[10px] font-semibold',
-                                                row.is_meal_eligible !== false ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+                                                row.is_meal_eligible !== false ? 'bg-mb-tint-emerald/20 text-mb-emerald-soft border border-mb-tint-emerald/30' : 'bg-mb-raised text-mb-text-muted'
                                             ]">
                                                 {{ row.is_meal_eligible !== false ? 'Eligible' : 'Ineligible' }}
                                             </span>
@@ -198,7 +198,7 @@ const closeModal = () => {
                                 </tbody>
                             </table>
                         </div>
-                        <p v-if="csvPreview.valid_rows.length > 10" class="text-[11px] text-slate-500 text-right italic">
+                        <p v-if="csvPreview.valid_rows.length > 10" class="text-[11px] text-mb-text-faint text-right italic">
                             ...and {{ csvPreview.valid_rows.length - 10 }} more rows
                         </p>
                     </div>
@@ -206,11 +206,11 @@ const closeModal = () => {
             </div>
 
             <!-- Footer Actions -->
-            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800 shrink-0">
+            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-mb-line shrink-0">
                 <button
                     type="button"
                     @click="closeModal"
-                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold text-mb-text-muted hover:text-mb-text-strong hover:bg-mb-raised transition"
                 >
                     Cancel
                 </button>
@@ -218,7 +218,7 @@ const closeModal = () => {
                     v-if="csvPreview && csvPreview.valid_rows && csvPreview.valid_rows.length"
                     @click="confirmImport"
                     :disabled="isImporting"
-                    class="px-5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition cursor-pointer"
+                    class="px-5 py-2 rounded-xl text-xs font-bold text-mb-on-accent bg-gradient-to-r from-mb-emerald to-mb-cyan hover:from-mb-emerald-soft hover:to-mb-cyan-soft shadow-lg shadow-mb-tint-emerald/20 disabled:opacity-50 transition cursor-pointer"
                 >
                     {{ isImporting ? 'Importing...' : `Confirm & Import ${csvPreview.valid_rows.length} Records 🚀` }}
                 </button>

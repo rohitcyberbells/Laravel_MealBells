@@ -28,14 +28,14 @@ const fillDemo = (identifier, companyCode = '') => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl">
-            <h1 class="text-2xl font-bold text-emerald-400 text-center mb-1">MealBells</h1>
-            <p class="text-slate-400 text-sm text-center mb-6">Sign in to your dashboard</p>
+    <div class="mb-theme min-h-screen bg-mb-page text-mb-text-strong flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-mb-card border border-mb-line rounded-xl p-6 shadow-2xl">
+            <h1 class="text-2xl font-bold text-mb-emerald text-center mb-1">MealBells</h1>
+            <p class="text-mb-text-muted text-sm text-center mb-6">Sign in to your dashboard</p>
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">
+                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
                         Email or employee code
                     </label>
                     <input
@@ -44,44 +44,44 @@ const fillDemo = (identifier, companyCode = '') => {
                         autocomplete="username"
                         placeholder="you@company.com or ACME001"
                         required
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
                     />
-                    <p v-if="form.errors.identifier" class="text-red-400 text-xs mt-1">{{ form.errors.identifier }}</p>
+                    <p v-if="form.errors.identifier" class="text-mb-rose text-xs mt-1">{{ form.errors.identifier }}</p>
                 </div>
 
                 <!-- Only an employee code needs a company, so the field appears
                      once the input stops looking like an address. -->
                 <div v-if="form.identifier && !looksLikeEmail">
-                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Company code</label>
+                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Company code</label>
                     <input
                         v-model="form.company_code"
                         type="text"
                         placeholder="ACME01"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white uppercase focus:outline-none focus:border-emerald-500"
+                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong uppercase focus:outline-none focus:border-mb-tint-emerald"
                     />
-                    <p class="text-[11px] text-slate-500 mt-1">Your HR team can tell you this.</p>
-                    <p v-if="form.errors.company_code" class="text-red-400 text-xs mt-1">{{ form.errors.company_code }}</p>
-                    <p v-if="form.errors.login_code" class="text-red-400 text-xs mt-1">{{ form.errors.login_code }}</p>
+                    <p class="text-[11px] text-mb-text-faint mt-1">Your HR team can tell you this.</p>
+                    <p v-if="form.errors.company_code" class="text-mb-rose text-xs mt-1">{{ form.errors.company_code }}</p>
+                    <p v-if="form.errors.login_code" class="text-mb-rose text-xs mt-1">{{ form.errors.login_code }}</p>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Password</label>
+                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Password</label>
                     <input
                         v-model="form.password"
                         type="password"
                         autocomplete="current-password"
                         required
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
                     />
-                    <p v-if="form.errors.password" class="text-red-400 text-xs mt-1">{{ form.errors.password }}</p>
+                    <p v-if="form.errors.password" class="text-mb-rose text-xs mt-1">{{ form.errors.password }}</p>
                 </div>
 
                 <div class="flex items-center justify-between gap-3">
-                    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                        <input v-model="form.remember" type="checkbox" class="accent-emerald-500 cursor-pointer" />
+                    <label class="flex items-center gap-2 text-xs text-mb-text-muted cursor-pointer">
+                        <input v-model="form.remember" type="checkbox" class="accent-mb-tint-emerald cursor-pointer" />
                         Keep me signed in
                     </label>
-                    <Link href="/forgot-password" class="text-xs text-slate-400 hover:text-emerald-400">
+                    <Link href="/forgot-password" class="text-xs text-mb-text-muted hover:text-mb-emerald">
                         Forgot password?
                     </Link>
                 </div>
@@ -89,29 +89,29 @@ const fillDemo = (identifier, companyCode = '') => {
                 <button
                     type="submit"
                     :disabled="form.processing"
-                    class="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 font-semibold text-slate-950 py-2 rounded-lg transition cursor-pointer"
+                    class="w-full bg-mb-tint-emerald hover:bg-mb-tint-emerald disabled:opacity-50 font-semibold text-mb-on-accent py-2 rounded-lg transition cursor-pointer"
                 >
                     Sign In
                 </button>
             </form>
 
-            <div class="mt-6 pt-4 border-t border-slate-800">
-                <p class="text-xs font-semibold text-slate-400 uppercase mb-2 text-center">Quick demo login</p>
+            <div class="mt-6 pt-4 border-t border-mb-line">
+                <p class="text-xs font-semibold text-mb-text-muted uppercase mb-2 text-center">Quick demo login</p>
                 <div class="grid grid-cols-2 gap-2">
-                    <button @click="fillDemo('root@mealbells.test')" class="bg-slate-800 hover:bg-slate-700 text-xs text-emerald-300 py-1.5 px-2 rounded border border-slate-700 cursor-pointer">
+                    <button @click="fillDemo('root@mealbells.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-emerald-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Super Admin
                     </button>
-                    <button @click="fillDemo('vendor@mealbells.test')" class="bg-slate-800 hover:bg-slate-700 text-xs text-amber-300 py-1.5 px-2 rounded border border-slate-700 cursor-pointer">
+                    <button @click="fillDemo('vendor@mealbells.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-amber-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Tiffin Admin
                     </button>
-                    <button @click="fillDemo('hr@acme.test')" class="bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 py-1.5 px-2 rounded border border-slate-700 cursor-pointer">
+                    <button @click="fillDemo('hr@acme.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-cyan-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Company Admin
                     </button>
-                    <button @click="fillDemo('acme001@demo.test')" class="bg-slate-800 hover:bg-slate-700 text-xs text-indigo-300 py-1.5 px-2 rounded border border-slate-700 cursor-pointer">
+                    <button @click="fillDemo('acme001@demo.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-indigo-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Employee
                     </button>
                 </div>
-                <p class="text-[11px] text-slate-500 mt-2 text-center">
+                <p class="text-[11px] text-mb-text-faint mt-2 text-center">
                     Employees can also use <span class="font-mono">ACME01</span> + <span class="font-mono">ACME001</span>.
                 </p>
             </div>

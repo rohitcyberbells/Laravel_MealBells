@@ -1,7 +1,6 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
 import MealFlowStrip from './Dashboard/MealFlowStrip.vue';
-import ThemeToggle from './Dashboard/ThemeToggle.vue';
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -50,9 +49,7 @@ const getPlannedMeal = (day) => {
 
 <template>
     <AppLayout>
-    <!-- Paints its own page background: the layout around it stays dark, and
-         only this screen has adopted the theme tokens so far. -->
-    <div class="mb-theme min-h-screen bg-mb-page p-6">
+    <div class="min-h-screen p-6">
         <div class="max-w-7xl mx-auto pb-6 border-b border-mb-line mb-8 flex flex-wrap items-start justify-between gap-4">
             <div>
                 <div class="flex items-center space-x-3">
@@ -66,7 +63,6 @@ const getPlannedMeal = (day) => {
                 </div>
                 <p class="text-mb-text-muted text-sm mt-1">Employee Meal Portal & Daily Menu Overview</p>
             </div>
-            <ThemeToggle data-diff-ignore />
         </div>
 
         <main class="max-w-7xl mx-auto space-y-8">
