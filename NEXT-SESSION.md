@@ -58,11 +58,21 @@ Added since, and already on `origin/main`:
 
 ## The one decision waiting
 
-> **Doing this tomorrow? Go straight to
-> [docs/cyberpulse-push-plan.md](docs/cyberpulse-push-plan.md).** It is the
-> ordered runbook: the two code fixes to settle first, the git steps, the three
-> checks after `git fetch`, the traps, and what is still to do once it merges.
-> The rest of this section is the background behind it.
+> ## ✅ Pushed 2026-11-12 — this section is now history
+>
+> `sdt-cyberbells/Web_Cyberpulse`, branch **`rohit_works`**, at `06cb59c`.
+> Two commits: the endpoint, and `trust proxy` changed to `1` with the owner's
+> approval. `main` untouched. Waiting on review and merge.
+>
+> What happened, and what is still outstanding:
+> [docs/cyberpulse-push-plan.md](docs/cyberpulse-push-plan.md) (the box at the
+> top) and [docs/system-overview.md](docs/system-overview.md) §7.0b.
+>
+> **Next is theirs, not ours:** merge, then `MEALBELLS_API_KEYS` in production,
+> a restart, and a public https host. Then MealBells needs only configuration —
+> [docs/live-trial.md](docs/live-trial.md).
+>
+> The rest of this section is kept as it was written, as the background.
 
 **The CyberPulse endpoint is committed locally and not pushed.**
 

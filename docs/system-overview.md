@@ -250,7 +250,7 @@ Read `docs/cyberpulse-orientation.md` before touching it.
 
 ### 7.0 State of the CyberPulse code, checked 2026-11-10
 
-**Where it is:** `E:\Web_Cyberpulse`, remote `info-cyberbells/Web_Cyberpulse`.
+**Where it is:** `E:\Web_Cyberpulse`, remote `sdt-cyberbells/Web_Cyberpulse`.
 Everything below was read from `origin/main` at `2512d48`, after a
 `git fetch`. Nothing was checked out or edited.
 
@@ -349,17 +349,50 @@ absent. That was not in the spec and is a better answer than the one asked for.
    as §7.0 suggested. It works, but rotation needs a process restart, and the
    variable is documented nowhere — there is no `.env.example` in that repo.
 
-**And one that is theirs, not ours, but now matters more:**
+**And one that was theirs, not ours — now fixed.**
 `app.set('trust proxy', true)` in `backend/index.js:45` with an IP-keyed
-limiter means `X-Forwarded-For` can be forged. Until this endpoint existed that
-was untidy; now it is the only brake on guessing an API key, because the route
-is deliberately unauthenticated. `1` (or whatever their real hop count is)
-fixes it. A 256-bit key makes it moot either way.
+limiter meant `X-Forwarded-For` could be forged. Until this endpoint existed
+that was untidy; it became the only brake on guessing an API key, because the
+route is deliberately unauthenticated. It also governed `req.protocol` via
+`X-Forwarded-Proto`, which their controllers use to build absolute selfie,
+document and logo URLs — so a caller could downgrade those links to `http`.
 
-**The branch is the urgent part.** As of 2026-11-11 that clone had no git
-remote at all, so `0768520` existed on one machine and nowhere else. Access has
-since been granted and it is to be pushed to a branch on the main repository
-for review.
+Changed to `1` on 2026-11-12 with the owner's approval. `false` was considered
+and rejected: it would leave `req.protocol` reading the Node socket, so every
+one of those URLs would come out `http` the moment TLS is terminated upstream.
+**The number is still a guess at their hop count** and must be verified on the
+deployed host — `curl -H "X-Forwarded-For: 9.9.9.9"` and see whether `req.ip`
+believes it. If a second proxy sits in front, this needs to be `2` or every
+caller shares one rate-limit bucket.
+
+### 7.0b Pushed 2026-11-12
+
+Both commits are on `sdt-cyberbells/Web_Cyberpulse`, branch **`rohit_works`**,
+at `06cb59c`, awaiting review:
+
+| | |
+|---|---|
+| `bd7accf` | the endpoint — three files, additive only |
+| `06cb59c` | `trust proxy` — one file, behaviour change for every route |
+
+The hashes differ from `0768520` above because both commits were re-authored to
+a single contributor before pushing. Content is byte-identical; only the author
+and committer changed.
+
+`main` on that repository is untouched, still at `9f20360`, and the branch was
+based on exactly that — so there was no rebase and no conflict.
+
+**Items 1 and 2 above were deliberately not applied.** The owner chose to leave
+`status: { $ne: "0" }` and `type: { $ne: 1 }` as they are and let review decide.
+The practical effect of keeping the `type` filter: company admins never appear
+in the response, so MealBells reports them under **Unknown** and feeds them
+anyway. That is the fail-safe working, not a fault — but expect those names in
+the Unknown row throughout the trial, and do not read it as a bug.
+
+Still open on their side, and none of it is code: `MEALBELLS_API_KEYS` set in
+production (there is no `.env.example` in that repo and the variable is
+documented nowhere but a code comment), a restart after setting it, a public
+https hostname, and some seeded attendance rows in their dev data.
 
 ### 7.1 Required — the attendance endpoint
 
