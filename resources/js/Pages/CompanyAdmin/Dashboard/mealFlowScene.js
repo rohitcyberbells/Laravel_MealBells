@@ -75,24 +75,90 @@ const LIGHTING = {
 // The SVG's stars, in its own coordinates; placed by projecting back through
 // the camera so they keep their spot in the corner at any width.
 const STARS = [[40, 30], [96, 62], [150, 22], [210, 48], [262, 18], [36, 104], [120, 98], [470, 24], [700, 36], [742, 96], [860, 30], [930, 70], [1010, 24], [1060, 92], [905, 128], [780, 140]];
-const SKY_ORB = [800, 64];
 
 // Street furniture follows the pavements rather than being sprinkled about:
 // z = -2.6 and 9.8 are the verges of the main road, -20.6 and 27.8 the verges
 // of the two cross streets, and x = -14.6 / 55.4 the avenue verges.
-const CONE_TREES = [[-19, -14], [-17, 3.5], [20, -17], [41, -15], [60, -12], [62, 3.5], [-19, 22], [41, 22], [62, 22], [20, -30], [-2, 25]];
-const ROUND_TREES = [[-19, -6], [16, -19], [45, -20], [60, -4], [-17, 12], [62, 12], [6, 25], [33, 25], [52, -30], [-8, -30]];
-const BUSHES = [
-    [-10, -2.6], [-6, -2.6], [-2, -2.6], [16, -2.6], [20, -2.6], [40, -2.6], [44, -2.6], [50, -2.6], [58, -2.6],
-    [-10, 9.8], [2, 9.8], [16, 9.8], [38, 9.8], [52, 9.8], [60, 9.8],
-    [2, -20.6], [24, -20.6], [46, -20.6], [-12, 27.8], [14, 27.8], [38, 27.8],
+/*
+ * Seasons, on a timer rather than a calendar.
+ *
+ * The city turns over a year every twenty minutes - five minutes a season,
+ * the way a game does it - because this is a screen someone leaves open, not
+ * an almanac. Nothing in the data drives it and nothing reads it back. It
+ * exists so a dashboard that is otherwise identical at 09:00 and at 16:00 has
+ * something that is not.
+ *
+ * These colours live here rather than in app.css with the rest of the scene.
+ * They are not a theme: there are four of them, each with a day and a night
+ * form, and thirty-two more custom properties read back one at a time would
+ * cost more than they explained. The summer day values are the grass and tree
+ * tokens as they were, so the first season anyone sees is the city they
+ * already knew.
+ */
+const SEASON_SECONDS = 300;
+const SEASONS = [
+    {
+        name: 'spring',
+        day: { grass: '#bdf0cd', tree: '#4ade80', treeDark: '#22c55e', trunk: '#92400e' },
+        night: { grass: '#11382b', tree: '#15803d', treeDark: '#166534', trunk: '#451a03' },
+        foliage: 1,
+    },
+    {
+        name: 'summer',
+        day: { grass: '#c6efd8', tree: '#34d399', treeDark: '#10b981', trunk: '#92400e' },
+        night: { grass: '#12302a', tree: '#065f46', treeDark: '#064e3b', trunk: '#451a03' },
+        foliage: 1,
+    },
+    {
+        name: 'autumn',
+        day: { grass: '#e3dcbb', tree: '#f59e0b', treeDark: '#d97706', trunk: '#78350f' },
+        night: { grass: '#2b2616', tree: '#92400e', treeDark: '#7c2d12', trunk: '#431407' },
+        foliage: 1,
+    },
+    {
+        // Bare: the leaves fade out and the trunks are what is left standing.
+        name: 'winter',
+        day: { grass: '#e8eef4', tree: '#cbd5e1', treeDark: '#94a3b8', trunk: '#57534e' },
+        night: { grass: '#1b2431', tree: '#334155', treeDark: '#1e293b', trunk: '#292524' },
+        foliage: 0,
+    },
 ];
-const LAMPS = [
-    [-8, 8.9], [6, 8.9], [20, 8.9], [34, 8.9], [48, 8.9], [60, 8.9],
-    [0, -1.9], [15, -1.9], [42, -1.9], [56, -1.9],
-    [-6, -19.7], [18, -19.7], [40, -19.7], [58, -19.7],
-    [-14.6, 2], [-14.6, 18], [55.4, -12], [55.4, 18],
-];
+
+/*
+ * The street grid. Everything on the ground is measured from it.
+ *
+ * Trees, bushes and lamps used to be hand-written lists of coordinates. When
+ * the grid gained streets the lists did not follow, and ten of the eleven
+ * conifers, seven of the ten round trees and nine of the eighteen lamps ended
+ * up standing in the middle of a road. They are derived from this layout now,
+ * so adding a street moves the furniture out of its way instead of leaving it
+ * there to be noticed in a screenshot.
+ */
+const GROUND = { x0: -34, x1: 124, z0: -58, z1: 40 };
+const PAVEMENT = 1.6;
+// Each street as [start, end] on its cross axis. H runs along x, V along z.
+const H_STREETS = [[-38, -31], [-20, -13], [0, 7], [18, 25]];
+const V_STREETS = [[-20, -13], [16, 23], [48, 55], [78, 85]];
+// The one the van uses. Found rather than indexed: a street added at the front
+// of the array silently moved this when it was H_STREETS[1].
+const MAIN = H_STREETS.find(([a, b]) => a <= 3.5 && 3.5 <= b);
+
+/** The gaps between streets, pavements excluded: where grass and buildings go. */
+function spans(streets, from, to) {
+    const edges = [from, ...streets.flatMap(([a, b]) => [a - PAVEMENT, b + PAVEMENT]), to];
+    const out = [];
+    for (let i = 0; i < edges.length; i += 2) {
+        if (edges[i + 1] - edges[i] > 0.5) {
+            out.push([edges[i], edges[i + 1]]);
+        }
+    }
+
+    return out;
+}
+
+const X_BLOCKS = spans(V_STREETS, GROUND.x0, GROUND.x1);
+const Z_BLOCKS = spans(H_STREETS, GROUND.z0, GROUND.z1);
+const GRASS_BLOCKS = X_BLOCKS.flatMap(([xa, xb]) => Z_BLOCKS.map(([za, zb]) => [xa, xb, za, zb]));
 // Clouds travel along (1, 0, -1), which is straight across the screen, in the
 // band above the rooftops. `depth` is x + z relative to the target: it sets
 // how high on screen the cloud sits, and keeps it behind the office.
@@ -229,8 +295,9 @@ export function createMealFlowScene(host, options) {
         lamp: lambert(),
         pole: lambert(),
         wheel: lambert({ color: '#0f172a' }),
-        tree: lambert(),
-        treeDark: lambert(),
+        // Transparent so winter can fade the leaves out and leave the trunks.
+        tree: lambert({ transparent: true }),
+        treeDark: lambert({ transparent: true }),
         trunk: lambert(),
         tiffin: lambert(),
         lid: lambert({ color: '#ffffff' }),
@@ -241,10 +308,6 @@ export function createMealFlowScene(host, options) {
         // The sky ignores depth: seen from above, anything far enough away to
         // be "behind" the scene is under the ground.
         star: new THREE.PointsMaterial({ size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, vertexColors: true, depthTest: false }),
-        moon: new THREE.MeshBasicMaterial({ color: '#e2e8f0', transparent: true, opacity: 0, depthTest: false }),
-        shade: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: false }),
-        sun: new THREE.MeshBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0, depthTest: false }),
-        halo: new THREE.MeshBasicMaterial({ color: '#fde68a', transparent: true, opacity: 0, depthTest: false }),
         select: new THREE.LineDashedMaterial({ dashSize: 0.6, gapSize: 0.5 }),
     };
     // Each puff fades on its own, so each needs its own material.
@@ -260,12 +323,6 @@ export function createMealFlowScene(host, options) {
      * reads as a toy, and this is meant to read as a town the office is in.
      */
     const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-    const GROUND = { x0: -34, x1: 124, z0: -58, z1: 40 };
-    // Each street as [start, end] on its cross axis. H runs along x, V along z.
-    const H_STREETS = [[-38, -31], [-20, -13], [0, 7], [18, 25]];
-    const V_STREETS = [[-20, -13], [16, 23], [48, 55], [78, 85]];
-    // The one the van uses, and the one everything else is measured against.
-    const MAIN = H_STREETS[1];
 
     const platform = new THREE.Group();
     const slab = new THREE.Mesh(new RoundedBoxGeometry(GROUND.x1 - GROUND.x0 + 4, 1.4, GROUND.z1 - GROUND.z0 + 4, 3, 0.9), mat.platformSide);
@@ -282,23 +339,9 @@ export function createMealFlowScene(host, options) {
     }
     platform.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)), mat.grid));
 
-    // Grass fills what the streets and pavements leave: every block between
-    // one street's far pavement and the next one's near pavement.
-    const spans = (streets, from, to) => {
-        const edges = [from, ...streets.flatMap(([a, b]) => [a - 1.6, b + 1.6]), to];
-        const out = [];
-        for (let i = 0; i < edges.length; i += 2) {
-            if (edges[i + 1] - edges[i] > 0.5) {
-                out.push([edges[i], edges[i + 1]]);
-            }
-        }
-
-        return out;
-    };
-    for (const [za, zb] of spans(H_STREETS, GROUND.z0, GROUND.z1)) {
-        for (const [xa, xb] of spans(V_STREETS, GROUND.x0, GROUND.x1)) {
-            platform.add(block(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
-        }
+    // Grass fills what the streets and pavements leave.
+    for (const [xa, xb, za, zb] of GRASS_BLOCKS) {
+        platform.add(block(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
     }
 
     for (const [z0, z1] of H_STREETS) {
@@ -480,6 +523,68 @@ export function createMealFlowScene(host, options) {
     }
     scene.add(city);
 
+    /*
+     * Street furniture, kept off the carriageway by construction rather than
+     * by hand. Trees stand inside the grass blocks, inset from the kerb and
+     * clear of anything built; bushes sit along the block edges; lamps stand
+     * on the pavement, where lamps go, skipping the junctions.
+     *
+     * Which corner gets what is a hash of its position, not Math.random, so
+     * the city is the same on every reload and screenshots stay comparable.
+     */
+    const OCCUPIED = [
+        ...CITY.map(([x0, x1, z0, z1]) => [x0, x1, z0, z1]),
+        [4 + KITCHEN_OFFSET.x, 13 + KITCHEN_OFFSET.x, -12 + KITCHEN_OFFSET.z, -4 + KITCHEN_OFFSET.z],
+        [26 + OFFICE_OFFSET.x, 37 + OFFICE_OFFSET.x, -13 + OFFICE_OFFSET.z, -4 + OFFICE_OFFSET.z],
+    ];
+    const clearOfBuildings = (x, z, pad = 2) =>
+        OCCUPIED.every(([x0, x1, z0, z1]) => x < x0 - pad || x > x1 + pad || z < z0 - pad || z > z1 + pad);
+
+    const CONE_TREES = [];
+    const ROUND_TREES = [];
+    const BUSHES = [];
+    for (const [xa, xb, za, zb] of GRASS_BLOCKS) {
+        if (xb - xa < 6 || zb - za < 6) {
+            continue;
+        }
+        const inset = 2.4;
+        const spots = [
+            [xa + inset, za + inset], [xb - inset, za + inset],
+            [xa + inset, zb - inset], [xb - inset, zb - inset],
+            [(xa + xb) / 2, za + inset], [(xa + xb) / 2, zb - inset],
+        ];
+        for (const [x, z] of spots) {
+            if (!clearOfBuildings(x, z)) {
+                continue;
+            }
+            const pick = Math.abs(Math.round(x * 3 + z * 5)) % 7;
+            if (pick === 0 || pick === 4) {
+                CONE_TREES.push([x, z]);
+            } else if (pick === 1 || pick === 5) {
+                ROUND_TREES.push([x, z]);
+            } else if (pick === 2) {
+                BUSHES.push([x, z]);
+            }
+        }
+    }
+
+    const LAMPS = [];
+    const offJunction = (value, streets) => streets.every(([a, b]) => value < a - PAVEMENT || value > b + PAVEMENT);
+    for (const [z0, z1] of H_STREETS) {
+        for (let x = GROUND.x0 + 7; x < GROUND.x1; x += 13) {
+            if (offJunction(x, V_STREETS) && clearOfBuildings(x, z0, 0.5)) {
+                LAMPS.push([x, z0 - PAVEMENT / 2], [x, z1 + PAVEMENT / 2]);
+            }
+        }
+    }
+    for (const [x0, x1] of V_STREETS) {
+        for (let z = GROUND.z0 + 11; z < GROUND.z1; z += 16) {
+            if (offJunction(z, H_STREETS) && clearOfBuildings(x0, z, 0.5)) {
+                LAMPS.push([x0 - PAVEMENT / 2, z], [x1 + PAVEMENT / 2, z]);
+            }
+        }
+    }
+
     // Van, built at its own origin and moved as a whole.
     const van = new THREE.Group();
     const beamShape = new THREE.Shape([new THREE.Vector2(5.8, -0.4), new THREE.Vector2(13, 1.2), new THREE.Vector2(13, -5.6), new THREE.Vector2(5.8, -3.8)]);
@@ -526,23 +631,16 @@ export function createMealFlowScene(host, options) {
     const clouds = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), mat.cloud, CLOUDS.length * blob.length);
     scene.add(clouds);
 
-    // Sky: placed in screen space, so it is repositioned whenever the camera moves.
+    // Sky: placed in screen space, so it is repositioned whenever the camera
+    // moves. Stars only - there is no sun or moon. One orb in the corner of a
+    // city this wide read as a sticker on the glass rather than as weather.
     const stars = new THREE.Points(new THREE.BufferGeometry(), mat.star);
     stars.geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Array(STARS.length * 3).fill(1), 3));
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(1.8, 24, 16), mat.moon);
-    // Painted in the sky colour over most of the moon, which leaves a crescent.
-    const shade = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16), mat.shade);
-    const sun = new THREE.Mesh(new THREE.SphereGeometry(1.8, 24, 16), mat.sun);
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(3.3, 24, 16), mat.halo);
-    halo.renderOrder = 1;
-    [stars, moon, sun].forEach((object) => {
-        object.renderOrder = 2;
-    });
-    shade.renderOrder = 3;
+    stars.renderOrder = 2;
     // Their positions are rewritten as the camera leans, which leaves the
     // bounds three.js culls by out of date; the sky is always in view anyway.
     stars.frustumCulled = false;
-    scene.add(stars, moon, shade, sun, halo);
+    scene.add(stars);
 
     // Light.
     const hemi = new THREE.HemisphereLight();
@@ -593,6 +691,8 @@ export function createMealFlowScene(host, options) {
     let height = 1;
     let night = 0;
     let hearthLevel = 0;
+    // Summer first, so the city anyone opens looks like the one they knew.
+    let seasonIndex = 1;
     const lean = { x: 0, y: 0, tx: 0, ty: 0 };
     const lift = { kitchen: 0, office: 0, van: 0 };
 
@@ -620,11 +720,6 @@ export function createMealFlowScene(host, options) {
     function placeSky() {
         const toWorld = ([x, y]) => new THREE.Vector3((x / SKY_VIEWBOX[0]) * 2 - 1, 1 - (y / SKY_VIEWBOX[1]) * 2, 0.95).unproject(camera);
         stars.geometry.setAttribute('position', new THREE.Float32BufferAttribute(STARS.flatMap((s) => toWorld(s).toArray()), 3));
-        const orb = toWorld(SKY_ORB);
-        moon.position.copy(orb);
-        sun.position.copy(orb);
-        halo.position.copy(orb);
-        shade.position.copy(toWorld([SKY_ORB[0] + 11, SKY_ORB[1] - 7]));
     }
 
     function render() {
@@ -657,6 +752,14 @@ export function createMealFlowScene(host, options) {
     /** Everything that moves on its own, at time `t` in seconds. */
     function animate(t, dt) {
         const ease = 1 - Math.pow(0.001, dt);
+
+        // The year turns. t is seconds since the page loaded, so the cycle
+        // pauses with the rest of the scene when nobody is looking at it.
+        const turned = (Math.floor(t / SEASON_SECONDS) + 1) % SEASONS.length;
+        if (turned !== seasonIndex) {
+            seasonIndex = turned;
+            applySeason(true);
+        }
 
         // Camera lean follows the pointer, eased.
         const leaning = Math.abs(lean.tx - lean.x) > 0.001 || Math.abs(lean.ty - lean.y) > 0.001;
@@ -741,19 +844,44 @@ export function createMealFlowScene(host, options) {
     const holder = { night: 0, hearth: 0 };
 
     /** Brings every colour, light and flag in line with the theme and today's state. */
+    /*
+     * Grass, leaves and bark come from the season rather than from the CSS
+     * tokens, which is why those four are missing from the list below.
+     *
+     * Foliage fades rather than shrinks. An InstancedMesh scales about the
+     * world origin, not about each instance, so scaling the trees down would
+     * have slid them all into the middle of the city; opacity leaves every
+     * trunk exactly where it stood. Shadows are turned off with it, or winter
+     * would cast the shadow of a tree that is not there.
+     */
+    function applySeason(animated) {
+        const season = SEASONS[seasonIndex];
+        const colours = theme === 'dark' ? season.night : season.day;
+
+        toColor(mat.grass.color, new THREE.Color(colours.grass), animated);
+        toColor(mat.tree.color, new THREE.Color(colours.tree), animated);
+        toColor(mat.treeDark.color, new THREE.Color(colours.treeDark), animated);
+        toColor(mat.trunk.color, new THREE.Color(colours.trunk), animated);
+        toValue(mat.tree, 'opacity', season.foliage, animated);
+        toValue(mat.treeDark, 'opacity', season.foliage, animated);
+        cones.castShadow = crowns.castShadow = bushes.castShadow = season.foliage > 0.5;
+    }
+
     function apply(animate) {
         const p = readPalette(host);
         const isNight = theme === 'dark';
         const light = LIGHTING[isNight ? 'dark' : 'light'];
         const open = state.isMealDay;
 
+        applySeason(animate);
+
         toColor(scene.background, p.bg.color, animate);
         [
-            [mat.platform, 'platform'], [mat.platformSide, 'platform-side'], [mat.grass, 'grass'], [mat.walk, 'walk'],
+            [mat.platform, 'platform'], [mat.platformSide, 'platform-side'], [mat.walk, 'walk'],
             [mat.road, 'road'], [mat.dash, 'dash'], [mat.wall, 'top'], [mat.roofKitchen, 'roof-kitchen'],
             [mat.roofOffice, 'roof-office'], [mat.roofPlain, 'roof-plain'], [mat.door, 'door'], [mat.officeLit, 'win-on'], [mat.officeUnlit, 'win-off'],
             [mat.van, 'van-top'], [mat.stripe, 'van-stripe'], [mat.lamp, 'lamp'], [mat.pole, 'door'],
-            [mat.tree, 'tree'], [mat.treeDark, 'tree-dark'], [mat.trunk, 'trunk'], [mat.tiffin, 'tiffin'],
+            [mat.tiffin, 'tiffin'],
             [mat.cloud, 'cloud'], [mat.beam, 'lamp'], [mat.pool, 'lamp'], [mat.grid, 'grid'], [mat.select, 'select'],
             // A holiday closes the kitchen in both themes.
             [mat.kitchenWindow, open ? 'win-on' : 'win-off'],
@@ -791,14 +919,9 @@ export function createMealFlowScene(host, options) {
         }
 
         toValue(mat.star, 'opacity', light.night * 0.9, animate);
-        toValue(mat.moon, 'opacity', light.night, animate);
-        toColor(mat.shade.color, p.bg.color, animate);
-        toValue(mat.shade, 'opacity', light.night, animate);
-        toValue(mat.sun, 'opacity', 1 - light.night, animate);
-        toValue(mat.halo, 'opacity', (1 - light.night) * 0.45, animate);
         toValue(mat.cloud, 'opacity', (1 - light.night) * 0.9, animate);
 
-        // Shadows only by day: at night the moon is too weak to cast one worth
+        // Shadows only by day: at night there is nothing bright enough to cast one worth
         // its cost.
         key.castShadow = !isNight;
 

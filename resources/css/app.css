@@ -153,9 +153,9 @@
     --mb-s-smoke: #64748b;
     --mb-s-cloud: #94a3b8;
     --mb-s-grid: rgb(30 41 59 / 0.7);
-    --mb-s-road: #1a2436;
+    --mb-s-road: #0a0d12;
     --mb-s-road-edge: #334155;
-    --mb-s-dash: #475569;
+    --mb-s-dash: #94a3b8;
     --mb-s-top: #334155;
     --mb-s-left: #1e293b;
     --mb-s-right: #162032;
@@ -193,8 +193,8 @@
     --mb-s-smoke: #e2e8f0;
     --mb-s-cloud: #ffffff;
     --mb-s-grid: rgb(199 214 227 / 0.8);
-    --mb-s-road: #d3dde7;
-    --mb-s-road-edge: #a9b8c7;
+    --mb-s-road: #23272e;
+    --mb-s-road-edge: #3f454e;
     --mb-s-dash: #ffffff;
     --mb-s-top: #ffffff;
     --mb-s-left: #e7edf3;
