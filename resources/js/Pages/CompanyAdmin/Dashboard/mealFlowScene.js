@@ -26,9 +26,30 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 // as a model of one.
 const FRUSTUM_HEIGHT = 52;
 const SKY_VIEWBOX = [1100, 560];
-const TARGET = new THREE.Vector3(21, 0, -4);
-const VAN_PARKED_X = 12;
-const VAN_ARRIVED_X = 27;
+const TARGET = new THREE.Vector3(18, 0, -7);
+/*
+ * The kitchen moved to the far block so the van has somewhere to come from.
+ * Everything inside the kitchen group is still written in the coordinates it
+ * was drawn in; this shifts the group as a whole.
+ */
+const KITCHEN_OFFSET = new THREE.Vector3(-8, 0, -17);
+
+/*
+ * The van's round trip, as corners on the street centre lines: it loads at the
+ * kitchen door on the northern street, runs east, turns down the avenue
+ * between the blocks, and turns again onto the main road at the office.
+ *
+ * Legs are axis-aligned on purpose - the van is a box with a front, and
+ * turning it at a corner is the only way it reads as driving rather than
+ * sliding.
+ */
+const VAN_ROUTE = [
+    [0, -16.5],
+    [19.5, -16.5],
+    [19.5, 3.5],
+    [27, 3.5],
+];
+const VAN_SPEED = 7.5;
 const FADE_SECONDS = 0.6;
 const FRAME_MS = 1000 / 40;
 
@@ -69,7 +90,7 @@ const LAMPS = [
 // band above the rooftops. `depth` is x + z relative to the target: it sets
 // how high on screen the cloud sits, and keeps it behind the office.
 const CLOUDS = [{ start: -30, y: 12, depth: -2, s: 1 }, { start: 5, y: 12.5, depth: -5, s: 1.25 }, { start: 30, y: 11.5, depth: -3.5, s: 0.9 }];
-const CHIMNEY_TOP = new THREE.Vector3(6.5, 8.9, -10.3);
+const CHIMNEY_TOP = new THREE.Vector3(6.5, 8.9, -10.3).add(KITCHEN_OFFSET);
 
 const LABEL_CLASS = 'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-(--mb-s-label-line) bg-(--mb-s-label-bg) px-2.5 py-0.5 text-[11px] font-semibold text-(--mb-s-label) shadow-sm transition-[color,background-color,border-color,opacity] duration-[600ms]';
 
@@ -234,8 +255,8 @@ export function createMealFlowScene(host, options) {
     const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
     const GROUND = { x0: -30, x1: 70, z0: -36, z1: 36 };
     // Each street as [start, end] on its cross axis. H runs along x, V along z.
-    const H_STREETS = [[-24, -17], [0, 7], [18, 25]];
-    const V_STREETS = [[-20, -13], [48, 55]];
+    const H_STREETS = [[-20, -13], [0, 7], [18, 25]];
+    const V_STREETS = [[-20, -13], [16, 23], [48, 55]];
     // The one the van uses, and the one everything else is measured against.
     const MAIN = H_STREETS[1];
 
@@ -328,6 +349,7 @@ export function createMealFlowScene(host, options) {
         panes(mat.kitchenWindow, [[6.1, 2.6, -3.95], [8.3, 2.6, -3.95]], 'z'),
         panes(mat.kitchenWindow, [[13.05, 2.9, -9.33], [13.05, 2.9, -6.67]], 'x'),
     );
+    kitchen.position.copy(KITCHEN_OFFSET);
     scene.add(kitchen);
 
     // Chimney smoke, cycled from the chimney top while the kitchen is open.
@@ -387,20 +409,19 @@ export function createMealFlowScene(host, options) {
         // East of the avenue.
         [58, 68, -14, -3, 10],
         [58, 67, 9.6, 17, 7],
-        [58, 66, -34, -26.6, 6],
-        // South of the main road.
+        [58, 66, -30, -21.6, 6],
+        // South of the main road, either side of the avenue the van comes down.
+        // Nothing is built opposite the office door: a block there stands between
+        // the camera and the one spot the van is driving to.
         [-8, 2, 9.6, 15.4, 5.5],
-        [6, 17, 9.6, 16, 7.5],
-        [21, 31, 9.6, 15, 6],
-        [35, 45, 9.6, 16, 8.5],
-        // North, beyond the cross street.
-        [-6, 5, -34.5, -26.6, 7],
-        [10, 22, -35, -26.6, 10],
-        [27, 38, -34, -26.6, 6],
+        [5, 14.4, 9.6, 16, 7.5],
+        [36, 45, 9.6, 16, 8.5],
+        // North, beyond the cross street. The kitchen has the western plot.
+        [8, 14.4, -30, -21.6, 10],
+        [24.6, 36, -30, -21.6, 6],
         // The far side of town.
         [-8, 4, 27.6, 35, 6],
-        [10, 24, 27.6, 35.5, 8],
-        [30, 42, 27.6, 34, 9],
+        [24.6, 36, 27.6, 34, 9],
     ];
 
     const city = new THREE.Group();
@@ -454,7 +475,13 @@ export function createMealFlowScene(host, options) {
         block(5.8, 5.88, 0.8, 1.3, 0.4, 1, mat.lamp),
         block(5.8, 5.88, 0.8, 1.3, 3.2, 3.8, mat.lamp),
     );
-    van.add(chassis, wheels, beam);
+    // The van is drawn from its back-left corner. Hanging it off an inner
+    // group puts its middle on the outer group's origin, so a turn rotates it
+    // about itself instead of swinging it round a corner.
+    const vanBody = new THREE.Group();
+    vanBody.position.set(-2.9, 0, -2.1);
+    vanBody.add(chassis, wheels, beam);
+    van.add(vanBody);
     scene.add(van);
 
     // Trees, bushes and street lamps.
@@ -505,7 +532,7 @@ export function createMealFlowScene(host, options) {
     key.shadow.normalBias = 0.03;
     Object.assign(key.shadow.camera, { left: -85, right: 85, top: 85, bottom: -85, near: 1, far: 260 });
     const hearth = new THREE.PointLight('#f59e0b', 0, 22, 2);
-    hearth.position.set(8.5, 2.5, -1.5);
+    hearth.position.set(8.5, 2.5, -1.5).add(KITCHEN_OFFSET);
     scene.add(hemi, key, key.target, hearth);
 
     // Selection outline, re-parented to whatever is selected so it follows the van.
@@ -514,9 +541,9 @@ export function createMealFlowScene(host, options) {
     // Labels are HTML over the canvas: crisp at any size, and themed by the
     // same CSS tokens as everything else.
     const labels = {
-        kitchen: { text: 'Kitchen', at: () => new THREE.Vector3(8.5, 10.4 + kitchen.position.y, -8) },
+        kitchen: { text: 'Kitchen', at: () => new THREE.Vector3(8.5, 10.4, -8).add(kitchen.position) },
         office: { text: 'Office', at: () => new THREE.Vector3(31.5, 14.6 + office.position.y, -8.5) },
-        van: { text: 'Van', at: () => van.position.clone().add(new THREE.Vector3(2.9, 4.8, 2.1)) },
+        van: { text: 'Van', at: () => van.position.clone().add(new THREE.Vector3(0, 4.8, 0)) },
         tiffins: { text: options.state.tiffinLabel, at: () => new THREE.Vector3(37, 0, 1.4) },
     };
     for (const label of Object.values(labels)) {
@@ -841,7 +868,84 @@ export function createMealFlowScene(host, options) {
     });
     visibilityObserver.observe(host);
 
-    van.position.set(options.state.isLocked ? VAN_ARRIVED_X : VAN_PARKED_X, 0, 1);
+    /*
+     * Driving the route.
+     *
+     * While the count can still move the van is loading at the kitchen, which
+     * is the whole of what its position says: parked means nothing has been
+     * sent yet. Once the count locks it runs the route, and then keeps running
+     * it - out to the office and back for the next load - so the picture has
+     * something alive in it without the van ever sitting somewhere that means
+     * the opposite of what is true.
+     */
+    const headingFor = ([x0, z0], [x1, z1]) =>
+        (Math.abs(x1 - x0) >= Math.abs(z1 - z0)
+            ? (x1 >= x0 ? 0 : Math.PI)
+            : (z1 >= z0 ? -Math.PI / 2 : Math.PI / 2));
+
+    let vanLoop = null;
+
+    function stopVanLoop() {
+        vanLoop?.kill();
+        vanLoop = null;
+    }
+
+    function parkVanAtKitchen(animated) {
+        stopVanLoop();
+        const [x, z] = VAN_ROUTE[0];
+        if (!animated) {
+            van.position.set(x, 0, z);
+            van.rotation.y = 0;
+
+            return;
+        }
+        gsap.to(van.position, { x, z, duration: 1.2, ease: 'power2.inOut', overwrite: 'auto' });
+        gsap.to(van.rotation, { y: 0, duration: 0.5, ease: 'power2.inOut', overwrite: 'auto' });
+    }
+
+    function runVanLoop() {
+        stopVanLoop();
+        // Out along the route and back the same way: the van returns to the
+        // kitchen for the next load rather than teleporting there.
+        const legs = [...VAN_ROUTE, ...VAN_ROUTE.slice(0, -1).reverse()];
+        // Turns take the short way round. Tweening to a bare angle can spin
+        // the van three quarters of a circle to reach a quarter turn.
+        let heading = van.rotation.y;
+        const shortestTo = (target) => {
+            let next = target;
+            while (next - heading > Math.PI) {
+                next -= 2 * Math.PI;
+            }
+            while (next - heading < -Math.PI) {
+                next += 2 * Math.PI;
+            }
+            heading = next;
+
+            return next;
+        };
+
+        const timeline = gsap.timeline({ repeat: -1 });
+        for (let i = 1; i < legs.length; i++) {
+            const from = legs[i - 1];
+            const to = legs[i];
+            const distance = Math.hypot(to[0] - from[0], to[1] - from[1]);
+            timeline.to(van.rotation, { y: shortestTo(headingFor(from, to)), duration: 0.4, ease: 'power2.inOut' });
+            timeline.to(van.position, { x: to[0], z: to[1], duration: distance / VAN_SPEED, ease: 'power1.inOut' });
+            // Unloading at the office, which is the far end of the outward run.
+            if (i === VAN_ROUTE.length - 1) {
+                timeline.to({}, { duration: 1.8 });
+            }
+        }
+        // Face the way it set off, and land on exactly zero so the next lap
+        // starts where this one began rather than a full turn away.
+        timeline.to(van.rotation, { y: shortestTo(0), duration: 0.4, ease: 'power2.inOut' });
+        timeline.set(van.rotation, { y: 0 });
+        timeline.to({}, { duration: 1.8 });
+
+        vanLoop = timeline;
+    }
+
+    parkVanAtKitchen(false);
     placeClouds(0);
     resize();
     apply(false);
@@ -854,6 +958,7 @@ export function createMealFlowScene(host, options) {
     const vanX = van.position.x;
     van.position.x = vanX - 22;
     tweened.add(van.position);
+    tweened.add(van.rotation);
     const intro = gsap.timeline();
     growing.forEach((group, i) => {
         tweened.add(group.scale);
@@ -861,6 +966,13 @@ export function createMealFlowScene(host, options) {
     });
     intro.to(van.position, { x: vanX, duration: 1.1, ease: 'power3.out' }, 0.25);
     intro.add(() => Object.values(labels).forEach((label) => (label.el.style.opacity = '1')));
+    // Only once the van has finished arriving, or the loop would fight the
+    // intro for the same property.
+    intro.add(() => {
+        if (state.isLocked && state.isMealDay) {
+            runVanLoop();
+        }
+    });
 
     updateRunning();
 
@@ -874,9 +986,13 @@ export function createMealFlowScene(host, options) {
             const wasLocked = state.isLocked;
             state = { ...next };
             if (state.isLocked !== wasLocked) {
-                // The van waits at the kitchen while the count can still move,
-                // and drives to the office once it has locked.
-                gsap.to(van.position, { x: state.isLocked ? VAN_ARRIVED_X : VAN_PARKED_X, duration: 1.2, ease: 'power2.inOut', overwrite: 'auto' });
+                // The van loads at the kitchen while the count can still move,
+                // and starts running the route once it has locked.
+                if (state.isLocked && state.isMealDay) {
+                    runVanLoop();
+                } else {
+                    parkVanAtKitchen(true);
+                }
             }
             apply(true);
         },
@@ -888,6 +1004,7 @@ export function createMealFlowScene(host, options) {
             cancelAnimationFrame(raf);
             cancelAnimationFrame(hoverFrame);
             intro.kill();
+            stopVanLoop();
             tweened.forEach((target) => gsap.killTweensOf(target));
             resizeObserver.disconnect();
             visibilityObserver.disconnect();
