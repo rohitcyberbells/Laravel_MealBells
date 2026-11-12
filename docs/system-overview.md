@@ -152,7 +152,7 @@ way an event arrives.
 |---|---|---|
 | **Leave pull** | `hrms:pull` signs in as a CyberPulse user (`POST /api/employee/login`) and reads `GET /api/leave/fetchAll`. Eight whitelisted fields are kept and the rest is discarded at parse time. Approved, future leave becomes `leave` skips with `external_ref = cp:leave:{id}:{state}` | Built, tested against a local CyberPulse |
 | **Webhook** | `POST /api/hrms/{company_code}/events`. HMAC-SHA256 signature (preferred) or a bearer token | Built. CyberPulse does not send webhooks today |
-| **Attendance** | `hrms:pull-attendance` calls `GET /api/integration/attendance/daily?date=&tz=` with `X-API-Key` | **Shadow mode only.** It reports what it *would* have saved and changes no count. The endpoint is built on a CyberPulse branch (§7.0) but not yet merged or deployed |
+| **Attendance** | `hrms:pull-attendance` calls `GET /api/integration/attendance/daily?date=&tz=` with `X-API-Key` | **Shadow mode only.** It reports what it *would* have saved and changes no count. **Merged into CyberPulse `main` on 2026-11-12** (§7.0b). Not deployed yet, so nothing answers it in production |
 
 Cancellation is inferred: CyberPulse deletes a withdrawn leave instead of
 marking it cancelled, so the only signal is that the leave is missing from the
@@ -266,7 +266,7 @@ Everything below was read from `origin/main` at `2512d48`, after a
 
 | | Status on `origin/main` |
 |---|---|
-| Attendance endpoint (`/api/integration/attendance/daily`, `X-API-Key`) | **Built, but not on `origin/main`.** See §7.0a — it lives on a branch in a different clone, which is why this row read "not built" when only `origin/main` was looked at |
+| Attendance endpoint (`/api/integration/attendance/daily`, `X-API-Key`) | **Built and merged.** On `main` at `d146d89` since 2026-11-12. This row read "not built" because only `origin/main` of a stale clone had been looked at — see §7.0a and §7.0b |
 | Leave pull dependencies: `POST /api/employee/login`, `GET /api/leave/fetchAll` | **Still compatible.** Same route, same `{ success, data }` shape. It still populates `employeeId` with `name email …`, and the leave fields MealBells keeps are unchanged. JWTs now last 30 days (`695939a`), which only means fewer re-logins |
 | Organisation timezone | **CyberPulse stores none.** No model has a timezone field. The new endpoint must therefore honour the `tz` query parameter MealBells already sends, rather than looking up a zone of its own |
 | `.lean()` in `superAdminController` (line 94) | Still there |
@@ -365,15 +365,26 @@ deployed host — `curl -H "X-Forwarded-For: 9.9.9.9"` and see whether `req.ip`
 believes it. If a second proxy sits in front, this needs to be `2` or every
 caller shares one rate-limit bucket.
 
-### 7.0b Pushed 2026-11-12
+### 7.0b Pushed and merged, 2026-11-12
 
-Both commits are on `sdt-cyberbells/Web_Cyberpulse`, branch **`rohit_works`**,
-at `06cb59c`, awaiting review:
+**It is on CyberPulse `main`.** Pushed to `sdt-cyberbells/Web_Cyberpulse`
+branch `rohit_works`, reviewed, and merged the same day as PR #1. `main` is now
+`d146d89`.
 
 | | |
 |---|---|
 | `bd7accf` | the endpoint — three files, additive only |
 | `06cb59c` | `trust proxy` — one file, behaviour change for every route |
+
+Verified on `main` after the merge rather than assumed: both new files present,
+`app.set('trust proxy', 1)` at `index.js:56`, the router mounted at
+`index.js:95`, and the merged tree byte-identical to what was pushed — nothing
+was amended on the way in.
+
+**Merged is not deployed.** Until their production process is restarted with
+`MEALBELLS_API_KEYS` set, that URL answers nothing, and MealBells' pull will
+report `401` or a transport failure. The checklist below is what stands between
+the merge and live data.
 
 The hashes differ from `0768520` above because both commits were re-authored to
 a single contributor before pushing. Content is byte-identical; only the author

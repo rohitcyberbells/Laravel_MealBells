@@ -58,19 +58,26 @@ Added since, and already on `origin/main`:
 
 ## The one decision waiting
 
-> ## ✅ Pushed 2026-11-12 — this section is now history
+> ## ✅ Merged 2026-11-12 — this section is now history
 >
-> `sdt-cyberbells/Web_Cyberpulse`, branch **`rohit_works`**, at `06cb59c`.
-> Two commits: the endpoint, and `trust proxy` changed to `1` with the owner's
-> approval. `main` untouched. Waiting on review and merge.
+> Pushed to `sdt-cyberbells/Web_Cyberpulse` branch `rohit_works` and **merged
+> into their `main`** the same day as PR #1. `main` is `d146d89`. Two commits:
+> the endpoint, and `trust proxy` changed to `1` with the owner's approval.
+> Verified on `main` after the merge — see
+> [docs/system-overview.md](docs/system-overview.md) §7.0b.
 >
-> What happened, and what is still outstanding:
-> [docs/cyberpulse-push-plan.md](docs/cyberpulse-push-plan.md) (the box at the
-> top) and [docs/system-overview.md](docs/system-overview.md) §7.0b.
+> **Merged is not deployed.** Until their process restarts with
+> `MEALBELLS_API_KEYS` set and a public https hostname, that endpoint answers
+> nothing and our pull will fail. That, plus seeded attendance rows in their
+> dev data, is what is left on their side.
 >
-> **Next is theirs, not ours:** merge, then `MEALBELLS_API_KEYS` in production,
-> a restart, and a public https host. Then MealBells needs only configuration —
+> **Then MealBells needs only configuration**, no code:
 > [docs/live-trial.md](docs/live-trial.md).
+>
+> One thing to carry into the trial: `trust proxy: 1` is still a **guess** at
+> their hop count. It has to be checked on the deployed host, because if a
+> second proxy sits in front, every caller collapses into one rate-limit
+> bucket. §7.0a has the `curl` for it.
 >
 > The rest of this section is kept as it was written, as the background.
 

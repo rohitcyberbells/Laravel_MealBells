@@ -1,10 +1,16 @@
 # Pushing the attendance endpoint to CyberPulse
 
-> ## ✅ Done — 2026-11-12
+> ## ✅ Done and merged — 2026-11-12
 >
 > Pushed to `sdt-cyberbells/Web_Cyberpulse`, branch **`rohit_works`**, at
-> `06cb59c`. Two commits: `bd7accf` (the endpoint) and `06cb59c` (`trust
-> proxy` set to `1`). `main` untouched at `9f20360`.
+> `06cb59c`, then **merged into their `main`** the same day as PR #1. `main` is
+> `d146d89`. Two commits: `bd7accf` (the endpoint) and `06cb59c` (`trust proxy`
+> set to `1`). Checked on `main` afterwards: both files present, `trust proxy`
+> at `index.js:56`, router mounted at `index.js:95`, tree identical to what was
+> pushed.
+>
+> **Nothing is deployed yet**, so the endpoint answers nothing in production.
+> §6 below is the remaining checklist.
 >
 > **What was done differently from the plan below:**
 >

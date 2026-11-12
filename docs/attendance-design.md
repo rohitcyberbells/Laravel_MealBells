@@ -356,7 +356,7 @@ savepoint fix.
 
 ## The endpoint
 
-**Built 2026-10-12, awaiting review and deployment.** When this note was
+**Built 2026-10-12, merged into CyberPulse `main` 2026-11-12, not yet deployed.** When this note was
 written CyberPulse had no usable attendance endpoint: `GET
 /api/attendance/fetchAll` takes no filter and returns every record the
 organisation has ever had, selfie paths included, and `GET
