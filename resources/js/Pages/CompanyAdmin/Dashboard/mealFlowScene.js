@@ -871,12 +871,20 @@ export function createMealFlowScene(host, options) {
     /*
      * Driving the route.
      *
-     * While the count can still move the van is loading at the kitchen, which
-     * is the whole of what its position says: parked means nothing has been
-     * sent yet. Once the count locks it runs the route, and then keeps running
-     * it - out to the office and back for the next load - so the picture has
-     * something alive in it without the van ever sitting somewhere that means
-     * the opposite of what is true.
+     * The van runs its round trip on any day there are meals - out to the
+     * office, back to the kitchen for the next load, round again - and does
+     * not wait for the count to lock.
+     *
+     * That is a deliberate trade, made by the owner after it was put to them
+     * twice: the van's position no longer says anything. It used to, parked
+     * meaning nothing had been sent yet, and a van that is always moving
+     * cannot carry that. The lock state is still on the screen - the status
+     * card above the scene says it in words, and the summary line repeats it -
+     * so nothing is lost that was only ever here. What is gained is a picture
+     * that is alive on a dashboard people leave open all day.
+     *
+     * parkVanAtKitchen is kept for the only case that still stops the van: a
+     * day with no meals, when it is hidden anyway.
      */
     const headingFor = ([x0, z0], [x1, z1]) =>
         (Math.abs(x1 - x0) >= Math.abs(z1 - z0)
@@ -969,7 +977,7 @@ export function createMealFlowScene(host, options) {
     // Only once the van has finished arriving, or the loop would fight the
     // intro for the same property.
     intro.add(() => {
-        if (state.isLocked && state.isMealDay) {
+        if (state.isMealDay) {
             runVanLoop();
         }
     });
@@ -983,12 +991,13 @@ export function createMealFlowScene(host, options) {
         },
 
         setState(next) {
-            const wasLocked = state.isLocked;
+            const wasMealDay = state.isMealDay;
             state = { ...next };
-            if (state.isLocked !== wasLocked) {
-                // The van loads at the kitchen while the count can still move,
-                // and starts running the route once it has locked.
-                if (state.isLocked && state.isMealDay) {
+            // The round trip runs on any day there are meals, whatever the
+            // count is doing. Only a day with no meals at all stops it, and on
+            // such a day the van is hidden anyway.
+            if (state.isMealDay !== wasMealDay) {
+                if (state.isMealDay) {
                     runVanLoop();
                 } else {
                     parkVanAtKitchen(true);
