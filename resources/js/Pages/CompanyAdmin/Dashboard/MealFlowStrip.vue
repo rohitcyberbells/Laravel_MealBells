@@ -147,7 +147,6 @@ const panels = { kitchen: 'Kitchen', van: 'Van', office: 'Office' };
  * fetched once all of those are ruled out, as its own chunk.
  */
 const sceneHost = ref(null);
-const sceneReady = ref(false);
 let scene = null;
 let unmounted = false;
 
@@ -165,6 +164,21 @@ const wants3d = () => {
     }
 };
 
+/*
+ * Whether to draw the SVG at all, decided before the first paint rather than
+ * after the scene loads.
+ *
+ * It used to render always and hide itself once three.js was ready, which was
+ * fine while both were 1100x340. The strip is 1100x560 now and the SVG is
+ * still a 1100x340 drawing, so `slice` scales it up and crops it - and on a
+ * machine that is about to get the real scene anyway, that enlarged drawing
+ * flashed for as long as the chunk took to arrive.
+ *
+ * wants3d() reads matchMedia and a canvas probe, both of which answer
+ * synchronously, so the decision costs nothing and is made in time.
+ */
+const svgOnly = ref(!wants3d());
+
 const sceneState = computed(() => ({
     isMealDay: isMealDay.value,
     isLocked: isLocked.value,
@@ -172,7 +186,7 @@ const sceneState = computed(() => ({
 }));
 
 onMounted(async () => {
-    if (!wants3d()) {
+    if (svgOnly.value) {
         return;
     }
 
@@ -187,12 +201,12 @@ onMounted(async () => {
             selected: selected.value,
             onSelect: select,
         });
-        sceneReady.value = true;
     } catch {
-        // A failed chunk or a lost context leaves the SVG, which already
-        // shows everything the scene would.
+        // A failed chunk or a lost context falls back to the SVG, which shows
+        // everything the scene would, if less of the town.
         scene?.dispose();
         scene = null;
+        svgOnly.value = true;
     }
 });
 
@@ -216,7 +230,7 @@ watch(sceneState, (next) => scene?.setState(next));
             <!-- Decorative: everything it shows is also in the status card,
                  the inspect buttons and the summary line below. -->
             <div ref="sceneHost" class="absolute inset-0" aria-hidden="true"></div>
-            <svg v-if="!sceneReady" viewBox="0 0 1100 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true" class="mb-scene absolute inset-0 w-full h-full">
+            <svg v-if="svgOnly" viewBox="0 0 1100 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true" class="mb-scene absolute inset-0 w-full h-full">
 <g class="stroke-(--mb-s-grid)" stroke-width="1"><line x1="128.8" y1="-492" x2="1601" y2="358" /><line x1="68.1" y1="-457" x2="1540.3" y2="393" /><line x1="7.5" y1="-422" x2="1479.7" y2="428" /><line x1="-53.1" y1="-387" x2="1419.1" y2="463" /><line x1="-113.7" y1="-352" x2="1358.5" y2="498" /><line x1="-174.3" y1="-317" x2="1297.9" y2="533" /><line x1="-235" y1="-282" x2="1237.2" y2="568" /><line x1="-295.6" y1="-247" x2="1176.6" y2="603" /><line x1="-356.2" y1="-212" x2="1116" y2="638" /><line x1="-416.8" y1="-177" x2="1055.4" y2="673" /><line x1="-477.4" y1="-142" x2="994.8" y2="708" /><line x1="-538.1" y1="-107" x2="934.1" y2="743" /><line x1="-598.7" y1="-72" x2="873.5" y2="778" /><line x1="-659.3" y1="-37" x2="812.9" y2="813" /><line x1="-719.9" y1="-2" x2="752.3" y2="848" /><line x1="-780.5" y1="33" x2="691.7" y2="883" /><line x1="-841.2" y1="68" x2="631" y2="918" /><line x1="224" y1="-477" x2="-815.2" y2="123" /><line x1="284.6" y1="-442" x2="-754.6" y2="158" /><line x1="345.3" y1="-407" x2="-693.9" y2="193" /><line x1="405.9" y1="-372" x2="-633.3" y2="228" /><line x1="466.5" y1="-337" x2="-572.7" y2="263" /><line x1="527.1" y1="-302" x2="-512.1" y2="298" /><line x1="587.7" y1="-267" x2="-451.5" y2="333" /><line x1="648.4" y1="-232" x2="-390.8" y2="368" /><line x1="709" y1="-197" x2="-330.2" y2="403" /><line x1="769.6" y1="-162" x2="-269.6" y2="438" /><line x1="830.2" y1="-127" x2="-209" y2="473" /><line x1="890.8" y1="-92" x2="-148.4" y2="508" /><line x1="951.5" y1="-57" x2="-87.7" y2="543" /><line x1="1012.1" y1="-22" x2="-27.1" y2="578" /><line x1="1072.7" y1="13" x2="33.5" y2="613" /><line x1="1133.3" y1="48" x2="94.1" y2="648" /><line x1="1193.9" y1="83" x2="154.7" y2="683" /><line x1="1254.6" y1="118" x2="215.4" y2="718" /><line x1="1315.2" y1="153" x2="276" y2="753" /><line x1="1375.8" y1="188" x2="336.6" y2="788" /><line x1="1436.4" y1="223" x2="397.2" y2="823" /><line x1="1497" y1="258" x2="457.8" y2="858" /><line x1="1557.7" y1="293" x2="518.5" y2="893" /><line x1="1618.3" y1="328" x2="579.1" y2="928" /></g>
 <!-- Night sky -->
 <g class="opacity-0 dark:opacity-100"><g class="fill-mb-text-soft" opacity="0.8"><circle cx="40" cy="30" r="1.4" /><circle cx="96" cy="62" r="1.4" /><circle cx="150" cy="22" r="1.4" /><circle cx="210" cy="48" r="1.4" /><circle cx="262" cy="18" r="1.4" /><circle cx="36" cy="104" r="1.4" /><circle cx="120" cy="98" r="1.4" /><circle cx="470" cy="24" r="1.4" /><circle cx="700" cy="36" r="1.4" /><circle cx="742" cy="96" r="1.4" /><circle cx="860" cy="30" r="1.4" /><circle cx="930" cy="70" r="1.4" /><circle cx="1010" cy="24" r="1.4" /><circle cx="1060" cy="92" r="1.4" /><circle cx="905" cy="128" r="1.4" /><circle cx="780" cy="140" r="1.4" /></g><circle cx="800" cy="64" r="22" class="fill-mb-text" /><circle cx="811" cy="57" r="19" class="fill-(--mb-s-bg)" /></g>
