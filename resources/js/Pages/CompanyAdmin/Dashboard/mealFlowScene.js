@@ -330,12 +330,33 @@ export function createMealFlowScene(host, options) {
     slab.receiveShadow = true;
     platform.add(slab, flatPlane(GROUND.x0, GROUND.x1, GROUND.z0, GROUND.z1, 0.005, mat.platform));
 
+    /*
+     * The faint lattice, clipped to the grass.
+     *
+     * It used to be drawn straight across the ground, streets included. It
+     * sits at y = 0.02 and the roads at 0.03, so it should have been hidden
+     * under them - but 0.01 of depth in a frustum 400 deep is not enough to
+     * win reliably, and the lines showed through, most visibly as a cross
+     * over every junction. Clipping it is cheaper than fighting the depth
+     * buffer, and the grid was only ever meant to texture the ground anyway.
+     *
+     * It also sat at 0.02 while the grass blocks run from 0 to 0.16, so it was
+     * buried under the grass it was supposed to texture and visible only where
+     * it was not wanted. It is above the grass now, at 0.17.
+     */
+    const GRID_STEP = 7;
     const gridPoints = [];
-    for (let x = GROUND.x0 + 2; x <= GROUND.x1; x += 7) {
-        gridPoints.push(x, 0.02, GROUND.z0, x, 0.02, GROUND.z1);
-    }
-    for (let z = GROUND.z0 + 3; z <= GROUND.z1; z += 7) {
-        gridPoints.push(GROUND.x0, 0.02, z, GROUND.x1, 0.02, z);
+    for (const [xa, xb, za, zb] of GRASS_BLOCKS) {
+        for (let x = Math.ceil((xa - GROUND.x0 - 2) / GRID_STEP) * GRID_STEP + GROUND.x0 + 2; x < xb; x += GRID_STEP) {
+            if (x > xa) {
+                gridPoints.push(x, 0.17, za, x, 0.17, zb);
+            }
+        }
+        for (let z = Math.ceil((za - GROUND.z0 - 3) / GRID_STEP) * GRID_STEP + GROUND.z0 + 3; z < zb; z += GRID_STEP) {
+            if (z > za) {
+                gridPoints.push(xa, 0.17, z, xb, 0.17, z);
+            }
+        }
     }
     platform.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)), mat.grid));
 
