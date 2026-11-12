@@ -143,6 +143,26 @@ const V_STREETS = [[-20, -13], [16, 23], [48, 55], [78, 85]];
 // of the array silently moved this when it was H_STREETS[1].
 const MAIN = H_STREETS.find(([a, b]) => a <= 3.5 && 3.5 <= b);
 
+/**
+ * The stretches NOT covered by a street's carriageway.
+ *
+ * Pavements are built from these, so one street's kerb stops at the next
+ * street's tarmac instead of running across it. They used to span the whole
+ * ground, and since a kerb stands 0.13 high and the road surface lies at
+ * 0.035, every junction had a pale kerb lying proud across the black.
+ */
+function gaps(streets, from, to) {
+    const edges = [from, ...streets.flatMap(([a, b]) => [a, b]), to];
+    const out = [];
+    for (let i = 0; i < edges.length; i += 2) {
+        if (edges[i + 1] - edges[i] > 0.01) {
+            out.push([edges[i], edges[i + 1]]);
+        }
+    }
+
+    return out;
+}
+
 /** The gaps between streets, pavements excluded: where grass and buildings go. */
 function spans(streets, from, to) {
     const edges = [from, ...streets.flatMap(([a, b]) => [a - PAVEMENT, b + PAVEMENT]), to];
@@ -366,18 +386,22 @@ export function createMealFlowScene(host, options) {
     }
 
     for (const [z0, z1] of H_STREETS) {
-        platform.add(
-            block(GROUND.x0, GROUND.x1, 0, 0.13, z0 - 1.6, z0, mat.walk, 0.1),
-            block(GROUND.x0, GROUND.x1, 0, 0.13, z1, z1 + 1.6, mat.walk, 0.1),
-            flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road),
-        );
+        for (const [xa, xb] of gaps(V_STREETS, GROUND.x0, GROUND.x1)) {
+            platform.add(
+                block(xa, xb, 0, 0.13, z0 - PAVEMENT, z0, mat.walk, 0.1),
+                block(xa, xb, 0, 0.13, z1, z1 + PAVEMENT, mat.walk, 0.1),
+            );
+        }
+        platform.add(flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road));
     }
     for (const [x0, x1] of V_STREETS) {
-        platform.add(
-            block(x0 - 1.6, x0, 0, 0.13, GROUND.z0, GROUND.z1, mat.walk, 0.1),
-            block(x1, x1 + 1.6, 0, 0.13, GROUND.z0, GROUND.z1, mat.walk, 0.1),
-            flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road),
-        );
+        for (const [za, zb] of gaps(H_STREETS, GROUND.z0, GROUND.z1)) {
+            platform.add(
+                block(x0 - PAVEMENT, x0, 0, 0.13, za, zb, mat.walk, 0.1),
+                block(x1, x1 + PAVEMENT, 0, 0.13, za, zb, mat.walk, 0.1),
+            );
+        }
+        platform.add(flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road));
     }
 
     // Centre lines, broken at every junction and at the office crossing.
