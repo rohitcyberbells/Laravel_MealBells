@@ -211,7 +211,7 @@ watch(sceneState, (next) => scene?.setState(next));
     <div class="space-y-2.5">
         <section
             aria-label="Today's meal flow"
-            class="relative h-60 sm:h-auto sm:aspect-[1100/340] rounded-xl overflow-hidden border border-mb-line bg-(--mb-s-bg) transition-colors duration-[600ms]"
+            class="relative h-64 sm:h-auto sm:aspect-[1100/560] sm:max-h-[72vh] rounded-xl overflow-hidden border border-mb-line bg-(--mb-s-bg) transition-colors duration-[600ms]"
         >
             <!-- Decorative: everything it shows is also in the status card,
                  the inspect buttons and the summary line below. -->

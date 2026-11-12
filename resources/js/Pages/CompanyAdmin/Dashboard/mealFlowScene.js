@@ -19,9 +19,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  * tab is visible. Scrolled away or in a background tab, it costs nothing.
  */
 
-// Matches the SVG's 340-unit-tall viewBox at the same scale.
-const FRUSTUM_HEIGHT = 27.8;
-const TARGET = new THREE.Vector3(20.5, 0, -14.1);
+// The strip is 1100x560 now, and 42 keeps a building about the size it was in
+// the old 1100x340 frame (same scale would be 46) while the taller viewport
+// shows far more depth. The city is built wider than this on purpose: the
+// roads run off every edge, which is what makes it read as a city rather than
+// as a model of one.
+const FRUSTUM_HEIGHT = 52;
+const SKY_VIEWBOX = [1100, 560];
+const TARGET = new THREE.Vector3(21, 0, -4);
 const VAN_PARKED_X = 12;
 const VAN_ARRIVED_X = 27;
 const FADE_SECONDS = 0.6;
@@ -44,10 +49,22 @@ const LIGHTING = {
 const STARS = [[40, 30], [96, 62], [150, 22], [210, 48], [262, 18], [36, 104], [120, 98], [470, 24], [700, 36], [742, 96], [860, 30], [930, 70], [1010, 24], [1060, 92], [905, 128], [780, 140]];
 const SKY_ORB = [800, 64];
 
-const CONE_TREES = [[-8, -18], [0, -20], [20, -8], [42, -18], [48, -14], [-6, 11], [28, 11]];
-const ROUND_TREES = [[-3, -8], [16, -18], [23, -20], [46, -8], [10, 11.5], [44, 11.5]];
-const BUSHES = [[-10, -2.6], [-6, -2.6], [-2, -2.6], [16, -2.6], [20, -2.6], [40, -2.6], [44, -2.6], [48, -2.6], [-10, 9.8], [2, 9.8], [16, 9.8], [38, 9.8], [52, 9.8]];
-const LAMPS = [[-8, 8.9], [6, 8.9], [20, 8.9], [34, 8.9], [48, 8.9], [0, -1.9], [15, -1.9], [42, -1.9]];
+// Street furniture follows the pavements rather than being sprinkled about:
+// z = -2.6 and 9.8 are the verges of the main road, -20.6 and 27.8 the verges
+// of the two cross streets, and x = -14.6 / 55.4 the avenue verges.
+const CONE_TREES = [[-19, -14], [-17, 3.5], [20, -17], [41, -15], [60, -12], [62, 3.5], [-19, 22], [41, 22], [62, 22], [20, -30], [-2, 25]];
+const ROUND_TREES = [[-19, -6], [16, -19], [45, -20], [60, -4], [-17, 12], [62, 12], [6, 25], [33, 25], [52, -30], [-8, -30]];
+const BUSHES = [
+    [-10, -2.6], [-6, -2.6], [-2, -2.6], [16, -2.6], [20, -2.6], [40, -2.6], [44, -2.6], [50, -2.6], [58, -2.6],
+    [-10, 9.8], [2, 9.8], [16, 9.8], [38, 9.8], [52, 9.8], [60, 9.8],
+    [2, -20.6], [24, -20.6], [46, -20.6], [-12, 27.8], [14, 27.8], [38, 27.8],
+];
+const LAMPS = [
+    [-8, 8.9], [6, 8.9], [20, 8.9], [34, 8.9], [48, 8.9], [60, 8.9],
+    [0, -1.9], [15, -1.9], [42, -1.9], [56, -1.9],
+    [-6, -19.7], [18, -19.7], [40, -19.7], [58, -19.7],
+    [-14.6, 2], [-14.6, 18], [55.4, -12], [55.4, 18],
+];
 // Clouds travel along (1, 0, -1), which is straight across the screen, in the
 // band above the rooftops. `depth` is x + z relative to the target: it sets
 // how high on screen the cloud sits, and keeps it behind the office.
@@ -56,7 +73,7 @@ const CHIMNEY_TOP = new THREE.Vector3(6.5, 8.9, -10.3);
 
 const LABEL_CLASS = 'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-(--mb-s-label-line) bg-(--mb-s-label-bg) px-2.5 py-0.5 text-[11px] font-semibold text-(--mb-s-label) shadow-sm transition-[color,background-color,border-color,opacity] duration-[600ms]';
 
-const TOKENS = ['bg', 'grid', 'road', 'dash', 'top', 'roof-office', 'roof-kitchen', 'win-on', 'win-off', 'van-top', 'van-stripe', 'lamp', 'tree', 'tree-dark', 'trunk', 'tiffin', 'lid-1', 'lid-2', 'lid-3', 'select', 'platform', 'platform-side', 'grass', 'walk', 'door', 'smoke', 'cloud'];
+const TOKENS = ['bg', 'grid', 'road', 'dash', 'top', 'roof-office', 'roof-kitchen', 'roof-plain', 'win-on', 'win-off', 'van-top', 'van-stripe', 'lamp', 'tree', 'tree-dark', 'trunk', 'tiffin', 'lid-1', 'lid-2', 'lid-3', 'select', 'platform', 'platform-side', 'grass', 'walk', 'door', 'smoke', 'cloud'];
 
 function parseColor(value) {
     // The CSS minifier rewrites rgb(30 41 59 / 0.7) as #1e293bb3, and
@@ -174,6 +191,7 @@ export function createMealFlowScene(host, options) {
         wall: lambert(),
         roofKitchen: lambert(),
         roofOffice: lambert(),
+        roofPlain: lambert(),
         door: lambert(),
         kitchenWindow: lambert(),
         officeLit: lambert(),
@@ -204,42 +222,96 @@ export function createMealFlowScene(host, options) {
     // Each puff fades on its own, so each needs its own material.
     const puffMaterials = Array.from({ length: 4 }, () => lambert({ transparent: true, opacity: 0, depthWrite: false }));
 
-    // The diorama: a rounded slab with the town on top.
+    /*
+     * The ground: a rounded slab carrying a street grid.
+     *
+     * Three streets run east-west and two run north-south, every one of them
+     * seven units wide with a 1.6-unit pavement either side. The slab is
+     * larger than the camera ever sees, so the roads leave the frame instead
+     * of stopping at a tidy edge - a diorama that ends where the picture ends
+     * reads as a toy, and this is meant to read as a town the office is in.
+     */
+    const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+    const GROUND = { x0: -30, x1: 70, z0: -36, z1: 36 };
+    // Each street as [start, end] on its cross axis. H runs along x, V along z.
+    const H_STREETS = [[-24, -17], [0, 7], [18, 25]];
+    const V_STREETS = [[-20, -13], [48, 55]];
+    // The one the van uses, and the one everything else is measured against.
+    const MAIN = H_STREETS[1];
+
     const platform = new THREE.Group();
-    const slab = new THREE.Mesh(new RoundedBoxGeometry(70, 1.4, 38, 3, 0.9), mat.platformSide);
-    slab.position.set(21, -0.7, -5);
+    const slab = new THREE.Mesh(new RoundedBoxGeometry(GROUND.x1 - GROUND.x0 + 4, 1.4, GROUND.z1 - GROUND.z0 + 4, 3, 0.9), mat.platformSide);
+    slab.position.set((GROUND.x0 + GROUND.x1) / 2, -0.7, (GROUND.z0 + GROUND.z1) / 2);
     slab.receiveShadow = true;
-    platform.add(slab, flatPlane(-13.2, 55.2, -23.2, 13.2, 0.005, mat.platform));
+    platform.add(slab, flatPlane(GROUND.x0, GROUND.x1, GROUND.z0, GROUND.z1, 0.005, mat.platform));
 
     const gridPoints = [];
-    for (let x = -7; x <= 49; x += 7) {
-        gridPoints.push(x, 0.02, -23, x, 0.02, 13);
+    for (let x = GROUND.x0 + 2; x <= GROUND.x1; x += 7) {
+        gridPoints.push(x, 0.02, GROUND.z0, x, 0.02, GROUND.z1);
     }
-    for (let z = -21; z <= 13; z += 7) {
-        gridPoints.push(-13, 0.02, z, 55, 0.02, z);
+    for (let z = GROUND.z0 + 3; z <= GROUND.z1; z += 7) {
+        gridPoints.push(GROUND.x0, 0.02, z, GROUND.x1, 0.02, z);
     }
     platform.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)), mat.grid));
 
-    platform.add(
-        block(-12, 15, 0, 0.16, -22, -2.2, mat.grass, 0.4),
-        block(21, 54, 0, 0.16, -22, -2.2, mat.grass, 0.4),
-        block(-12, 54, 0, 0.16, 9.6, 12.6, mat.grass, 0.4),
-        block(-13, 55, 0, 0.13, -1.6, 0, mat.walk, 0.1),
-        block(-13, 55, 0, 0.13, 7, 8.6, mat.walk, 0.1),
-        flatPlane(-13, 55, 0, 7, 0.03, mat.road),
-    );
+    // Grass fills what the streets and pavements leave: every block between
+    // one street's far pavement and the next one's near pavement.
+    const spans = (streets, from, to) => {
+        const edges = [from, ...streets.flatMap(([a, b]) => [a - 1.6, b + 1.6]), to];
+        const out = [];
+        for (let i = 0; i < edges.length; i += 2) {
+            if (edges[i + 1] - edges[i] > 0.5) {
+                out.push([edges[i], edges[i + 1]]);
+            }
+        }
 
-    const dashPoints = [];
-    for (let x = -11; x < 54; x += 5) {
-        if (x < 21 || x > 26) {
-            dashPoints.push([x, 0.05, 3.5]);
+        return out;
+    };
+    for (const [za, zb] of spans(H_STREETS, GROUND.z0, GROUND.z1)) {
+        for (const [xa, xb] of spans(V_STREETS, GROUND.x0, GROUND.x1)) {
+            platform.add(block(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
         }
     }
-    const flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+
+    for (const [z0, z1] of H_STREETS) {
+        platform.add(
+            block(GROUND.x0, GROUND.x1, 0, 0.13, z0 - 1.6, z0, mat.walk, 0.1),
+            block(GROUND.x0, GROUND.x1, 0, 0.13, z1, z1 + 1.6, mat.walk, 0.1),
+            flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road),
+        );
+    }
+    for (const [x0, x1] of V_STREETS) {
+        platform.add(
+            block(x0 - 1.6, x0, 0, 0.13, GROUND.z0, GROUND.z1, mat.walk, 0.1),
+            block(x1, x1 + 1.6, 0, 0.13, GROUND.z0, GROUND.z1, mat.walk, 0.1),
+            flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road),
+        );
+    }
+
+    // Centre lines, broken at every junction and at the office crossing.
+    const clearOf = (value, ranges, pad) => ranges.every(([a, b]) => value < a - pad || value > b + pad);
+    const dashPoints = [];
+    for (const [z0, z1] of H_STREETS) {
+        for (let x = GROUND.x0 + 2; x < GROUND.x1; x += 5) {
+            if (clearOf(x, V_STREETS, 2) && (z0 !== MAIN[0] || x < 21 || x > 26)) {
+                dashPoints.push([x, 0.06, (z0 + z1) / 2]);
+            }
+        }
+    }
+    const dashesAcross = [];
+    for (const [x0, x1] of V_STREETS) {
+        for (let z = GROUND.z0 + 2; z < GROUND.z1; z += 5) {
+            if (clearOf(z, H_STREETS, 2)) {
+                dashesAcross.push([(x0 + x1) / 2, 0.06, z]);
+            }
+        }
+    }
+    const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).premultiply(flat);
     const dashes = scatter(new THREE.PlaneGeometry(2.4, 0.4), mat.dash, dashPoints, flat);
-    const zebra = scatter(new THREE.PlaneGeometry(3, 0.6), mat.dash, [0.8, 1.9, 3, 4.1, 5.2, 6.3].map((z) => [23.5, 0.05, z]), flat);
-    dashes.castShadow = zebra.castShadow = false;
-    platform.add(dashes, zebra);
+    const acrossDashes = scatter(new THREE.PlaneGeometry(2.4, 0.4), mat.dash, dashesAcross, turn);
+    const zebra = scatter(new THREE.PlaneGeometry(3, 0.6), mat.dash, [0.8, 1.9, 3, 4.1, 5.2, 6.3].map((z) => [23.5, 0.06, z]), flat);
+    dashes.castShadow = acrossDashes.castShadow = zebra.castShadow = false;
+    platform.add(dashes, acrossDashes, zebra);
     scene.add(platform);
 
     // Kitchen.
@@ -295,6 +367,75 @@ export function createMealFlowScene(host, options) {
     tiffins.add(tiers, lids);
     office.add(tiffins);
     scene.add(office);
+
+    /*
+     * The rest of the town.
+     *
+     * Plain blocks with a roof slab and two lit faces - enough to read as
+     * buildings at this size, and cheap enough that twenty of them cost less
+     * than the office does. They are deliberately not selectable: the kitchen,
+     * the van and the office are the three things the picture is about, and a
+     * hover target on a background block would dilute that.
+     *
+     * Which windows are lit is a hash of the position rather than Math.random,
+     * so the skyline looks the same on every reload and in every screenshot.
+     */
+    const CITY = [
+        // West of the avenue.
+        [-29, -22.5, -13, -3, 6],
+        [-29, -22.5, 9.6, 16, 5],
+        // East of the avenue.
+        [58, 68, -14, -3, 10],
+        [58, 67, 9.6, 17, 7],
+        [58, 66, -34, -26.6, 6],
+        // South of the main road.
+        [-8, 2, 9.6, 15.4, 5.5],
+        [6, 17, 9.6, 16, 7.5],
+        [21, 31, 9.6, 15, 6],
+        [35, 45, 9.6, 16, 8.5],
+        // North, beyond the cross street.
+        [-6, 5, -34.5, -26.6, 7],
+        [10, 22, -35, -26.6, 10],
+        [27, 38, -34, -26.6, 6],
+        // The far side of town.
+        [-8, 4, 27.6, 35, 6],
+        [10, 24, 27.6, 35.5, 8],
+        [30, 42, 27.6, 34, 9],
+    ];
+
+    const city = new THREE.Group();
+    for (const [x0, x1, z0, z1, h] of CITY) {
+        const cols = Math.max(2, Math.round((x1 - x0) / 3));
+        const rows = Math.max(2, Math.round(h / 2.6));
+        const depthCols = Math.max(2, Math.round((z1 - z0) / 3));
+        const seed = Math.abs(Math.round(x0 * 31 + z0 * 17 + h * 7));
+        const litFace = (r, c, salt) => ((seed + r * 13 + c * 7 + salt) % 5) < 2;
+        const pick = (rs, cs, salt) => {
+            const on = [];
+            for (let r = 0; r < rs; r++) {
+                for (let c = 0; c < cs; c++) {
+                    if (litFace(r, c, salt)) {
+                        on.push([r, c]);
+                    }
+                }
+            }
+
+            return on;
+        };
+
+        const front = windowGrid({ cols, rows, from: x0, span: x1 - x0, fixed: z1, base: 0.6, height: h - 1.2, face: 'z', lit: pick(rows, cols, 0) });
+        const side = windowGrid({ cols: depthCols, rows, from: z0, span: z1 - z0, fixed: x1, base: 0.6, height: h - 1.2, face: 'x', lit: pick(rows, depthCols, 3) });
+
+        city.add(
+            block(x0, x1, 0, h, z0, z1, mat.wall, 0.3),
+            block(x0 - 0.3, x1 + 0.3, h, h + 0.7, z0 - 0.3, z1 + 0.3, mat.roofPlain, 0.2),
+            panes(mat.officeLit, front.on, 'z'),
+            panes(mat.officeUnlit, front.off, 'z'),
+            panes(mat.officeLit, side.on, 'x'),
+            panes(mat.officeUnlit, side.off, 'x'),
+        );
+    }
+    scene.add(city);
 
     // Van, built at its own origin and moved as a whole.
     const van = new THREE.Group();
@@ -362,7 +503,7 @@ export function createMealFlowScene(host, options) {
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.bias = -0.0004;
     key.shadow.normalBias = 0.03;
-    Object.assign(key.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 200 });
+    Object.assign(key.shadow.camera, { left: -85, right: 85, top: 85, bottom: -85, near: 1, far: 260 });
     const hearth = new THREE.PointLight('#f59e0b', 0, 22, 2);
     hearth.position.set(8.5, 2.5, -1.5);
     scene.add(hemi, key, key.target, hearth);
@@ -428,7 +569,7 @@ export function createMealFlowScene(host, options) {
     }
 
     function placeSky() {
-        const toWorld = ([x, y]) => new THREE.Vector3((x / 1100) * 2 - 1, 1 - (y / 340) * 2, 0.95).unproject(camera);
+        const toWorld = ([x, y]) => new THREE.Vector3((x / SKY_VIEWBOX[0]) * 2 - 1, 1 - (y / SKY_VIEWBOX[1]) * 2, 0.95).unproject(camera);
         stars.geometry.setAttribute('position', new THREE.Float32BufferAttribute(STARS.flatMap((s) => toWorld(s).toArray()), 3));
         const orb = toWorld(SKY_ORB);
         moon.position.copy(orb);
@@ -561,7 +702,7 @@ export function createMealFlowScene(host, options) {
         [
             [mat.platform, 'platform'], [mat.platformSide, 'platform-side'], [mat.grass, 'grass'], [mat.walk, 'walk'],
             [mat.road, 'road'], [mat.dash, 'dash'], [mat.wall, 'top'], [mat.roofKitchen, 'roof-kitchen'],
-            [mat.roofOffice, 'roof-office'], [mat.door, 'door'], [mat.officeLit, 'win-on'], [mat.officeUnlit, 'win-off'],
+            [mat.roofOffice, 'roof-office'], [mat.roofPlain, 'roof-plain'], [mat.door, 'door'], [mat.officeLit, 'win-on'], [mat.officeUnlit, 'win-off'],
             [mat.van, 'van-top'], [mat.stripe, 'van-stripe'], [mat.lamp, 'lamp'], [mat.pole, 'door'],
             [mat.tree, 'tree'], [mat.treeDark, 'tree-dark'], [mat.trunk, 'trunk'], [mat.tiffin, 'tiffin'],
             [mat.cloud, 'cloud'], [mat.beam, 'lamp'], [mat.pool, 'lamp'], [mat.grid, 'grid'], [mat.select, 'select'],

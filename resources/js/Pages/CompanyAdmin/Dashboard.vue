@@ -49,22 +49,13 @@ const getPlannedMeal = (day) => {
 
 <template>
     <AppLayout>
-    <div class="min-h-screen p-6">
-        <div class="max-w-7xl mx-auto pb-6 border-b border-mb-line mb-8 flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <div class="flex items-center space-x-3">
-                    <h1 class="text-3xl font-bold text-mb-cyan">{{ company?.name || 'Company Dashboard' }}</h1>
-                    <span v-if="tiffinService" class="bg-mb-tint-emerald/20 text-mb-emerald-soft border border-mb-tint-emerald/30 text-xs px-3 py-1 rounded-full font-semibold">
-                        Assigned Tiffin: {{ tiffinService.name }}
-                    </span>
-                    <span v-else class="bg-mb-tint-amber/20 text-mb-amber-soft border border-mb-tint-amber/30 text-xs px-3 py-1 rounded-full font-semibold">
-                        No Tiffin Service Assigned Yet
-                    </span>
-                </div>
-                <p class="text-mb-text-muted text-sm mt-1">Employee Meal Portal & Daily Menu Overview</p>
-            </div>
-        </div>
-
+    <!--
+        No page heading above the city. The company name is in the sidebar, the
+        tiffin service is named in the summary line under the scene, and an
+        unpaired company gets the banner below - so a title bar here would only
+        push the one thing worth looking at off the top of the screen.
+    -->
+    <div class="min-h-screen p-4 sm:p-6">
         <main class="max-w-7xl mx-auto space-y-8">
             <!-- Unassigned Banner -->
             <section v-if="!tiffinService" class="bg-mb-tint-amber/10 border border-mb-tint-amber/30 rounded-xl p-6 text-center">
