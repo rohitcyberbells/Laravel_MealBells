@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /*
  * The dashboard strip in WebGL: a small diorama of the kitchen, the van and
@@ -134,11 +135,11 @@ const SEASONS = [
  * so adding a street moves the furniture out of its way instead of leaving it
  * there to be noticed in a screenshot.
  */
-const GROUND = { x0: -34, x1: 124, z0: -58, z1: 40 };
+const GROUND = { x0: -56, x1: 126, z0: -70, z1: 80 };
 const PAVEMENT = 1.6;
 // Each street as [start, end] on its cross axis. H runs along x, V along z.
-const H_STREETS = [[-38, -31], [-20, -13], [0, 7], [18, 25]];
-const V_STREETS = [[-20, -13], [16, 23], [48, 55], [78, 85]];
+const H_STREETS = [[-38, -31], [-20, -13], [0, 7], [18, 25], [38, 45], [58, 65]];
+const V_STREETS = [[-46, -39], [-20, -13], [16, 23], [48, 55], [78, 85]];
 // The one the van uses. Found rather than indexed: a street added at the front
 // of the array silently moved this when it was H_STREETS[1].
 const MAIN = H_STREETS.find(([a, b]) => a <= 3.5 && 3.5 <= b);
@@ -236,6 +237,29 @@ function ground(...args) {
     mesh.castShadow = false;
 
     return mesh;
+}
+
+/**
+ * One mesh from many that share a material and never move.
+ *
+ * Each tile's own transform is folded into a copy of its geometry, so the
+ * result sits where the pieces did. Only for scenery: a baked mesh cannot be
+ * picked, lifted or animated apart from the rest, which is why the kitchen,
+ * the office and the van are left alone.
+ */
+function bake(meshes, material) {
+    const parts = meshes.map((mesh) => {
+        mesh.updateMatrix();
+
+        return mesh.geometry.clone().applyMatrix4(mesh.matrix);
+    });
+    const merged = new THREE.Mesh(mergeGeometries(parts, false), material);
+    merged.castShadow = meshes.some((mesh) => mesh.castShadow);
+    merged.receiveShadow = true;
+    parts.forEach((part) => part.dispose());
+    meshes.forEach((mesh) => mesh.geometry.dispose());
+
+    return merged;
 }
 
 function flatPlane(x0, x1, z0, z1, y, material) {
@@ -393,29 +417,42 @@ export function createMealFlowScene(host, options) {
     }
     platform.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)), mat.grid));
 
-    // Grass fills what the streets and pavements leave.
-    for (const [xa, xb, za, zb] of GRASS_BLOCKS) {
-        platform.add(ground(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
-    }
+    /*
+     * The ground, baked.
+     *
+     * Grass, kerbs and tarmac are a couple of hundred tiles that never move,
+     * are never picked, and each share one material with all their kind. Left
+     * as separate meshes they were a couple of hundred draw calls; baked by
+     * material they are three. Colour still animates, because a material is
+     * what the season and the theme tween.
+     */
+    const grassTiles = GRASS_BLOCKS.map(([xa, xb, za, zb]) => ground(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
 
+    const kerbTiles = [];
+    const roadTiles = [];
     for (const [z0, z1] of H_STREETS) {
         for (const [xa, xb] of gaps(V_STREETS, GROUND.x0, GROUND.x1)) {
-            platform.add(
+            kerbTiles.push(
                 ground(xa, xb, 0, 0.13, z0 - PAVEMENT, z0, mat.walk, 0.1),
                 ground(xa, xb, 0, 0.13, z1, z1 + PAVEMENT, mat.walk, 0.1),
             );
         }
-        platform.add(flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road));
+        roadTiles.push(flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road));
     }
     for (const [x0, x1] of V_STREETS) {
         for (const [za, zb] of gaps(H_STREETS, GROUND.z0, GROUND.z1)) {
-            platform.add(
+            kerbTiles.push(
                 ground(x0 - PAVEMENT, x0, 0, 0.13, za, zb, mat.walk, 0.1),
                 ground(x1, x1 + PAVEMENT, 0, 0.13, za, zb, mat.walk, 0.1),
             );
         }
-        platform.add(flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road));
+        roadTiles.push(flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road));
     }
+    platform.add(
+        bake(grassTiles, mat.grass),
+        bake(kerbTiles, mat.walk),
+        bake(roadTiles, mat.road),
+    );
 
     // Centre lines, broken at every junction and at the office crossing.
     const clearOf = (value, ranges, pad) => ranges.every(([a, b]) => value < a - pad || value > b + pad);
@@ -549,6 +586,8 @@ export function createMealFlowScene(host, options) {
 
     const city = new THREE.Group();
     const cityPanes = { zOn: [], zOff: [], xOn: [], xOff: [] };
+    const cityWalls = [];
+    const cityRoofs = [];
     for (const [x0, x1, z0, z1, h] of CITY) {
         const cols = Math.max(2, Math.round((x1 - x0) / 3));
         const rows = Math.max(2, Math.round(h / 2.6));
@@ -578,11 +617,12 @@ export function createMealFlowScene(host, options) {
         cityPanes.xOn.push(...side.on);
         cityPanes.xOff.push(...side.off);
 
-        city.add(
-            block(x0, x1, 0, h, z0, z1, mat.wall, 0.3),
-            block(x0 - 0.3, x1 + 0.3, h, h + 0.7, z0 - 0.3, z1 + 0.3, mat.roofPlain, 0.2),
-        );
+        cityWalls.push(block(x0, x1, 0, h, z0, z1, mat.wall, 0.3));
+        cityRoofs.push(block(x0 - 0.3, x1 + 0.3, h, h + 0.7, z0 - 0.3, z1 + 0.3, mat.roofPlain, 0.2));
     }
+    // Twenty-three walls and twenty-three roofs, two materials, nothing that
+    // moves or can be clicked: two meshes.
+    city.add(bake(cityWalls, mat.wall), bake(cityRoofs, mat.roofPlain));
     /*
      * Every window in the city in four instanced meshes.
      *
