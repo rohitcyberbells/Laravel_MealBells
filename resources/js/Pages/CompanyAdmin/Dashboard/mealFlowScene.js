@@ -225,6 +225,19 @@ function block(x0, x1, y0, y1, z0, z1, material, radius = 0) {
     return mesh;
 }
 
+/**
+ * The same box, lying flat on the ground: grass, kerbs, verges.
+ *
+ * It receives shadow and casts none. block() turns casting on for everything,
+ * which put a hundred-odd flat tiles into the shadow pass to shade nothing.
+ */
+function ground(...args) {
+    const mesh = block(...args);
+    mesh.castShadow = false;
+
+    return mesh;
+}
+
 function flatPlane(x0, x1, z0, z1, y, material) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), material);
     mesh.rotation.x = -Math.PI / 2;
@@ -382,14 +395,14 @@ export function createMealFlowScene(host, options) {
 
     // Grass fills what the streets and pavements leave.
     for (const [xa, xb, za, zb] of GRASS_BLOCKS) {
-        platform.add(block(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
+        platform.add(ground(xa, xb, 0, 0.16, za, zb, mat.grass, 0.4));
     }
 
     for (const [z0, z1] of H_STREETS) {
         for (const [xa, xb] of gaps(V_STREETS, GROUND.x0, GROUND.x1)) {
             platform.add(
-                block(xa, xb, 0, 0.13, z0 - PAVEMENT, z0, mat.walk, 0.1),
-                block(xa, xb, 0, 0.13, z1, z1 + PAVEMENT, mat.walk, 0.1),
+                ground(xa, xb, 0, 0.13, z0 - PAVEMENT, z0, mat.walk, 0.1),
+                ground(xa, xb, 0, 0.13, z1, z1 + PAVEMENT, mat.walk, 0.1),
             );
         }
         platform.add(flatPlane(GROUND.x0, GROUND.x1, z0, z1, 0.03, mat.road));
@@ -397,8 +410,8 @@ export function createMealFlowScene(host, options) {
     for (const [x0, x1] of V_STREETS) {
         for (const [za, zb] of gaps(H_STREETS, GROUND.z0, GROUND.z1)) {
             platform.add(
-                block(x0 - PAVEMENT, x0, 0, 0.13, za, zb, mat.walk, 0.1),
-                block(x1, x1 + PAVEMENT, 0, 0.13, za, zb, mat.walk, 0.1),
+                ground(x0 - PAVEMENT, x0, 0, 0.13, za, zb, mat.walk, 0.1),
+                ground(x1, x1 + PAVEMENT, 0, 0.13, za, zb, mat.walk, 0.1),
             );
         }
         platform.add(flatPlane(x0, x1, GROUND.z0, GROUND.z1, 0.035, mat.road));
@@ -535,6 +548,7 @@ export function createMealFlowScene(host, options) {
     ];
 
     const city = new THREE.Group();
+    const cityPanes = { zOn: [], zOff: [], xOn: [], xOff: [] };
     for (const [x0, x1, z0, z1, h] of CITY) {
         const cols = Math.max(2, Math.round((x1 - x0) / 3));
         const rows = Math.max(2, Math.round(h / 2.6));
@@ -557,15 +571,32 @@ export function createMealFlowScene(host, options) {
         const front = windowGrid({ cols, rows, from: x0, span: x1 - x0, fixed: z1, base: 0.6, height: h - 1.2, face: 'z', lit: pick(rows, cols, 0) });
         const side = windowGrid({ cols: depthCols, rows, from: z0, span: z1 - z0, fixed: x1, base: 0.6, height: h - 1.2, face: 'x', lit: pick(rows, depthCols, 3) });
 
+        // Windows are collected rather than added per building: four meshes
+        // for the whole city instead of four each. See below.
+        cityPanes.zOn.push(...front.on);
+        cityPanes.zOff.push(...front.off);
+        cityPanes.xOn.push(...side.on);
+        cityPanes.xOff.push(...side.off);
+
         city.add(
             block(x0, x1, 0, h, z0, z1, mat.wall, 0.3),
             block(x0 - 0.3, x1 + 0.3, h, h + 0.7, z0 - 0.3, z1 + 0.3, mat.roofPlain, 0.2),
-            panes(mat.officeLit, front.on, 'z'),
-            panes(mat.officeUnlit, front.off, 'z'),
-            panes(mat.officeLit, side.on, 'x'),
-            panes(mat.officeUnlit, side.off, 'x'),
         );
     }
+    /*
+     * Every window in the city in four instanced meshes.
+     *
+     * Each building used to build its own four, which at twenty-three
+     * buildings was ninety-two draw calls for panes that share two materials
+     * and one geometry. They are not animated individually and nothing picks
+     * them, so there is nothing to keep separate.
+     */
+    city.add(
+        panes(mat.officeLit, cityPanes.zOn, 'z'),
+        panes(mat.officeUnlit, cityPanes.zOff, 'z'),
+        panes(mat.officeLit, cityPanes.xOn, 'x'),
+        panes(mat.officeUnlit, cityPanes.xOff, 'x'),
+    );
     scene.add(city);
 
     /*
@@ -797,6 +828,17 @@ export function createMealFlowScene(host, options) {
     /** Everything that moves on its own, at time `t` in seconds. */
     function animate(t, dt) {
         const ease = 1 - Math.pow(0.001, dt);
+
+        /*
+         * Things that are faded out are still drawn. Clouds and the headlight
+         * beam are invisible all night, stars and the lamp pools all day, so
+         * each of these spends about half of every cycle costing a draw call
+         * and a pass over its pixels to contribute nothing.
+         */
+        clouds.visible = mat.cloud.opacity > 0.01;
+        stars.visible = mat.star.opacity > 0.01;
+        pools.visible = mat.pool.opacity > 0.01;
+        beam.visible = mat.beam.opacity > 0.01;
 
         // The year turns. t is seconds since the page loaded, so the cycle
         // pauses with the rest of the scene when nobody is looking at it.
