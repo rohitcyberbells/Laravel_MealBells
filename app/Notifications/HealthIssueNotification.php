@@ -15,7 +15,7 @@ use Illuminate\Notifications\Notification;
  * only says "queue_worker: false" sends someone to a laptop to find out whether
  * it matters.
  */
-class HealthIssueNotification extends Notification implements ShouldQueue
+class HealthIssueNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

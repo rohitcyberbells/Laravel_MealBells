@@ -7,7 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DailyMealOverrideNotification extends Notification implements ShouldQueue
+class DailyMealOverrideNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

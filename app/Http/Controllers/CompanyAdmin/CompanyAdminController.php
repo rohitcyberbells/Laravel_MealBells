@@ -8,6 +8,7 @@ use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
 use App\Models\MealCount;
 use App\Models\WeeklyMenu;
+use App\Notifications\AttentionTypes;
 use App\Services\MealCalendar;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -44,8 +45,16 @@ class CompanyAdminController extends Controller
 
         $tiffinService = $assignment?->tiffinService;
 
-        // 2. Fetch Notifications
+        // 2. Fetch the alerts.
+        //
+        // Only the notifications somebody has to act on. The routine ones -
+        // the day's count, the number sent to the kitchen, a menu going out -
+        // filled this panel four deep every week, and the day's count is the
+        // large number further down this same page. A panel that is always
+        // full of nothing teaches people not to read it, and then an unusual
+        // count that nobody reviewed arrives looking exactly the same.
         $notifications = $user->notifications()
+            ->whereIn('type', AttentionTypes::all())
             ->latest()
             ->take(10)
             ->get();

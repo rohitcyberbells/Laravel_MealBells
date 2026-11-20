@@ -17,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * The mail leads with the new total rather than the delta. '+3 meals' requires
  * the reader to remember what it was; '53 meals, was 50' does not.
  */
-class VendorLateChangeNotification extends Notification implements ShouldQueue
+class VendorLateChangeNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

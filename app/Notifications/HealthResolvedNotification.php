@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notification;
  * leaves the reader unable to tell a fixed problem from one nobody has looked
  * at, so they either check manually every time or stop trusting the alerts.
  */
-class HealthResolvedNotification extends Notification implements ShouldQueue
+class HealthResolvedNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

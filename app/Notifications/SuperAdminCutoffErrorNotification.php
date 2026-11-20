@@ -15,7 +15,7 @@ use Illuminate\Notifications\Notification;
  * count did not lock, so the vendor was never told how many meals to cook, and
  * the only sign of it sat in a feed nobody opens at 11am. Mailed now as well.
  */
-class SuperAdminCutoffErrorNotification extends Notification implements ShouldQueue
+class SuperAdminCutoffErrorNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

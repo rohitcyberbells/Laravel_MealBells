@@ -7,7 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class AnomalyEscalationNotification extends Notification implements ShouldQueue
+class AnomalyEscalationNotification extends Notification implements NeedsAttention, ShouldQueue
 {
     use Queueable;
 

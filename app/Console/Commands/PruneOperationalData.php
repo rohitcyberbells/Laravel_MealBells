@@ -71,7 +71,7 @@ class PruneOperationalData extends Command
         return [
             // last_activity is a unix timestamp, handled in cutoffFor().
             'Expired sessions' => ['sessions', 'last_activity', (int) config('mealbells.retention.sessions_days', 30)],
-            'Read notifications' => ['notifications', 'created_at', (int) config('mealbells.retention.notifications_days', 90)],
+            'Notifications' => ['notifications', 'created_at', (int) config('mealbells.retention.notifications_days', 90)],
             'Failed jobs' => ['failed_jobs', 'failed_at', (int) config('mealbells.retention.failed_jobs_days', 30)],
         ];
     }
