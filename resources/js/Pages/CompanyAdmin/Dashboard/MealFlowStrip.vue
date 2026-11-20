@@ -223,9 +223,18 @@ watch(sceneState, (next) => scene?.setState(next));
 
 <template>
     <div class="space-y-2.5">
+        <!--
+            Taller than it looks like it needs to be, on purpose. The camera's
+            frustum height is the VERTICAL extent and the width follows from
+            this box's aspect, so a short wide strip buys its width in filler
+            blocks down both sides and renders the kitchen and the office
+            small. Giving the box height does what zooming could not: the same
+            world extent lands on more pixels, and the aspect drops from ~2.9
+            to ~2.0, cutting a third of the filler.
+        -->
         <section
             aria-label="Today's meal flow"
-            class="relative h-64 sm:h-auto sm:aspect-[1100/560] sm:max-h-[72vh] rounded-xl overflow-hidden border border-mb-line bg-(--mb-s-bg) transition-colors duration-[600ms]"
+            class="relative h-64 sm:h-[clamp(26rem,58vh,42rem)] rounded-2xl overflow-hidden border border-mb-line bg-(--mb-s-bg) transition-colors duration-[600ms]"
         >
             <!-- Decorative: everything it shows is also in the status card,
                  the inspect buttons and the summary line below. -->
@@ -281,7 +290,7 @@ watch(sceneState, (next) => scene?.setState(next));
                                 open: 'text-mb-emerald',
                                 locked: 'text-mb-cyan',
                                 late: 'text-mb-amber',
-                                idle: 'text-mb-text-muted',
+                                idle: 'text-mb-text-muted dark:text-mb-text-soft',
                             }[status.tone]
                         ]"
                     >{{ status.label }}</span>
@@ -290,7 +299,7 @@ watch(sceneState, (next) => scene?.setState(next));
             </div>
 
             <!-- The keyboard and screen-reader way in: the drawing itself is hidden from both. -->
-            <div role="group" aria-label="Inspect" class="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-1 p-1 rounded-full bg-mb-card/90 border border-mb-line">
+            <div role="group" aria-label="Inspect" class="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-1 p-1 rounded-xl bg-mb-card/90 border border-mb-line">
                 <button
                     v-for="(label, key) in panels"
                     :key="key"
@@ -298,10 +307,10 @@ watch(sceneState, (next) => scene?.setState(next));
                     :aria-pressed="selected === key"
                     @click="select(key)"
                     :class="[
-                        'min-h-8 px-3 rounded-full text-xs font-semibold border cursor-pointer transition-colors',
+                        'min-h-8 px-3 rounded-lg text-xs font-semibold border cursor-pointer transition-colors',
                         selected === key
-                            ? 'bg-mb-tint-cyan/10 border-mb-tint-cyan/40 text-mb-cyan'
-                            : 'border-transparent text-mb-text-muted hover:text-mb-text'
+                            ? 'bg-mb-card border-mb-field text-mb-text-strong'
+                            : 'border-transparent text-mb-text-muted dark:text-mb-text-soft hover:text-mb-text-strong'
                     ]"
                 >{{ label }}</button>
             </div>
@@ -322,7 +331,7 @@ watch(sceneState, (next) => scene?.setState(next));
                         type="button"
                         aria-label="Close details"
                         @click="select(null)"
-                        class="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-lg border border-mb-line text-mb-text-muted hover:text-mb-text cursor-pointer"
+                        class="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-lg border border-mb-line text-mb-text-muted dark:text-mb-text-soft hover:text-mb-text cursor-pointer"
                     >
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
                             <path d="M6 6l12 12M18 6L6 18" />
@@ -331,11 +340,11 @@ watch(sceneState, (next) => scene?.setState(next));
                 </div>
 
                 <template v-if="selected === 'office'">
-                    <p v-if="!isMealDay" class="text-[13px] text-mb-text-muted">No meal today.</p>
+                    <p v-if="!isMealDay" class="text-[13px] text-mb-text-muted dark:text-mb-text-soft">No meal today.</p>
                     <template v-else>
                         <dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-y-1.5 text-[13px]">
                             <template v-for="row in officeRows" :key="row.label">
-                                <dt class="text-mb-text-muted">{{ row.label }}</dt>
+                                <dt class="text-mb-text-muted dark:text-mb-text-soft">{{ row.label }}</dt>
                                 <dd :class="['font-semibold text-right', row.tone]">{{ row.value }}</dd>
                             </template>
                         </dl>
@@ -348,13 +357,13 @@ watch(sceneState, (next) => scene?.setState(next));
                 </template>
 
                 <template v-else-if="selected === 'kitchen'">
-                    <p v-if="!isMealDay" class="text-[13px] text-mb-text-muted">Closed today.</p>
+                    <p v-if="!isMealDay" class="text-[13px] text-mb-text-muted dark:text-mb-text-soft">Closed today.</p>
                     <div v-else class="text-[13px] space-y-1">
-                        <p class="text-mb-text-muted">Today</p>
+                        <p class="text-mb-text-muted dark:text-mb-text-soft">Today</p>
                         <p class="font-semibold text-mb-text">{{ todayMeal?.meal_description || 'No menu published for today yet.' }}</p>
                         <p v-if="todayMeal?.is_override" class="text-mb-amber-soft">Changed by the kitchen today.</p>
                     </div>
-                    <p v-if="tiffinService.contact_phone" class="text-[13px] text-mb-text-muted">
+                    <p v-if="tiffinService.contact_phone" class="text-[13px] text-mb-text-muted dark:text-mb-text-soft">
                         Contact: <span class="font-semibold text-mb-text">{{ tiffinService.contact_phone }}</span>
                     </p>
                 </template>
@@ -369,6 +378,6 @@ watch(sceneState, (next) => scene?.setState(next));
             </aside>
         </section>
 
-        <p class="text-[13px] text-mb-text-muted">{{ summary }}</p>
+        <p class="text-[13px] text-mb-text-muted dark:text-mb-text-soft">{{ summary }}</p>
     </div>
 </template>

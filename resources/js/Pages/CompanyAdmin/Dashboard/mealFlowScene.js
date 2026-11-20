@@ -25,9 +25,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // shows far more depth. The city is built wider than this on purpose: the
 // roads run off every edge, which is what makes it read as a city rather than
 // as a model of one.
-const FRUSTUM_HEIGHT = 62;
+const FRUSTUM_HEIGHT = 64;
 const SKY_VIEWBOX = [1100, 560];
-const TARGET = new THREE.Vector3(32, 0, -10);
+const TARGET = new THREE.Vector3(12, 0, -12);
 /*
  * The kitchen moved to the far block so the van has somewhere to come from.
  * Everything inside the kitchen group is still written in the coordinates it
