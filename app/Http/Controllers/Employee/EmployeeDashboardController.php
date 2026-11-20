@@ -61,11 +61,17 @@ class EmployeeDashboardController extends Controller
         $startCarbon = Carbon::createFromFormat('Y-m-d', $targetDate, $timezone);
         $endDate = $startCarbon->copy()->addDays(6)->toDateString();
 
-        MealCalendar::preload($company, $targetDate, $endDate);
+        // The summary tiles look back to the first of the month, so both the
+        // calendar memo and the skip lookup are widened to cover that as well
+        // as the week ahead. One query each, rather than one per span.
+        $monthStart = $startCarbon->copy()->startOfMonth();
+        $monthStartStr = $monthStart->toDateString();
+
+        MealCalendar::preload($company, $monthStartStr, $endDate);
 
         $skipsByDate = Skip::where('company_id', $company->id)
             ->where('employee_id', $employee->id)
-            ->whereBetween('date', [$targetDate, $endDate])
+            ->whereBetween('date', [$monthStartStr, $endDate])
             ->whereNull('cancelled_at')
             ->get()
             ->keyBy(fn (Skip $skip) => Carbon::parse($skip->date)->toDateString());
@@ -157,6 +163,29 @@ class EmployeeDashboardController extends Controller
             ->orderBy('weekday')
             ->get();
 
+        // The month so far, for the two summary tiles. Both numbers are
+        // derived rather than stored: a meal day the employee did not skip is
+        // a meal they took, which is the arithmetic the counts already use.
+        //
+        // No query of its own - the memo and the skips above already cover
+        // this span, so the walk is pure bookkeeping.
+        $mealDaysSoFar = 0;
+        $skippedSoFar = 0;
+
+        for ($cursor = $monthStart->copy(); $cursor->lte($startCarbon); $cursor->addDay()) {
+            $cursorStr = $cursor->toDateString();
+
+            if (! MealCalendar::isMealDay($company, $cursorStr)) {
+                continue;
+            }
+
+            $mealDaysSoFar++;
+
+            if ($skipsByDate->has($cursorStr)) {
+                $skippedSoFar++;
+            }
+        }
+
         return Inertia::render('Employee/Dashboard', [
             'today' => [
                 'date' => $targetDate,
@@ -166,6 +195,10 @@ class EmployeeDashboardController extends Controller
                 'calendar_day' => $todayCalDay ? ['type' => $todayCalDay->type, 'note' => $todayCalDay->note] : null,
                 'status' => $todaySkip ? 'skipped' : 'take',
                 'skip_source' => $todaySkip?->source,
+                // The page's "take today back" button deletes by id. It was
+                // never sent, so the button posted /employee/skips/undefined
+                // and the skip stayed put.
+                'skip_id' => $todaySkip?->id,
                 'can_cancel' => $todaySkip && in_array($todaySkip->source, ['self', 'recurring']) && ! $todayLocked && $now->lt($cutoffDateTime),
                 'cutoff_time' => CompanySetting::cutoffLabelFor($company->setting),
                 'seconds_left' => $secondsLeft,
@@ -175,6 +208,11 @@ class EmployeeDashboardController extends Controller
             'my_skips' => $mySkips,
             'my_recurring_rules' => $myRecurringRules,
             'active_tiffin_assigned' => $tiffinService !== null,
+            'month_summary' => [
+                'label' => $startCarbon->format('F'),
+                'taken' => $mealDaysSoFar - $skippedSoFar,
+                'skipped' => $skippedSoFar,
+            ],
         ]);
     }
 
