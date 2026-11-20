@@ -16,6 +16,7 @@ use App\Models\Skip;
 use App\Models\User;
 use App\Services\Hrms\CyberPulse\CyberPulseClient;
 use Carbon\Carbon;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -1198,9 +1199,16 @@ class HrmsCyberPulsePullTest extends TestCase
     /**
      * A pull that silently stopped looks exactly like a quiet day of no leave,
      * which is the one failure mode nobody would notice on their own.
+     *
+     * The schedule entry is registered here rather than relied on from
+     * routes/console.php, where the pull is currently paused: this is a test of
+     * the staleness rule, not of whether the job happens to be switched on
+     * today.
      */
     public function test_a_pull_that_has_not_run_recently_is_flagged_stale(): void
     {
+        app(Schedule::class)->command('hrms:pull', ['--all']);
+
         $this->connection->forceFill([
             'last_pull_at' => now()->subHours(6),
             'last_pull_status' => 'ok',
@@ -1212,10 +1220,42 @@ class HrmsCyberPulsePullTest extends TestCase
             'password' => bcrypt('password'), 'role' => 'super_admin',
         ]);
 
-        $props = $this->actingAs($root)->get('/super-admin/health')
-            ->getOriginalContent()->getData()['page']['props'];
+        $row = collect($this->actingAs($root)->get('/super-admin/health')
+            ->getOriginalContent()->getData()['page']['props']['hrms_pulls'])
+            ->firstWhere('company_id', $this->company->id);
 
-        $this->assertTrue(collect($props['hrms_pulls'])->firstWhere('company_id', $this->company->id)['is_stale']);
+        $this->assertTrue($row['is_stale']);
+        $this->assertFalse($row['paused']);
+    }
+
+    /**
+     * Switched off is not the same as stopped.
+     *
+     * With no hrms:pull in the schedule the row would otherwise go stale within
+     * the hour and stay amber for as long as the job stays off, which is how a
+     * health screen teaches people to stop reading it.
+     */
+    public function test_a_pull_with_no_schedule_entry_is_paused_rather_than_stale(): void
+    {
+        $this->connection->forceFill([
+            'last_pull_at' => now()->subHours(6),
+            'last_pull_status' => 'failed',
+            'last_pull_error' => 'No CyberPulse credentials are configured for this company.',
+        ])->save();
+
+        $root = User::create([
+            'name' => 'Root', 'email' => 'root@mealbells.test',
+            'password' => bcrypt('password'), 'role' => 'super_admin',
+        ]);
+
+        $row = collect($this->actingAs($root)->get('/super-admin/health')
+            ->getOriginalContent()->getData()['page']['props']['hrms_pulls'])
+            ->firstWhere('company_id', $this->company->id);
+
+        // No entry registered in this test, and routes/console.php has it
+        // commented out, so the schedule holds none.
+        $this->assertTrue($row['paused']);
+        $this->assertFalse($row['is_stale']);
     }
 
     public function test_the_health_page_never_exposes_the_credentials(): void

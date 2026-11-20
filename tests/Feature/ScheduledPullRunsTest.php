@@ -55,8 +55,40 @@ class ScheduledPullRunsTest extends TestCase
         return trim(substr($command, $at + strlen('hrms:pull')));
     }
 
+    /**
+     * The leave pull is paused (routes/console.php, 2026-11-17), so the tests
+     * that exercise its scheduled entries have nothing to run against.
+     *
+     * Skipped rather than deleted, and skipped conditionally rather than
+     * unconditionally: the moment the entries are uncommented these come back
+     * on their own, which is when the `--all='1'` guard below matters again.
+     */
+    protected function skipWhilePaused(): void
+    {
+        if ($this->pullEvents() === []) {
+            $this->markTestSkipped('The leave pull is paused in routes/console.php; uncomment it to run this.');
+        }
+    }
+
+    /**
+     * The pause is a decision, so it is asserted rather than left implied.
+     *
+     * When somebody restores the schedule this fails, and the failure is the
+     * reminder to delete this test and update NEXT-SESSION.md §0.9.
+     */
+    public function test_the_leave_pull_is_paused(): void
+    {
+        $this->assertSame(
+            [],
+            $this->pullEvents(),
+            'The leave pull is scheduled again. Delete this test and restore the ones below it.',
+        );
+    }
+
     public function test_both_pull_entries_are_scheduled(): void
     {
+        $this->skipWhilePaused();
+
         $events = $this->pullEvents();
 
         $this->assertCount(2, $events);
@@ -75,6 +107,8 @@ class ScheduledPullRunsTest extends TestCase
      */
     public function test_every_scheduled_pull_actually_runs(): void
     {
+        $this->skipWhilePaused();
+
         Http::preventStrayRequests();
 
         $events = $this->pullEvents();
@@ -117,6 +151,8 @@ class ScheduledPullRunsTest extends TestCase
      */
     public function test_the_flags_are_passed_without_values(): void
     {
+        $this->skipWhilePaused();
+
         foreach ($this->pullEvents() as $event) {
             $this->assertStringNotContainsString("--all='", $event->command ?? '');
             $this->assertStringNotContainsString("--before-cutoff='", $event->command ?? '');
@@ -135,6 +171,31 @@ class ScheduledPullRunsTest extends TestCase
             collect($commands)->contains(fn ($c) => str_ends_with(trim($c), '--all --before-cutoff')),
             'no entry passes bare --all --before-cutoff: '.implode(' | ', $commands),
         );
+    }
+
+    /**
+     * The same guard, on an entry that is still scheduled.
+     *
+     * The `--all='1'` bug is a property of how flags are written in
+     * routes/console.php, not of the leave pull in particular - and while the
+     * leave pull is paused the test above is skipped, which would leave the
+     * lesson untested. The attendance entry passes the same two bare flags, so
+     * it keeps the guard awake until the pull comes back.
+     */
+    public function test_the_attendance_entry_passes_bare_flags(): void
+    {
+        $attendance = array_values(array_filter(
+            app(Schedule::class)->events(),
+            fn (Event $event) => str_contains($event->command ?? '', 'hrms:pull-attendance'),
+        ));
+
+        $this->assertCount(1, $attendance, 'the attendance pull is no longer scheduled');
+
+        $command = trim($attendance[0]->command ?? '');
+
+        $this->assertStringNotContainsString("--all='", $command);
+        $this->assertStringNotContainsString("--before-cutoff='", $command);
+        $this->assertStringEndsWith('--all --before-cutoff', $command);
     }
 
     /**

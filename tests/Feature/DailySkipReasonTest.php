@@ -152,7 +152,8 @@ class DailySkipReasonTest extends TestCase
         ]);
 
         // The page builds its map from uncancelled skips only, so the row goes
-        // back to "Taking meal" with nothing underneath it.
+        // back to carrying nothing under the name - which is what an employee
+        // who is eating looks like.
         $active = collect($this->dailyProps()['skips'])
             ->filter(fn ($s) => $s['cancelled_at'] === null)
             ->pluck('employee_id');

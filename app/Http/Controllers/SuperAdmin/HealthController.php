@@ -10,6 +10,7 @@ use App\Models\HrmsWebhookEvent;
 use App\Models\MealCount;
 use App\Services\MealCalendar;
 use Carbon\Carbon;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -178,6 +179,22 @@ class HealthController extends Controller
     }
 
     /**
+     * Whether the leave pull is in the schedule at all.
+     *
+     * Read off the registered schedule rather than from a setting, so the
+     * screen cannot disagree with routes/console.php: if somebody comments the
+     * entries out, or puts them back, this follows without a second switch to
+     * remember. Matched on the whole command word, because a loose match also
+     * catches hrms:pull-attendance, which is a different job on a different
+     * cadence.
+     */
+    protected function leavePullIsScheduled(): bool
+    {
+        return collect(app(Schedule::class)->events())
+            ->contains(fn ($event) => preg_match('/\bhrms:pull(?![\w-])/', $event->command ?? '') === 1);
+    }
+
+    /**
      * One row per company we poll rather than receive from.
      *
      * A pull has no per-event delivery to look at, so its last run is the only
@@ -192,11 +209,12 @@ class HealthController extends Controller
     protected function hrmsPullHealth(): array
     {
         $staleAfter = (int) config('hrms.cyberpulse.pull_every_minutes', 15) * 3;
+        $scheduled = $this->leavePullIsScheduled();
 
         return CompanyHrmsConnection::with('company:id,name,code')
             ->whereNotNull('pull_base_url')
             ->get()
-            ->map(function (CompanyHrmsConnection $connection) use ($staleAfter) {
+            ->map(function (CompanyHrmsConnection $connection) use ($staleAfter, $scheduled) {
                 $summary = $connection->last_pull_summary ?? [];
                 $minutesAgo = $connection->last_pull_at
                     ? (int) $connection->last_pull_at->diffInMinutes(now())
@@ -209,7 +227,12 @@ class HealthController extends Controller
                     'adapter' => $connection->pull_adapter,
                     'last_pull_at' => $connection->last_pull_at?->toDateTimeString(),
                     'minutes_ago' => $minutesAgo,
-                    'is_stale' => $minutesAgo === null || $minutesAgo > $staleAfter,
+                    // A pull nobody scheduled is not a pull that stopped. It
+                    // would otherwise go stale within the hour and stay red for
+                    // as long as it stays switched off, which is how a health
+                    // screen teaches people to stop reading it.
+                    'paused' => ! $scheduled,
+                    'is_stale' => $scheduled && ($minutesAgo === null || $minutesAgo > $staleAfter),
                     'stale_after_minutes' => $staleAfter,
                     'status' => $connection->last_pull_status,
                     'error' => $connection->last_pull_error,

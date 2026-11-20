@@ -583,10 +583,26 @@ class HrmsPullConnectionScreenTest extends TestCase
 
     // --------------------------------------------------------------- scheduler
 
+    /**
+     * The leave pull is paused in routes/console.php (2026-11-17): no company
+     * has credentials, so both entries did nothing but fail about ninety-six
+     * times a day. Skipped conditionally, so restoring the schedule brings this
+     * back without anybody remembering to.
+     *
+     * The attendance pull is a separate entry and is still asserted below.
+     */
     public function test_the_scheduler_runs_the_pull_on_an_interval_and_before_the_cutoff(): void
     {
         $events = collect(app(Schedule::class)->events())
             ->map(fn ($event) => $event->getSummaryForDisplay().' @ '.$event->expression);
+
+        $leavePull = $events->filter(
+            fn ($e) => preg_match('/\bhrms:pull(?![\w-])/', $e) === 1,
+        );
+
+        if ($leavePull->isEmpty()) {
+            $this->markTestSkipped('The leave pull is paused in routes/console.php; uncomment it to run this.');
+        }
 
         $interval = (int) config('hrms.cyberpulse.pull_every_minutes');
 
@@ -598,6 +614,21 @@ class HrmsPullConnectionScreenTest extends TestCase
         $this->assertTrue(
             $events->contains(fn ($e) => str_contains($e, 'before-cutoff') && str_contains($e, '* * * * *')),
             'no per-minute pre-cutoff pull scheduled',
+        );
+    }
+
+    /**
+     * Unaffected by the pause above, and asserted here so that turning the
+     * leave pull off cannot quietly take attendance with it.
+     */
+    public function test_the_scheduler_still_runs_the_attendance_pull(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->map(fn ($event) => $event->getSummaryForDisplay().' @ '.$event->expression);
+
+        $this->assertTrue(
+            $events->contains(fn ($e) => str_contains($e, 'hrms:pull-attendance') && str_contains($e, '* * * * *')),
+            'the attendance pull is no longer scheduled: '.$events->implode(' | '),
         );
     }
 

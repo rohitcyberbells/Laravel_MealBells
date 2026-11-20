@@ -14,23 +14,40 @@ Schedule::command('mealbells:process-cutoff')->everyMinute()->withoutOverlapping
 Schedule::command('mealbells:generate-recurring-skips')->hourly()->withoutOverlapping()->onOneServer();
 Schedule::command('hrms:reconcile')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
 
-// An HRMS with no webhooks has to be polled. The regular cadence keeps the day
-// roughly current; the second entry runs every minute but only acts inside each
-// company's pre-cutoff window, so leave approved during the morning still
-// reaches the count before it locks.
-//
-// The flags are passed as bare values, not as ['--all' => true]: that renders
-// as --all='1' and Symfony refuses a value on a boolean option, so every run
-// failed before the command started.
-Schedule::command('hrms:pull', ['--all'])
-    ->cron('*/'.max(1, (int) config('hrms.cyberpulse.pull_every_minutes', 15)).' * * * *')
-    ->withoutOverlapping()
-    ->onOneServer();
+/*
+ * The leave pull is PAUSED, on purpose. 2026-11-17.
+ *
+ * No company has pull credentials configured, so both entries below did
+ * nothing but fail - about ninety-six times a day - and left the HRMS screen
+ * showing a permanent red "failed". A warning light that is always on is a
+ * warning light nobody reads, which costs more than the polling was worth.
+ *
+ * Leave is being entered by hand by company admins in the meantime. Attendance
+ * is unaffected and still runs below.
+ *
+ * Uncomment both as soon as either arrives:
+ *   - a read-only CyberPulse login saved on the HRMS screen, or
+ *   - CyberPulse sending webhooks, in which case delete these instead, because
+ *     polling for what is already being pushed is work for nothing.
+ *
+ * An HRMS with no webhooks has to be polled. The regular cadence keeps the day
+ * roughly current; the second entry runs every minute but only acts inside each
+ * company's pre-cutoff window, so leave approved during the morning still
+ * reaches the count before it locks.
+ *
+ * The flags are passed as bare values, not as ['--all' => true]: that renders
+ * as --all='1' and Symfony refuses a value on a boolean option, so every run
+ * failed before the command started.
+ */
+// Schedule::command('hrms:pull', ['--all'])
+//     ->cron('*/'.max(1, (int) config('hrms.cyberpulse.pull_every_minutes', 15)).' * * * *')
+//     ->withoutOverlapping()
+//     ->onOneServer();
 
-Schedule::command('hrms:pull', ['--all', '--before-cutoff'])
-    ->everyMinute()
-    ->withoutOverlapping()
-    ->onOneServer();
+// Schedule::command('hrms:pull', ['--all', '--before-cutoff'])
+//     ->everyMinute()
+//     ->withoutOverlapping()
+//     ->onOneServer();
 
 // Attendance, shortly before each company's cutoff and only for companies that
 // have switched it on. Shadow mode: it records what it saw and reports what it
