@@ -3,8 +3,12 @@ import { setTheme, theme } from '../theme.js';
 
 // compact drops the words and keeps the icons, for the mobile bar where there
 // is no room for "Day" and "Night" beside the brand.
+//
+// vertical stacks the two buttons, for the icon rail: side by side they are
+// 86px wide, which does not fit an 80px column.
 defineProps({
     compact: { type: Boolean, default: false },
+    vertical: { type: Boolean, default: false },
 });
 </script>
 
@@ -12,7 +16,10 @@ defineProps({
     <div
         role="group"
         aria-label="Theme"
-        class="inline-flex gap-1 p-1 rounded-full bg-mb-card border border-mb-line"
+        :class="[
+            'inline-flex gap-1 p-1 rounded-full bg-mb-card border border-mb-line',
+            vertical ? 'flex-col' : '',
+        ]"
     >
         <button
             type="button"

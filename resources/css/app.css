@@ -59,6 +59,41 @@
     --color-mb-tint-rose: var(--mb-tint-rose);
     --color-mb-tint-indigo: var(--mb-tint-indigo);
     --color-mb-tint-slate: var(--mb-tint-slate);
+
+    /*
+     * A filled emerald surface that carries text, and the text printed on it.
+     *
+     * Separate from --mb-tint-emerald because the two have different jobs. The
+     * tint is a mark: a dot, a focus ring, a blob of ambient light, where only
+     * 3:1 against its neighbour is asked of it. This one holds sentences, and a
+     * mid-tone emerald cannot: WCAG 2 scores near-black on it at a comfortable
+     * 5.35:1, but APCA scores the same pair at Lc 39, under its floor of 60 for
+     * body text, and that is the number that matches what the eye reports.
+     * White fares no better in the dark theme, at Lc 54. A mid-tone saturated
+     * colour has no readable text colour, in either direction - so the fill
+     * goes deep and the text goes light.
+     */
+    --color-mb-fill-emerald: var(--mb-fill-emerald);
+    --color-mb-on-fill: var(--mb-on-fill);
+    --color-mb-on-fill-soft: var(--mb-on-fill-soft);
+
+    /*
+     * The same thing in rose, for the one destructive button that is filled
+     * rather than outlined. Mid-tone red has the same defect as mid-tone
+     * emerald: near-black on red-600 measures a respectable 3.70:1 and scores
+     * Lc 31, which is not readable at any size.
+     */
+    --color-mb-fill-rose: var(--mb-fill-rose);
+    --color-mb-on-fill-rose: var(--mb-on-fill-rose);
+
+    /*
+     * The boundary of a control the viewer types into. 1.4.11 asks 3:1 of it,
+     * which --mb-line-mid misses badly - slate-300 on white is 1.47:1, so a
+     * text field read as having no edge at all. Slate-500 is the one value that
+     * clears 3:1 against both a near-white and a near-black surface, which is
+     * why it does not flip with the theme.
+     */
+    --color-mb-field: var(--mb-field);
 }
 
 .mb-theme {
@@ -93,6 +128,13 @@
     --mb-tint-rose: var(--color-red-500);
     --mb-tint-indigo: var(--color-indigo-500);
     --mb-tint-slate: var(--color-slate-700);
+
+    --mb-fill-emerald: var(--color-emerald-900);
+    --mb-on-fill: var(--color-emerald-50);
+    --mb-on-fill-soft: var(--color-emerald-200);
+    --mb-fill-rose: var(--color-red-900);
+    --mb-on-fill-rose: var(--color-red-50);
+    --mb-field: var(--color-slate-500);
 }
 
 /*
@@ -135,6 +177,36 @@
     --mb-tint-rose: var(--color-red-600);
     --mb-tint-indigo: var(--color-indigo-600);
     --mb-tint-slate: var(--color-slate-300);
+
+    /*
+     * One step lighter than the dark theme's fill: the light page needs the
+     * card to read as a block, the dark page needs it not to glare.
+     */
+    --mb-fill-emerald: var(--color-emerald-800);
+    --mb-on-fill: var(--color-emerald-50);
+    --mb-on-fill-soft: var(--color-emerald-100);
+    --mb-fill-rose: var(--color-red-800);
+    --mb-on-fill-rose: var(--color-red-50);
+    --mb-field: var(--color-slate-500);
+}
+
+/*
+ * The parts of a form the browser draws for itself: the list a <select> drops
+ * down, the calendar behind <input type="date">, scrollbars, the caret. None
+ * of them can be reached with our tokens - the browser picks their colours
+ * from color-scheme, and the default follows the operating system rather than
+ * the toggle in the sidebar. A dark app on a light Mac therefore opened a
+ * white dropdown over a near-black page.
+ *
+ * On the element the inline script in app.blade.php already sets, so the two
+ * never disagree.
+ */
+:root {
+    color-scheme: dark;
+}
+
+[data-theme='light'] {
+    color-scheme: light;
 }
 
 /*
@@ -241,4 +313,160 @@
             transition: none;
         }
     }
+}
+
+/*
+ * The ambient wash, drifting and changing colour.
+ *
+ * Each of the three positions holds the same three tints stacked on top of
+ * each other, and cross-fades between them, so a corner that is emerald now
+ * is cyan a while later and amber after that. Nothing new is introduced: the
+ * colours are the palette's own three, at the alpha each was already tuned
+ * to, so no frame is ever stronger behind the content than the still version
+ * was.
+ *
+ * Only transform and opacity animate. The blur sits on each tint rather than
+ * on the drifting parent: a filter on the parent would collapse the three
+ * into one buffer, and a child fading would then force that 110px blur to be
+ * recomputed every frame. Blurred separately, each tint is rasterised once
+ * and every frame after is the compositor moving and fading cached layers -
+ * no repaint, and nothing on the main thread, which the 3D dashboard needs
+ * for itself.
+ *
+ * The periods are deliberately not multiples of each other, so the positions
+ * never line back up into a loop anyone can spot.
+ */
+@keyframes mb-wash-drift-a {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50%      { transform: translate3d(6vw, 4vh, 0) scale(1.18); }
+}
+
+@keyframes mb-wash-drift-b {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); }
+    50%      { transform: translate3d(-5vw, -6vh, 0) scale(1); }
+}
+
+@keyframes mb-wash-drift-c {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50%      { transform: translate3d(4vw, -5vh, 0) scale(1.22); }
+}
+
+/* Three turns at the same wheel, a third of a period apart. */
+@keyframes mb-tint-1 {
+    0%, 100% { opacity: 1; }
+    33%      { opacity: 0; }
+    67%      { opacity: 0; }
+}
+
+@keyframes mb-tint-2 {
+    0%, 100% { opacity: 0; }
+    33%      { opacity: 1; }
+    67%      { opacity: 0; }
+}
+
+@keyframes mb-tint-3 {
+    0%, 100% { opacity: 0; }
+    33%      { opacity: 0; }
+    67%      { opacity: 1; }
+}
+
+@layer components {
+    .mb-wash-a,
+    .mb-wash-b,
+    .mb-wash-c {
+        will-change: transform;
+        animation-iteration-count: infinite;
+        animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    }
+
+    .mb-wash-a { animation-name: mb-wash-drift-a; animation-duration: 38s; }
+    .mb-wash-b { animation-name: mb-wash-drift-b; animation-duration: 53s; }
+    .mb-wash-c { animation-name: mb-wash-drift-c; animation-duration: 67s; }
+
+    .mb-tint-1,
+    .mb-tint-2,
+    .mb-tint-3 {
+        will-change: opacity;
+        animation-iteration-count: infinite;
+        animation-timing-function: ease-in-out;
+    }
+
+    .mb-tint-1 { animation-name: mb-tint-1; }
+    .mb-tint-2 { animation-name: mb-tint-2; }
+    .mb-tint-3 { animation-name: mb-tint-3; }
+
+    /* Set on the parent so all three of its tints turn together. */
+    .mb-wash-a .mb-tint-1,
+    .mb-wash-a .mb-tint-2,
+    .mb-wash-a .mb-tint-3 { animation-duration: 45s; }
+
+    .mb-wash-b .mb-tint-1,
+    .mb-wash-b .mb-tint-2,
+    .mb-wash-b .mb-tint-3 { animation-duration: 57s; }
+
+    .mb-wash-c .mb-tint-1,
+    .mb-wash-c .mb-tint-2,
+    .mb-wash-c .mb-tint-3 { animation-duration: 69s; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .mb-wash-a,
+        .mb-wash-b,
+        .mb-wash-c,
+        .mb-tint-1,
+        .mb-tint-2,
+        .mb-tint-3 {
+            animation: none;
+            will-change: auto;
+        }
+
+        /* Without the cycle the stack would read as the topmost tint alone. */
+        .mb-tint-2,
+        .mb-tint-3 {
+            opacity: 0;
+        }
+    }
+}
+
+/*
+ * One focus ring, everywhere.
+ *
+ * Nothing in the app declared one, so a keyboard user fell back to the
+ * browser's own - which is drawn to contrast with the operating system rather
+ * than with this page, and is close to invisible on the dark theme. Dozens of
+ * fields also carry focus:outline-none in order to show a border colour
+ * instead, which took away even that.
+ *
+ * Deliberately unlayered: unlayered CSS outranks every cascade layer, so this
+ * beats Tailwind's focus:outline-none without !important and without editing
+ * each call site. :where() holds its specificity at zero, so a component that
+ * genuinely needs a different ring can still say so.
+ *
+ * The ring is text-strong - near-white on the dark theme, near-black on the
+ * light one - and offset clear of the control, so what it has to contrast
+ * with is the surface behind it rather than whatever the control is filled
+ * with. That matters for the emerald buttons, where a ring in the brand
+ * colour would disappear into the fill.
+ */
+:where(
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [role='combobox'],
+    [role='button'],
+    [tabindex]:not([tabindex='-1'])
+):focus-visible {
+    outline: 2px solid var(--mb-text-strong, currentColor);
+    outline-offset: 2px;
+}
+
+/*
+ * A control sitting flush against the viewport edge, or inside a scroller,
+ * would have its offset ring clipped. Keeping the radius tight to the control
+ * is enough to stop that in the places it happens.
+ */
+:where(input, textarea, [role='combobox']):focus-visible {
+    outline-offset: 1px;
 }
