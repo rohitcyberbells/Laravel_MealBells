@@ -35,14 +35,14 @@ const fillDemo = (identifier, companyCode = '') => {
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
+                    <label for="login-email-or-employee" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
                         Email or employee code
                     </label>
-                    <input
+                    <input id="login-email-or-employee"
                         v-model="form.identifier"
                         type="text"
                         autocomplete="username"
-                        placeholder="you@company.com or ACME001"
+                        placeholder="you@company.com or ROHIT"
                         required
                         class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
                     />
@@ -52,11 +52,11 @@ const fillDemo = (identifier, companyCode = '') => {
                 <!-- Only an employee code needs a company, so the field appears
                      once the input stops looking like an address. -->
                 <div v-if="form.identifier && !looksLikeEmail">
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Company code</label>
-                    <input
+                    <label for="login-company-code" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Company code</label>
+                    <input id="login-company-code"
                         v-model="form.company_code"
                         type="text"
-                        placeholder="ACME01"
+                        placeholder="CYB01"
                         class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong uppercase focus:outline-none focus:border-mb-tint-emerald"
                     />
                     <p class="text-[11px] text-mb-text-faint mt-1">Your HR team can tell you this.</p>
@@ -65,8 +65,8 @@ const fillDemo = (identifier, companyCode = '') => {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Password</label>
-                    <input
+                    <label for="login-password" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Password</label>
+                    <input id="login-password"
                         v-model="form.password"
                         type="password"
                         autocomplete="current-password"
@@ -107,12 +107,12 @@ const fillDemo = (identifier, companyCode = '') => {
                     <button @click="fillDemo('hr@acme.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-cyan-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Company Admin
                     </button>
-                    <button @click="fillDemo('acme001@demo.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-indigo-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
+                    <button @click="fillDemo('rohit.cyberbells@gmail.com')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-indigo-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
                         Employee
                     </button>
                 </div>
                 <p class="text-[11px] text-mb-text-faint mt-2 text-center">
-                    Employees can also use <span class="font-mono">ACME01</span> + <span class="font-mono">ACME001</span>.
+                    Employees can also use <span class="font-mono">CYB01</span> + <span class="font-mono">ROHIT</span>.
                 </p>
             </div>
         </div>

@@ -26,8 +26,8 @@ const submit = () => form.post('/reset-password', {
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Email address</label>
-                    <input
+                    <label for="resetpassword-email-address" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Email address</label>
+                    <input id="resetpassword-email-address"
                         v-model="form.email"
                         type="email"
                         autocomplete="email"
@@ -38,8 +38,8 @@ const submit = () => form.post('/reset-password', {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">New password</label>
-                    <input
+                    <label for="resetpassword-new-password" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">New password</label>
+                    <input id="resetpassword-new-password"
                         v-model="form.password"
                         type="password"
                         autocomplete="new-password"
@@ -51,8 +51,8 @@ const submit = () => form.post('/reset-password', {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Confirm new password</label>
-                    <input
+                    <label for="resetpassword-confirm-new-password" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Confirm new password</label>
+                    <input id="resetpassword-confirm-new-password"
                         v-model="form.password_confirmation"
                         type="password"
                         autocomplete="new-password"

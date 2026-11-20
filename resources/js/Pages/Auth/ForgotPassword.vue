@@ -26,8 +26,8 @@ const submit = () => form.post('/forgot-password', {
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Email address</label>
-                    <input
+                    <label for="forgotpassword-email-address" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Email address</label>
+                    <input id="forgotpassword-email-address"
                         v-model="form.email"
                         type="email"
                         autocomplete="email"

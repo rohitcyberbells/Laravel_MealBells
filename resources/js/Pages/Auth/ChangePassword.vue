@@ -27,7 +27,6 @@ const submit = () => {
             <!-- Header -->
             <div class="text-center space-y-2">
                 <div class="inline-flex w-12 h-12 rounded-2xl bg-mb-tint-amber/10 border border-mb-tint-amber/30 items-center justify-center text-2xl mb-2">
-                    🔑
                 </div>
                 <h1 class="text-xl font-bold text-mb-text-strong tracking-tight">Password Change Required</h1>
                 <p class="text-xs text-mb-text-muted">
@@ -46,8 +45,8 @@ const submit = () => {
             <!-- Change Password Form -->
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-mb-text-soft mb-1">Current Temporary Password</label>
-                    <input
+                    <label for="changepassword-current-temporary-password" class="block text-xs font-medium text-mb-text-soft mb-1">Current Temporary Password</label>
+                    <input id="changepassword-current-temporary-password"
                         type="password"
                         v-model="form.current_password"
                         required
@@ -60,8 +59,8 @@ const submit = () => {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-mb-text-soft mb-1">New Password (min 8 chars)</label>
-                    <input
+                    <label for="changepassword-new-password-min" class="block text-xs font-medium text-mb-text-soft mb-1">New Password (min 8 chars)</label>
+                    <input id="changepassword-new-password-min"
                         type="password"
                         v-model="form.password"
                         required
@@ -74,8 +73,8 @@ const submit = () => {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-mb-text-soft mb-1">Confirm New Password</label>
-                    <input
+                    <label for="changepassword-confirm-new-password" class="block text-xs font-medium text-mb-text-soft mb-1">Confirm New Password</label>
+                    <input id="changepassword-confirm-new-password"
                         type="password"
                         v-model="form.password_confirmation"
                         required

@@ -18,96 +18,147 @@ const changeDate = (newDate) => {
     router.get('/tiffin-admin/preparation', { date: newDate }, { preserveState: true });
 };
 
+/**
+ * The count's status arrives as the database enum. It was printed uppercased
+ * and straight through, so the table read AUTO_CONFIRMED at the kitchen.
+ */
+const statusLabel = (status) => ({
+    auto_confirmed: 'Auto-confirmed',
+    confirmed: 'Confirmed',
+}[status] ?? String(status).replace(/_/g, ' '));
+
 </script>
 
 <template>
     <AppLayout>
-    <div class="p-6">
-        <!-- Header -->
-
-        <main class="max-w-7xl mx-auto space-y-8">
-            <!-- 📅 Date Navigation & Overall Summary Bar -->
-            <div class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl flex flex-wrap justify-between items-center gap-4">
-                <div class="flex items-center space-x-4">
-                    <label class="text-xs uppercase font-bold text-mb-text-muted">Select Date:</label>
-                    <input type="date" v-model="currentDate" @change="changeDate(currentDate)" class="bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-sm text-mb-text-strong focus:outline-none focus:border-mb-tint-amber" />
-                </div>
-
-                <div v-if="preparationData" class="flex items-center space-x-6">
-                    <div class="text-right">
-                        <p class="text-xs uppercase font-semibold text-mb-text-muted">Total Expected Meals</p>
-                        <p class="text-3xl font-extrabold text-mb-emerald">{{ preparationData.summary.total_meals }} <span class="text-xs font-normal text-mb-text-muted">meals</span></p>
-                    </div>
-                    <span v-if="preparationData.summary.is_estimate" class="bg-mb-tint-amber/20 text-mb-amber-soft border border-mb-tint-amber/40 text-xs font-semibold px-3 py-1.5 rounded-full">
-                        ⚡ Live Estimate
-                    </span>
-                    <span v-else class="bg-mb-tint-emerald/20 text-mb-emerald-soft border border-mb-tint-emerald/40 text-xs font-semibold px-3 py-1.5 rounded-full">
-                        🔒 Locked Count
-                    </span>
-                </div>
+    <div class="relative z-10 p-4 sm:p-6 space-y-5">
+        <header class="flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h1 class="text-2xl font-bold tracking-tight text-mb-text-strong">Preparation</h1>
+                <p class="text-xs text-mb-text-muted dark:text-mb-text-soft mt-0.5">
+                    How many tiffins to cook, and for whom.
+                </p>
             </div>
 
-            <!-- 🍲 Today's Planned Menu Card -->
-            <section class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
-                <h2 class="text-lg font-bold text-mb-text-strong mb-2 flex items-center gap-2">
-                    🍲 Menu for {{ currentDate }}
-                </h2>
-                <div v-if="todayOverride" class="bg-mb-tint-amber/10 border border-mb-tint-amber/40 rounded-lg p-4">
-                    <span class="bg-mb-tint-amber text-mb-on-accent text-xs font-bold px-2 py-0.5 rounded">Emergency Override Active</span>
-                    <p class="text-mb-amber-soft font-semibold text-base mt-2">{{ todayOverride.meal_description }}</p>
-                    <p v-if="todayOverride.reason" class="text-xs text-mb-amber/80 mt-1">Reason: {{ todayOverride.reason }}</p>
-                </div>
-                <div v-else-if="todayMenu" class="bg-mb-inset border border-mb-line rounded-lg p-4">
-                    <p class="text-mb-text font-medium text-base">{{ todayMenu }}</p>
-                </div>
-                <div v-else class="text-mb-text-faint text-sm italic">
-                    No menu published for this date yet.
+            <div class="flex items-center gap-2 shrink-0">
+                <label for="prep-date" class="text-xs font-semibold text-mb-text-muted dark:text-mb-text-soft">Date</label>
+                <input
+                    id="prep-date"
+                    type="date"
+                    v-model="currentDate"
+                    @change="changeDate(currentDate)"
+                    class="h-10 px-3 bg-mb-card border border-mb-field rounded-lg text-sm text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
+                />
+            </div>
+        </header>
+
+        <main class="space-y-5">
+            <!--
+                The kitchen has one question, and this is it. It used to sit
+                small in the corner of the date-picker row, which made choosing
+                a date look like the page's main job.
+            -->
+            <section v-if="preparationData" class="bg-mb-card/70 backdrop-blur-xl border border-mb-line rounded-2xl p-6 sm:p-7">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">
+                            Tiffins to cook
+                        </p>
+                        <p class="mt-2 text-6xl sm:text-7xl font-light leading-none tracking-tight text-mb-text-strong tabular-nums">
+                            {{ preparationData.summary.total_meals }}
+                            <span class="text-2xl font-normal text-mb-text-muted dark:text-mb-text-soft">meals</span>
+                        </p>
+                    </div>
+
+                    <span v-if="preparationData.summary.is_estimate" class="inline-flex items-center gap-2 text-sm font-semibold text-mb-amber whitespace-nowrap">
+                        <span class="w-2 h-2 shrink-0 rounded-full bg-mb-amber" aria-hidden="true"></span>
+                        Live estimate — still moving
+                    </span>
+                    <span v-else class="inline-flex items-center gap-2 text-sm font-semibold text-mb-emerald whitespace-nowrap">
+                        <span class="w-2 h-2 shrink-0 rounded-full bg-mb-emerald" aria-hidden="true"></span>
+                        Locked — this is the number
+                    </span>
                 </div>
             </section>
 
-            <!-- 🏢 Assigned Companies Preparation Table -->
-            <section class="bg-mb-card border border-mb-line rounded-xl p-6 shadow-xl">
-                <h2 class="text-xl font-bold text-mb-text-strong mb-4">🏢 Company Preparation Breakdown</h2>
+            <!--
+                The override used to sit in a tinted box inside the card. One
+                card, one menu: the override replaces the menu rather than
+                decorating it, so it is said in the heading instead.
+            -->
+            <section class="bg-mb-card/70 backdrop-blur-xl border border-mb-line rounded-2xl p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 class="text-sm font-semibold text-mb-text-strong">Menu</h2>
+                    <span v-if="todayOverride" class="inline-flex items-center gap-1.5 text-xs font-semibold text-mb-amber">
+                        <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-mb-amber" aria-hidden="true"></span>
+                        Emergency override — cook this, not the published menu
+                    </span>
+                </div>
 
-                <div v-if="!preparationData || preparationData.companies.length === 0" class="text-center py-12 text-mb-text-faint">
-                    Abhi koi company assigned nahi hai ya is date par active nahi hai.
+                <p v-if="todayOverride" class="mt-3 text-xl font-medium text-mb-text-strong">
+                    {{ todayOverride.meal_description }}
+                </p>
+                <p v-else-if="todayMenu" class="mt-3 text-xl font-medium text-mb-text-strong">
+                    {{ todayMenu }}
+                </p>
+                <p v-else class="mt-3 text-sm text-mb-text-muted dark:text-mb-text-soft">
+                    No menu published for this date yet.
+                </p>
+
+                <p v-if="todayOverride?.reason" class="mt-2 text-xs text-mb-text-muted dark:text-mb-text-soft">
+                    Reason: {{ todayOverride.reason }}
+                </p>
+            </section>
+
+            <!--
+                The kitchen reads this to load the vans: one row per company,
+                and the only number that goes on the box is "To cook".
+            -->
+            <section class="bg-mb-card/70 backdrop-blur-xl border border-mb-line rounded-2xl p-6">
+                <h2 class="text-sm font-semibold text-mb-text-strong mb-4">By company</h2>
+
+                <div v-if="!preparationData || preparationData.companies.length === 0" class="py-12 text-center text-sm text-mb-text-muted dark:text-mb-text-soft">
+                    No company is assigned to you, or none is active on this date.
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="border-b border-mb-line text-mb-text-muted text-xs uppercase tracking-wider">
-                                <th class="p-3">Company Name</th>
-                                <th class="p-3">Base Eligible</th>
-                                <th class="p-3">Skips</th>
-                                <th class="p-3">Extra Meals</th>
-                                <th class="p-3">Expected Count</th>
-                                <th class="p-3">Status</th>
+                            <tr class="border-b border-mb-line text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">
+                                <th class="py-2 pr-3 font-semibold">Company</th>
+                                <th class="py-2 px-3 font-semibold text-right">Eligible</th>
+                                <th class="py-2 px-3 font-semibold text-right">Skips</th>
+                                <th class="py-2 px-3 font-semibold text-right">Extra</th>
+                                <th class="py-2 px-3 font-semibold text-right">To cook</th>
+                                <th class="py-2 pl-3 font-semibold">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-mb-line/60 text-sm">
                             <tr v-for="comp in preparationData.companies" :key="comp.company_id" class="hover:bg-mb-raised/30">
-                                <td class="p-3 font-semibold text-mb-text-strong">
+                                <td class="py-3 pr-3 font-medium text-mb-text-strong">
                                     {{ comp.company_name }}
                                 </td>
-                                <td class="p-3 text-mb-text-soft font-medium">{{ comp.base_eligible_count }}</td>
-                                <td class="p-3 text-mb-rose font-medium">-{{ comp.skip_count }}</td>
-                                <td class="p-3 text-mb-emerald font-medium">+{{ comp.extra_count }}</td>
-                                <td class="p-3 font-extrabold text-mb-amber text-base">
-                                    {{ comp.adjusted_total }}
-                                    <span v-if="comp.late_changes.length > 0" class="text-xs font-normal text-mb-amber-soft block">
-                                        (Original: {{ comp.final_expected_count }})
+                                <td class="py-3 px-3 text-right tabular-nums text-mb-text-soft">{{ comp.base_eligible_count }}</td>
+                                <td class="py-3 px-3 text-right tabular-nums text-mb-rose dark:text-mb-rose-soft">&minus;{{ comp.skip_count }}</td>
+                                <td class="py-3 px-3 text-right tabular-nums text-mb-emerald">+{{ comp.extra_count }}</td>
+                                <td class="py-3 px-3 text-right">
+                                    <span class="text-lg font-semibold tabular-nums text-mb-text-strong">{{ comp.adjusted_total }}</span>
+                                    <span v-if="comp.late_changes.length > 0" class="block text-xs font-normal text-mb-text-muted dark:text-mb-text-soft">
+                                        was {{ comp.final_expected_count }}
                                     </span>
                                 </td>
-                                <td class="p-3">
-                                    <span v-if="!comp.is_meal_day" class="bg-mb-raised text-mb-text-muted border border-mb-line-mid text-xs px-2.5 py-1 rounded-full font-semibold">
-                                        Non-Meal Day
+                                <td class="py-3 pl-3">
+                                    <span v-if="!comp.is_meal_day" class="inline-flex items-center gap-1.5 text-xs font-semibold text-mb-text-muted dark:text-mb-text-soft whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-mb-text-faint" aria-hidden="true"></span>
+                                        No meal day
                                     </span>
-                                    <span v-else-if="comp.is_locked" class="bg-mb-tint-emerald/20 text-mb-emerald-soft border border-mb-tint-emerald/40 text-xs px-2.5 py-1 rounded-full font-semibold">
-                                        {{ comp.status.toUpperCase() }}
+                                    <span v-else-if="comp.is_locked" class="inline-flex items-center gap-1.5 text-xs font-semibold text-mb-emerald whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-mb-emerald" aria-hidden="true"></span>
+                                        {{ statusLabel(comp.status) }}
                                     </span>
-                                    <span v-else class="bg-mb-tint-amber/20 text-mb-amber-soft border border-mb-tint-amber/40 text-xs px-2.5 py-1 rounded-full font-semibold">
-                                        ESTIMATE
+                                    <span v-else class="inline-flex items-center gap-1.5 text-xs font-semibold text-mb-amber whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-mb-amber" aria-hidden="true"></span>
+                                        Estimate
                                     </span>
                                 </td>
                             </tr>

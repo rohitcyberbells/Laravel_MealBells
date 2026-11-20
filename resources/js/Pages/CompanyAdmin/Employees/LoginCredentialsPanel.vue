@@ -61,9 +61,9 @@ const downloadCsv = () => {
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
                 <h3 class="text-sm font-bold text-mb-amber-soft">
-                    🔑 {{ rows.length }} login{{ rows.length === 1 ? '' : 's' }} generated
+                    {{ rows.length }} login{{ rows.length === 1 ? '' : 's' }} generated
                 </h3>
-                <p class="text-xs text-mb-amber-soft/80 mt-1">
+                <p class="text-xs text-mb-amber-soft mt-1">
                     These passwords are only shown now — copy or download them before you leave this page.
                     They are stored hashed, so they cannot be shown again; resetting is the only way to get a new one.
                 </p>
@@ -74,17 +74,17 @@ const downloadCsv = () => {
                     @click="copyAll"
                     class="px-3 py-1.5 rounded-lg text-xs font-bold text-mb-amber-soft bg-mb-tint-amber/15 hover:bg-mb-tint-amber/25 border border-mb-tint-amber/40 cursor-pointer"
                 >
-                    {{ copied ? '✅ Copied' : 'Copy all' }}
+                    {{ copied ? 'Copied' : 'Copy all' }}
                 </button>
                 <button
                     @click="downloadCsv"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold text-mb-text bg-mb-raised hover:bg-mb-chip border border-mb-line-mid cursor-pointer"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold text-mb-text bg-mb-raised hover:bg-mb-chip border border-mb-field cursor-pointer"
                 >
                     Download CSV
                 </button>
                 <button
                     @click="emit('dismiss')"
-                    class="text-mb-amber-soft/70 hover:text-mb-amber-soft text-lg leading-none cursor-pointer"
+                    class="text-mb-amber-soft hover:text-mb-amber-soft text-lg leading-none cursor-pointer"
                     aria-label="Dismiss"
                 >
                     ×
@@ -94,7 +94,7 @@ const downloadCsv = () => {
 
         <div class="overflow-x-auto rounded-xl border border-mb-tint-amber/20">
             <table class="w-full text-left text-xs">
-                <thead class="bg-mb-inset/60 text-mb-amber-soft/70 uppercase text-[10px] font-semibold">
+                <thead class="bg-mb-inset/60 text-mb-amber-soft uppercase text-[10px] font-semibold">
                     <tr>
                         <th class="py-2 px-3">Name</th>
                         <th class="py-2 px-3">Code</th>
@@ -105,11 +105,11 @@ const downloadCsv = () => {
                 <tbody class="divide-y divide-mb-tint-amber/10">
                     <tr v-for="row in rows" :key="row.code">
                         <td class="py-2 px-3 text-mb-text font-semibold">{{ row.name }}</td>
-                        <td class="py-2 px-3 font-mono text-mb-text-muted">{{ row.code }}</td>
+                        <td class="py-2 px-3 font-mono text-mb-text-muted dark:text-mb-text-soft">{{ row.code }}</td>
                         <td class="py-2 px-3 font-mono text-mb-text-soft">
                             {{ row.loginId }}
-                            <span v-if="row.mailed" class="ml-1 text-mb-emerald" title="Emailed to the employee">✉</span>
-                            <span v-else-if="row.noEmail" class="ml-1 text-mb-amber/80 text-[10px]">no email — code only</span>
+                            <span v-if="row.mailed" class="ml-1 text-mb-emerald" title="Emailed to the employee">mailed</span>
+                            <span v-else-if="row.noEmail" class="ml-1 text-mb-amber text-[10px]">no email — code only</span>
                         </td>
                         <td class="py-2 px-3 font-mono text-mb-emerald-soft select-all">{{ row.password }}</td>
                     </tr>
