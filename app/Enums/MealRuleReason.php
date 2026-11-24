@@ -19,4 +19,5 @@ enum MealRuleReason: string
     case FORBIDDEN_ROLE = 'forbidden_role';
     case EMPLOYEE_CANNOT_CANCEL_SYSTEM_SKIP = 'employee_cannot_cancel_system_skip';
     case DUPLICATE_RULE = 'duplicate_rule';
+    case NO_EMAIL_ADDRESS = 'no_email_address';
 }

@@ -118,7 +118,8 @@ class LandingRedirectTest extends TestCase
     {
         return [
             ['super_admin', '/super-admin/dashboard'],
-            ['tiffin_admin', '/tiffin-admin/dashboard'],
+            // A kitchen's home is the count it has to cook, not the menu editor.
+            ['tiffin_admin', '/tiffin-admin/preparation'],
             ['company_admin', '/company-admin/dashboard'],
             ['employee', '/employee/dashboard'],
         ];

@@ -53,6 +53,7 @@ class CreateEmployeeLogins
 
         $employees = $query->get();
         $credentials = [];
+        $this->skipped = [];
 
         $pendingMail = [];
 
@@ -67,11 +68,30 @@ class CreateEmployeeLogins
                     $realEmail = null;
                 }
 
-                $email = $realEmail;
+                /*
+                 * No address, no login.
+                 *
+                 * This used to mint a placeholder like emp101@acme01.local and
+                 * hand over an employee code to sign in with instead. Code
+                 * sign-in is gone, so that account would be one nobody could
+                 * ever use and nobody could reset - a credential handed over
+                 * that quietly does not work. Better to say so here, where
+                 * there is a person reading the result who can go and get the
+                 * address.
+                 */
+                if (! $realEmail) {
+                    $this->skipped[] = [
+                        'employee_code' => $employee->employee_code,
+                        'name' => $employee->name,
+                        'reason' => empty($employee->email)
+                            ? 'No email address on this employee.'
+                            : 'That email address already belongs to another account.',
+                    ];
 
-                if (! $email) {
-                    $email = self::placeholderEmail($company, $employee->employee_code);
+                    continue;
                 }
+
+                $email = $realEmail;
 
                 $user = User::create([
                     'name' => $employee->name,
@@ -90,8 +110,8 @@ class CreateEmployeeLogins
                     'name' => $employee->name,
                     'temporary_password' => $tempPassword,
                     'email' => $realEmail,
-                    'can_login_with_email' => $realEmail !== null,
-                    'mail_sent' => $realEmail !== null,
+                    'can_login_with_email' => true,
+                    'mail_sent' => true,
                     'company_code' => $company->code,
                 ];
 
@@ -108,31 +128,5 @@ class CreateEmployeeLogins
         }
 
         return $credentials;
-    }
-
-    /**
-     * A stand-in address for an employee who has none.
-     *
-     * users.email is NOT NULL and unique, so an account still needs one; this
-     * is never mailed and the employee signs in with the company code and their
-     * employee code instead. Shared with the demo seeder so the convention is
-     * defined once.
-     */
-    public static function placeholderEmail(Company $company, string $employeeCode): string
-    {
-        $companyCode = strtolower($company->code ?? 'cmp');
-        $empCode = strtolower(preg_replace('/[^A-Za-z0-9]/', '', $employeeCode));
-
-        $suffix = config('mealbells.placeholder_email_suffix', '.local');
-
-        $email = "{$empCode}@{$companyCode}{$suffix}";
-        $counter = 1;
-
-        while (User::where('email', $email)->exists()) {
-            $email = "{$empCode}{$counter}@{$companyCode}{$suffix}";
-            $counter++;
-        }
-
-        return $email;
     }
 }

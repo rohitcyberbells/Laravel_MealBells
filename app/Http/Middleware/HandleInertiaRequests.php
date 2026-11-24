@@ -61,6 +61,10 @@ class HandleInertiaRequests extends Middleware
                 // plaintext exists only in this flash and in the mail that was
                 // sent; it is never persisted.
                 'credentials' => $request->session()->get('credentials'),
+                // Beside them, the employees who could not be given a login
+                // and why. Without this the admin sees a count that quietly
+                // does not match what they selected.
+                'skipped_logins' => $request->session()->get('skipped_logins'),
                 // Per-employee outcome of a bulk skip, so the Daily page can say
                 // what actually happened rather than just "processed".
                 'bulkSummary' => $request->session()->get('bulkSummary'),

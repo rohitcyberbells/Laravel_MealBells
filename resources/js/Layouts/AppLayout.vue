@@ -181,6 +181,25 @@ const logout = () => {
                     <p class="text-sm font-semibold text-mb-text truncate">{{ user?.name }}</p>
                     <p class="text-xs text-mb-text-faint truncate">{{ user?.email }}</p>
                 </div>
+                <!--
+                    The screen existed and was reachable, but nothing in the
+                    app linked to it, so the only people who ever saw it were
+                    the ones forced there at first sign-in. A password you
+                    cannot find how to change is one nobody changes.
+                -->
+                <Link
+                    href="/change-password"
+                    title="Change password"
+                    aria-label="Change password"
+                    class="w-full px-3 py-2 text-xs font-semibold text-mb-text-soft bg-mb-card hover:bg-mb-raised rounded-lg border border-mb-line cursor-pointer transition-colors flex items-center gap-2 lg:w-12 lg:h-12 lg:px-0 lg:justify-center lg:rounded-2xl lg:shadow-sm"
+                >
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.5 7.5a3.5 3.5 0 1 1-4.6 3.32L4 17.72V20h2.5v-1.6h1.6v-1.6h1.6l1.2-1.2a3.5 3.5 0 0 0 4.6-8.1Z" />
+                        <circle cx="16.2" cy="7.8" r="0.9" fill="currentColor" stroke="none" />
+                    </svg>
+                    <span class="lg:hidden">Change password</span>
+                </Link>
+
                 <button
                     @click="logout"
                     title="Logout"

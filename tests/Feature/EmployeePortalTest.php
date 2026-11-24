@@ -138,15 +138,14 @@ class EmployeePortalTest extends TestCase
         $this->assertTrue($user->must_change_password);
     }
 
-    public function test_employee_login_with_company_code_and_login_code(): void
+    public function test_an_employee_signs_in_with_their_email(): void
     {
         $action = new CreateEmployeeLogins;
         $creds = $action->execute($this->companyA, [$this->empA2->id]);
         $rawPass = $creds[0]['temporary_password'];
 
         $response = $this->post('/login', [
-            'company_code' => 'ALPHA1',
-            'login_code' => 'EMP102',
+            'identifier' => 'aaron@alpha.com',
             'password' => $rawPass,
         ]);
 
@@ -154,15 +153,32 @@ class EmployeePortalTest extends TestCase
         $this->assertAuthenticatedAs(User::where('login_code', 'EMP102')->first());
     }
 
+    /**
+     * The company code and employee code pair used to be a second way in.
+     * It is not any more, and a posted pair must not quietly work.
+     */
+    public function test_the_employee_code_pair_is_no_longer_a_way_in(): void
+    {
+        $action = new CreateEmployeeLogins;
+        $creds = $action->execute($this->companyA, [$this->empA2->id]);
+
+        $this->post('/login', [
+            'company_code' => 'ALPHA1',
+            'login_code' => 'EMP102',
+            'password' => $creds[0]['temporary_password'],
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
     public function test_login_fails_with_wrong_password(): void
     {
         $response = $this->post('/login', [
-            'company_code' => 'ALPHA1',
-            'login_code' => 'EMP101',
+            'identifier' => 'alice@alpha.com',
             'password' => 'wrong_password',
         ]);
 
-        $response->assertSessionHasErrors('password');
+        $response->assertSessionHasErrors('identifier');
         $this->assertGuest();
     }
 
@@ -173,12 +189,11 @@ class EmployeePortalTest extends TestCase
 
         // Login attempt should fail
         $response = $this->post('/login', [
-            'company_code' => 'ALPHA1',
-            'login_code' => 'EMP101',
+            'identifier' => 'alice@alpha.com',
             'password' => 'password',
         ]);
 
-        $response->assertSessionHasErrors('login_code');
+        $response->assertSessionHasErrors('identifier');
 
         // An existing session is now ended rather than answered with a 403 on
         // every request: EnsureAccountIsStillActive re-checks the account and

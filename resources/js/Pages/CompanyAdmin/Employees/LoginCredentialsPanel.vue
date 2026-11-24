@@ -5,23 +5,25 @@ const props = defineProps({
     // Shapes differ slightly: provisioning sends the address and company code,
     // a password reset sends only the name, code and password.
     credentials: { type: Array, default: () => [] },
+    /**
+     * Employees the run could not give a login to, each with a reason.
+     * Sign-in is by email, so an employee without one gets no account -
+     * and saying nothing would leave a count that does not match what the
+     * admin selected.
+     */
+    skipped: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['dismiss']);
 
 const copied = ref(false);
 
-const loginIdFor = (c) => (c.can_login_with_email && c.email)
-    ? c.email
-    : `${c.company_code ?? ''}${c.company_code ? ' / ' : ''}${c.employee_code}`;
-
 const rows = computed(() => props.credentials.map((c) => ({
     name: c.name,
     code: c.employee_code,
-    loginId: loginIdFor(c),
+    loginId: c.email,
     password: c.temporary_password,
     mailed: c.mail_sent === true,
-    noEmail: c.can_login_with_email === false,
 })));
 
 const asText = computed(() => [
@@ -57,7 +59,7 @@ const downloadCsv = () => {
 </script>
 
 <template>
-    <div v-if="rows.length" class="rounded-2xl bg-mb-tint-amber/10 border border-mb-tint-amber/40 p-5 space-y-4">
+    <div v-if="rows.length || skipped.length" class="rounded-2xl bg-mb-tint-amber/10 border border-mb-tint-amber/40 p-5 space-y-4">
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
                 <h3 class="text-sm font-bold text-mb-amber-soft">
@@ -109,12 +111,36 @@ const downloadCsv = () => {
                         <td class="py-2 px-3 font-mono text-mb-text-soft">
                             {{ row.loginId }}
                             <span v-if="row.mailed" class="ml-1 text-mb-emerald" title="Emailed to the employee">mailed</span>
-                            <span v-else-if="row.noEmail" class="ml-1 text-mb-amber text-[10px]">no email — code only</span>
                         </td>
                         <td class="py-2 px-3 font-mono text-mb-emerald-soft select-all">{{ row.password }}</td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!--
+            Named, not counted. "2 skipped" leaves the admin to work out who,
+            and the fix is a one-field edit they can make straight away.
+        -->
+        <div v-if="skipped.length" class="rounded-xl border border-mb-line bg-mb-card/60 p-4">
+            <p class="text-xs font-semibold text-mb-text-strong">
+                {{ skipped.length }} employee{{ skipped.length === 1 ? '' : 's' }} could not be given a login
+            </p>
+            <ul class="mt-2.5 space-y-1.5">
+                <li
+                    v-for="person in skipped"
+                    :key="person.employee_code"
+                    class="flex flex-wrap items-baseline gap-x-2 text-[11px]"
+                >
+                    <span class="font-mono text-mb-text-soft">{{ person.employee_code }}</span>
+                    <span class="font-medium text-mb-text">{{ person.name }}</span>
+                    <span class="text-mb-text-muted dark:text-mb-text-soft">{{ person.reason }}</span>
+                </li>
+            </ul>
+            <p class="mt-3 text-[11px] text-mb-text-muted dark:text-mb-text-soft">
+                Sign-in is by email address. Add one to the employee and generate the
+                login again.
+            </p>
         </div>
     </div>
 </template>

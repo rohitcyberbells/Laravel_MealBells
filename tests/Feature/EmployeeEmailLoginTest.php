@@ -56,9 +56,22 @@ class EmployeeEmailLoginTest extends TestCase
     /** Provision a login and return the generated credential row. */
     protected function provision(Company $company, Employee $employee, ?User $admin = null): array
     {
-        return (new CreateEmployeeLogins)->execute(
-            $company, [$employee->id], $admin ?? $this->acmeAdmin
-        )[0];
+        return $this->provisionRun($company, $employee, $admin)[0][0];
+    }
+
+    /**
+     * Both halves of a provisioning run: what was created, and who was left
+     * out. Since sign-in is by email only, the second list is no longer an
+     * edge case worth hiding behind an index.
+     *
+     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
+     */
+    protected function provisionRun(Company $company, Employee $employee, ?User $admin = null): array
+    {
+        $action = new CreateEmployeeLogins;
+        $created = $action->execute($company, [$employee->id], $admin ?? $this->acmeAdmin);
+
+        return [$created, $action->skipped];
     }
 
     public function test_an_employee_signs_in_with_their_email(): void
@@ -116,34 +129,41 @@ class EmployeeEmailLoginTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_an_employee_without_an_email_still_gets_the_company_code_route(): void
+    /**
+     * An employee with no address gets no login, rather than one that cannot
+     * be used.
+     *
+     * Before, they were given a placeholder address and signed in with their
+     * employee code. Code sign-in is gone, so minting that account would hand
+     * somebody a credential that silently does not work and cannot be reset.
+     */
+    public function test_an_employee_without_an_email_is_skipped_and_the_reason_given(): void
     {
         $employee = $this->employee($this->acme, 'ACME002', null);
-        $credential = $this->provision($this->acme, $employee);
 
-        // The admin is told why no mail went out.
-        $this->assertNull($credential['email']);
-        $this->assertFalse($credential['can_login_with_email']);
-        $this->assertFalse($credential['mail_sent']);
-        $this->assertEquals('ACME01', $credential['company_code']);
+        [$created, $skipped] = $this->provisionRun($this->acme, $employee);
 
-        $this->post('/login', [
-            'identifier' => 'ACME002',
-            'company_code' => 'ACME01',
-            'password' => $credential['temporary_password'],
-        ])->assertRedirect('/employee/dashboard');
+        $this->assertSame([], $created);
+        $this->assertCount(1, $skipped);
+        $this->assertEquals('ACME002', $skipped[0]['employee_code']);
+        $this->assertStringContainsString('No email address', $skipped[0]['reason']);
 
-        $this->assertAuthenticatedAs($employee->fresh()->user);
+        // And no half-made account was left behind.
+        $this->assertNull($employee->fresh()->user_id);
+        $this->assertDatabaseMissing('users', ['login_code' => 'ACME002']);
     }
 
-    public function test_an_employee_code_without_a_company_code_is_told_what_is_missing(): void
+    /** The employee code is no longer a way in for anybody. */
+    public function test_an_employee_code_is_not_accepted_as_a_sign_in(): void
     {
-        $employee = $this->employee($this->acme, 'ACME002', null);
+        $employee = $this->employee($this->acme, 'ACME001', 'acme001@demo.test');
         $credential = $this->provision($this->acme, $employee);
 
         $this->post('/login', [
-            'identifier' => 'ACME002', 'password' => $credential['temporary_password'],
-        ])->assertSessionHasErrors('company_code');
+            'identifier' => 'ACME001',
+            'company_code' => 'ACME01',
+            'password' => $credential['temporary_password'],
+        ])->assertSessionHasErrors('identifier');
 
         $this->assertGuest();
     }
@@ -162,10 +182,14 @@ class EmployeeEmailLoginTest extends TestCase
         // users.email is unique, so the second provisioning falls back to the
         // code route rather than hijacking the first account.
         $otherEmployee = $this->employee($this->other, 'OTHR001', 'shared@demo.test');
-        $otherCredential = $this->provision($this->other, $otherEmployee, $otherAdmin);
+        [$otherCredential, $otherSkipped] = $this->provisionRun($this->other, $otherEmployee, $otherAdmin);
 
-        $this->assertNull($otherCredential['email']);
-        $this->assertFalse($otherCredential['can_login_with_email']);
+        $this->assertCount(1, $otherSkipped);
+        $this->assertStringContainsString('already belongs', $otherSkipped[0]['reason']);
+
+        // Nothing was created for the second company: users.email is unique,
+        // and the address already belongs to Acme's employee.
+        $this->assertSame([], $otherCredential);
 
         $this->post('/login', [
             'identifier' => 'shared@demo.test', 'password' => $credential['temporary_password'],
@@ -205,7 +229,7 @@ class EmployeeEmailLoginTest extends TestCase
         Notification::fake();
 
         $employee = $this->employee($this->acme, 'ACME002', null);
-        $this->provision($this->acme, $employee);
+        $this->provisionRun($this->acme, $employee);
 
         Notification::assertNothingSent();
     }

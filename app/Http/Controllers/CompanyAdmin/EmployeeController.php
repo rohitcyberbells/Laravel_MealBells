@@ -7,6 +7,7 @@ use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Employee\ImportEmployeeCsv;
 use App\Actions\Employee\ResetEmployeePassword;
 use App\Actions\Employee\ValidateEmployeeCsv;
+use App\Exceptions\MealRuleViolation;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\RecurringSkip;
@@ -243,9 +244,19 @@ class EmployeeController extends Controller
 
         $credentials = $action->execute($company, $validated['employee_ids'], Auth::user());
 
+        // Since sign-in is by email only, an employee with no address cannot
+        // be given one. Saying how many were left out, and why, beats a count
+        // that quietly does not match what was selected.
+        $message = 'Generated logins for '.count($credentials).' employees.';
+
+        if ($action->skipped !== []) {
+            $message .= ' '.count($action->skipped).' skipped for want of an email address.';
+        }
+
         return back()->with([
-            'message' => 'Generated logins for '.count($credentials).' employees.',
+            'message' => $message,
             'credentials' => $credentials,
+            'skipped_logins' => $action->skipped,
         ]);
     }
 
@@ -253,7 +264,13 @@ class EmployeeController extends Controller
     {
         $company = Auth::user()->company;
 
-        $credential = $action->execute($company, $employee, Auth::user());
+        try {
+            $credential = $action->execute($company, $employee, Auth::user());
+        } catch (MealRuleViolation $e) {
+            // Refusing to create an account that could never be signed into
+            // is a thing the admin has to read and act on, not a 500.
+            return back()->withErrors(['reset' => $e->getMessage()]);
+        }
 
         return back()->with([
             'message' => "Password reset successfully for employee {$employee->name}.",

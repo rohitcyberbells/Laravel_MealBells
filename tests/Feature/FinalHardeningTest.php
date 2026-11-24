@@ -247,14 +247,14 @@ class FinalHardeningTest extends TestCase
         $this->assertFalse($rule->fresh()->active);
         $this->assertNotNull($skip->fresh()->cancelled_at);
 
-        // Employee login is blocked
+        // Employee login is blocked. By email, which is now the only way in:
+        // the company code and employee code pair is gone.
         Auth::logout();
         $loginRes = $this->post('/login', [
-            'company_code' => 'ALPHA1',
-            'login_code' => 'EMP101',
+            'identifier' => 'alice@secret.com',
             'password' => 'password',
         ]);
-        $loginRes->assertSessionHasErrors('login_code');
+        $loginRes->assertSessionHasErrors('identifier');
     }
 
     public function test_super_admin_health_endpoint_returns_scheduler_status_and_failed_jobs(): void

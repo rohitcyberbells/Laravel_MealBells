@@ -2,6 +2,11 @@
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+const props = defineProps({
+    /** True when the account is still on a password somebody else set. */
+    forced: { type: Boolean, default: false },
+});
+
 const page = usePage();
 const user = computed(() => page.props.auth?.user || page.props.user);
 const flash = computed(() => page.props.flash || {});
@@ -14,6 +19,8 @@ const form = useForm({
     password_confirmation: '',
 });
 
+const goBack = () => window.history.back();
+
 const submit = () => {
     form.post('/change-password', {
         onFinish: () => form.reset('current_password', 'password', 'password_confirmation'),
@@ -25,12 +32,23 @@ const submit = () => {
     <div class="mb-theme min-h-screen bg-mb-page text-mb-text-strong flex items-center justify-center p-4 font-sans selection:bg-mb-tint-cyan selection:text-white">
         <div class="w-full max-w-md bg-mb-card border border-mb-line rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
             <!-- Header -->
-            <div class="text-center space-y-2">
-                <div class="inline-flex w-12 h-12 rounded-2xl bg-mb-tint-amber/10 border border-mb-tint-amber/30 items-center justify-center text-2xl mb-2">
-                </div>
-                <h1 class="text-xl font-bold text-mb-text-strong tracking-tight">Password Change Required</h1>
-                <p class="text-xs text-mb-text-muted">
-                    Welcome <span class="text-mb-cyan font-semibold">{{ user?.name || user?.email }}</span>. Please set a new secure password to access your account.
+            <div class="space-y-2">
+                <h1 class="text-xl font-bold text-mb-text-strong tracking-tight">
+                    {{ forced ? 'Set your own password' : 'Change your password' }}
+                </h1>
+                <!--
+                    Saying why, rather than only that. A wall that reads
+                    "required" invites people to wonder what they did wrong;
+                    the actual reason is that two people currently know this
+                    password, and that is worth one sentence.
+                -->
+                <p v-if="forced" class="text-xs leading-relaxed text-mb-text-muted dark:text-mb-text-soft">
+                    The password you signed in with was set by someone else, so more than
+                    one person knows it. Choose your own and that stops being true.
+                </p>
+                <p v-else class="text-xs leading-relaxed text-mb-text-muted dark:text-mb-text-soft">
+                    Signed in as
+                    <span class="font-semibold text-mb-text-strong">{{ user?.name || user?.email }}</span>.
                 </p>
             </div>
 
@@ -86,9 +104,23 @@ const submit = () => {
                 <button
                     type="submit"
                     :disabled="form.processing"
-                    class="w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-mb-on-accent bg-gradient-to-r from-mb-cyan to-mb-emerald hover:from-mb-cyan-soft hover:to-mb-emerald-soft transition-all shadow-lg cursor-pointer disabled:opacity-50"
+                    class="w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-mb-on-fill bg-mb-fill-emerald border border-transparent dark:border-mb-tint-emerald/50 hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                 >
-                    {{ form.processing ? 'Updating...' : 'Update Password & Proceed' }}
+                    {{ form.processing ? 'Saving…' : forced ? 'Set password and continue' : 'Save new password' }}
+                </button>
+
+                <!--
+                    A way out, but only when there is one. Forced here, the
+                    account has no usable password yet and a back link would
+                    lead to a redirect straight back to this screen.
+                -->
+                <button
+                    v-if="!forced"
+                    type="button"
+                    @click="goBack"
+                    class="w-full py-2.5 text-xs font-semibold text-mb-text-muted dark:text-mb-text-soft hover:text-mb-text-strong transition-colors cursor-pointer"
+                >
+                    Cancel
                 </button>
             </form>
         </div>

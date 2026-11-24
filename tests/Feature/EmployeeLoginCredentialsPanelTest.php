@@ -76,8 +76,10 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
         $this->actingAs($this->admin)->get('/company-admin/employees')
             ->assertInertia(fn (Assert $page) => $page
                 ->component('CompanyAdmin/Employees/Index')
-                // Exactly the path the panel reads.
-                ->has('flash.credentials', 2)
+                // Exactly the path the panel reads. One of the two selected
+                // has no address and so gets no login at all.
+                ->has('flash.credentials', 1)
+                ->has('flash.skipped_logins', 1)
                 ->etc()
             );
     }
@@ -86,7 +88,10 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
     {
         $this->createLogins([$this->withEmail->id, $this->withoutEmail->id]);
 
-        $credentials = collect($this->employeesProps()['flash']['credentials'])->keyBy('employee_code');
+        // One render, both lists: this is flash data, so a second request
+        // would find it already consumed.
+        $flash = $this->employeesProps()['flash'];
+        $credentials = collect($flash['credentials'])->keyBy('employee_code');
 
         $alice = $credentials['ACME001'];
         $this->assertEquals('Alice', $alice['name']);
@@ -94,11 +99,12 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
         $this->assertEquals('acme001@demo.test', $alice['email']);
         $this->assertTrue($alice['can_login_with_email']);
 
-        // No address, so the panel shows the company code and employee code.
-        $bob = $credentials['ACME002'];
-        $this->assertNull($bob['email']);
-        $this->assertFalse($bob['can_login_with_email']);
-        $this->assertEquals('ACME01', $bob['company_code']);
+        // Bob has no address. Sign-in is by email only, so he is not in the
+        // credential list at all - he is in the one beside it, with a reason.
+        $this->assertArrayNotHasKey('ACME002', $credentials->all());
+
+        $skipped = collect($flash['skipped_logins'])->keyBy('employee_code');
+        $this->assertStringContainsString('No email address', $skipped['ACME002']['reason']);
     }
 
     public function test_the_panel_is_gone_on_a_reload(): void
@@ -181,35 +187,38 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
     }
 
     /**
-     * An employee with no address has no account email to use, and users.email
-     * is NOT NULL - so this path used to fail the insert outright.
+     * An employee with no address gets no account, and is told why.
+     *
+     * This used to mint a stand-in address like acme002@acme01.local and hand
+     * back a password. With sign-in by email only that account could never be
+     * used and never be reset, so it is refused instead - and refused in a
+     * way the admin can read, not a 500.
      */
-    public function test_a_reset_provisions_an_account_for_an_employee_with_no_email(): void
+    public function test_a_reset_is_refused_for_an_employee_with_no_email(): void
     {
         $this->assertNull($this->withoutEmail->user_id);
 
         $this->actingAs($this->admin)->from('/company-admin/employees')
             ->post("/company-admin/employees/{$this->withoutEmail->id}/reset-password")
-            ->assertRedirect('/company-admin/employees');
+            ->assertRedirect('/company-admin/employees')
+            ->assertSessionHasErrors('reset');
 
-        $credential = $this->employeesProps()['flash']['credentials'][0];
+        $this->assertStringContainsString('no email address', session('errors')->first('reset'));
 
-        $this->assertEquals('ACME002', $credential['employee_code']);
-        $this->assertNotEmpty($credential['temporary_password']);
-        // No usable address, so the panel shows the company code and the
-        // employee code instead.
-        $this->assertNull($credential['email']);
-        $this->assertFalse($credential['can_login_with_email']);
-        $this->assertEquals('ACME01', $credential['company_code']);
-
-        $this->assertNotNull($this->withoutEmail->fresh()->user_id);
+        // Nothing half-made was left behind.
+        $this->assertNull($this->withoutEmail->fresh()->user_id);
+        $this->assertDatabaseMissing('users', ['login_code' => 'ACME002']);
     }
 
     /**
      * The address is taken by another account, so it cannot be reused: the
      * column is unique and the other user would own the login.
+     *
+     * There used to be a fallback for this - a stand-in address and the
+     * employee code to sign in with. With sign-in by email only there is
+     * nothing to fall back to, so it is refused and named.
      */
-    public function test_a_reset_falls_back_when_the_address_belongs_to_someone_else(): void
+    public function test_a_reset_is_refused_when_the_address_belongs_to_someone_else(): void
     {
         User::create([
             'name' => 'Someone Else', 'email' => 'acme001@demo.test',
@@ -218,12 +227,11 @@ class EmployeeLoginCredentialsPanelTest extends TestCase
 
         $this->actingAs($this->admin)->from('/company-admin/employees')
             ->post("/company-admin/employees/{$this->withEmail->id}/reset-password")
-            ->assertRedirect('/company-admin/employees');
+            ->assertRedirect('/company-admin/employees')
+            ->assertSessionHasErrors('reset');
 
-        $credential = $this->employeesProps()['flash']['credentials'][0];
-
-        $this->assertFalse($credential['can_login_with_email']);
-        $this->assertNotNull($this->withEmail->fresh()->user_id);
+        $this->assertStringContainsString('already belongs', session('errors')->first('reset'));
+        $this->assertNull($this->withEmail->fresh()->user_id);
     }
 
     /**

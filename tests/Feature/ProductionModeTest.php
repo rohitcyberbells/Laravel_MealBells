@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -144,5 +145,40 @@ class ProductionModeTest extends TestCase
 
         $this->assertStringContainsString('bootstrap/cache/config.php', $guard);
         $this->assertStringContainsString('config:clear', $guard);
+    }
+
+    /**
+     * The sign-in page must not publish a way in.
+     *
+     * The quick-login buttons had no condition on them at all, so they
+     * rendered wherever the app did: four working addresses, one shared
+     * password and a real person's mailbox, on the one page a deployment
+     * shows to anybody who asks.
+     */
+    public function test_the_demo_logins_are_not_offered_in_production(): void
+    {
+        app()['env'] = 'production';
+
+        $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Auth/Login')
+            ->where('demo', false)
+        );
+
+        $body = $this->get('/login')->getContent();
+
+        foreach (['demo1234', 'root@mealbells.test', 'hr@acme.test', 'Quick demo login'] as $leak) {
+            $this->assertStringNotContainsString($leak, $body);
+        }
+    }
+
+    /** On a laptop they stay, because that is the whole point of them. */
+    public function test_the_demo_logins_are_offered_locally(): void
+    {
+        app()['env'] = 'local';
+
+        $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Auth/Login')
+            ->where('demo', true)
+        );
     }
 }

@@ -29,7 +29,8 @@ Route::get('/', function () {
     if (Auth::check()) {
         return match (Auth::user()->role) {
             'super_admin' => redirect()->route('super-admin.dashboard'),
-            'tiffin_admin' => redirect()->route('tiffin-admin.dashboard'),
+            // Preparation is the kitchen's home: the count, not the menu editor.
+            'tiffin_admin' => redirect()->route('tiffin-admin.preparation'),
             'company_admin' => redirect()->route('company-admin.dashboard'),
             'employee' => redirect()->route('employee.dashboard'),
             default => redirect('/login'),

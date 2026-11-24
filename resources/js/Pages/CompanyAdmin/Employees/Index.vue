@@ -51,6 +51,8 @@ const page = usePage();
 // Shown once, straight after provisioning; it is flash data, so a reload clears
 // it on its own.
 const credentials = computed(() => page.props.flash?.credentials ?? null);
+// Beside them, the employees the run could not give a login to.
+const skippedLogins = computed(() => page.props.flash?.skipped_logins ?? null);
 const dismissedCredentials = ref(false);
 
 // Only employees who have no account yet can be provisioned.
@@ -247,8 +249,9 @@ const pageLabel = (label) => String(label).replace(/&laquo;|&raquo;|\u00ab|\u00b
             </div>
 
             <LoginCredentialsPanel
-                v-if="credentials && !dismissedCredentials"
-                :credentials="credentials"
+                v-if="(credentials || skippedLogins) && !dismissedCredentials"
+                :credentials="credentials ?? []"
+                :skipped="skippedLogins ?? []"
                 @dismiss="dismissedCredentials = true"
             />
 

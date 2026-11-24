@@ -43,13 +43,29 @@ class ResetEmployeePassword
         $tempPassword = Str::random(10);
 
         if (! $employee->user_id) {
-            // users.email is NOT NULL and unique, so an employee with no address
-            // - or one already held by another account - needs the same stand-in
-            // CreateEmployeeLogins uses. Passing the raw value through put a
-            // null or a duplicate into the column and failed the insert.
-            $email = ! empty($employee->email) && ! User::where('email', trim($employee->email))->exists()
-                ? trim($employee->email)
-                : CreateEmployeeLogins::placeholderEmail($company, $employee->employee_code);
+            /*
+             * Creating the account, not resetting one - so the same rule as
+             * CreateEmployeeLogins applies. Sign-in is by email only, so an
+             * employee with no usable address cannot be given an account at
+             * all; it would be one nobody could sign into and nobody could
+             * reset. This used to mint a stand-in address and hand back a
+             * password that never worked.
+             */
+            $email = ! empty($employee->email) ? trim($employee->email) : null;
+
+            if (! $email) {
+                throw new MealRuleViolation(
+                    "{$employee->name} has no email address, so there is nothing to sign in with. Add one first.",
+                    MealRuleReason::NO_EMAIL_ADDRESS,
+                );
+            }
+
+            if (User::where('email', $email)->exists()) {
+                throw new MealRuleViolation(
+                    "The address {$email} already belongs to another account.",
+                    MealRuleReason::NO_EMAIL_ADDRESS,
+                );
+            }
 
             $user = User::create([
                 'name' => $employee->name,

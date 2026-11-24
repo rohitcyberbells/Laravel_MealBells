@@ -1,28 +1,26 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+
+defineProps({
+    /**
+     * Whether to offer the one-click role buttons. Sent by the server and
+     * true only in local: they fill in a real address and a shared password,
+     * which is a fine convenience on a laptop and a published credential
+     * anywhere else.
+     */
+    demo: { type: Boolean, default: false },
+});
 
 const form = useForm({
     identifier: '',
-    company_code: '',
     password: '',
     remember: false,
 });
 
-// An address signs in by email; anything else is an employee code, which needs
-// the company code alongside it.
-const looksLikeEmail = computed(() => form.identifier.includes('@'));
+const submit = () => form.post('/login');
 
-const submit = () => {
-    form.transform((data) => looksLikeEmail.value
-        ? { identifier: data.identifier, password: data.password, remember: data.remember }
-        : data
-    ).post('/login');
-};
-
-const fillDemo = (identifier, companyCode = '') => {
+const fillDemo = (identifier) => {
     form.identifier = identifier;
-    form.company_code = companyCode;
     form.password = 'demo1234';
 };
 </script>
@@ -35,33 +33,19 @@ const fillDemo = (identifier, companyCode = '') => {
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
-                    <label for="login-email-or-employee" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
-                        Email or employee code
+                    <label for="login-email" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
+                        Email address
                     </label>
-                    <input id="login-email-or-employee"
+                    <input id="login-email"
                         v-model="form.identifier"
-                        type="text"
+                        type="email"
                         autocomplete="username"
-                        placeholder="you@company.com or ROHIT"
+                        inputmode="email"
+                        placeholder="you@company.com"
                         required
                         class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
                     />
                     <p v-if="form.errors.identifier" class="text-mb-rose text-xs mt-1">{{ form.errors.identifier }}</p>
-                </div>
-
-                <!-- Only an employee code needs a company, so the field appears
-                     once the input stops looking like an address. -->
-                <div v-if="form.identifier && !looksLikeEmail">
-                    <label for="login-company-code" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Company code</label>
-                    <input id="login-company-code"
-                        v-model="form.company_code"
-                        type="text"
-                        placeholder="CYB01"
-                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong uppercase focus:outline-none focus:border-mb-tint-emerald"
-                    />
-                    <p class="text-[11px] text-mb-text-faint mt-1">Your HR team can tell you this.</p>
-                    <p v-if="form.errors.company_code" class="text-mb-rose text-xs mt-1">{{ form.errors.company_code }}</p>
-                    <p v-if="form.errors.login_code" class="text-mb-rose text-xs mt-1">{{ form.errors.login_code }}</p>
                 </div>
 
                 <div>
@@ -95,7 +79,7 @@ const fillDemo = (identifier, companyCode = '') => {
                 </button>
             </form>
 
-            <div class="mt-6 pt-4 border-t border-mb-line">
+            <div v-if="demo" class="mt-6 pt-4 border-t border-mb-line">
                 <p class="text-xs font-semibold text-mb-text-muted uppercase mb-2 text-center">Quick demo login</p>
                 <div class="grid grid-cols-2 gap-2">
                     <button @click="fillDemo('root@mealbells.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-emerald-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
@@ -111,9 +95,6 @@ const fillDemo = (identifier, companyCode = '') => {
                         Employee
                     </button>
                 </div>
-                <p class="text-[11px] text-mb-text-faint mt-2 text-center">
-                    Employees can also use <span class="font-mono">CYB01</span> + <span class="font-mono">ROHIT</span>.
-                </p>
             </div>
         </div>
     </div>
