@@ -78,6 +78,18 @@ return [
      * Failed jobs are kept longer than a session because one may still be worth
      * retrying; a session is spent the moment it expires.
      */
+    /*
+     * Whether a newly created tiffin vendor is emailed to say their account
+     * exists.
+     *
+     * Off. Every account so far has been handed over by the super admin in
+     * person, and that works; the mail is built and waiting because the
+     * temporary password is shown exactly once and a closed tab costs a
+     * reset. Turn it on when that has happened often enough to be worth the
+     * extra moving part. The mail never carries the password.
+     */
+    'vendor_welcome_email' => env('MEALBELLS_VENDOR_WELCOME_EMAIL', false),
+
     'retention' => [
         'sessions_days' => env('MEALBELLS_RETENTION_SESSIONS_DAYS', 30),
         'notifications_days' => env('MEALBELLS_RETENTION_NOTIFICATIONS_DAYS', 90),

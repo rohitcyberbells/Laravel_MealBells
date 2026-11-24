@@ -8,6 +8,7 @@ use App\Models\CompanyHrmsConnection;
 use App\Models\CompanyTiffinAssignment;
 use App\Models\TiffinService;
 use App\Models\User;
+use App\Notifications\VendorWelcomeNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -150,7 +151,7 @@ class SuperAdminController extends Controller
 
         $plainPassword = ! empty($validated['admin_password']) ? $validated['admin_password'] : Str::random(12);
 
-        User::create([
+        $admin = User::create([
             'name' => $validated['admin_name'],
             'email' => $validated['admin_email'],
             'password' => Hash::make($plainPassword),
@@ -158,6 +159,13 @@ class SuperAdminController extends Controller
             'tiffin_service_id' => $tiffin->id,
             'must_change_password' => true,
         ]);
+
+        // Off by default - see config/mealbells.php. The password is not in
+        // the mail either way; it is read off the screen below and passed on
+        // by whoever created the account.
+        if (config('mealbells.vendor_welcome_email')) {
+            $admin->notify(new VendorWelcomeNotification($tiffin));
+        }
 
         return back()->with([
             'message' => 'Tiffin Service & Admin created successfully!',
