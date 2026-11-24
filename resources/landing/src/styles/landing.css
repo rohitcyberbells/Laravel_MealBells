@@ -1,36 +1,199 @@
 @import 'tailwindcss';
 
 /*
- * The landing page is deliberately dark, like the application behind it - a
- * bright marketing page handing over to a dark product is a jarring first
- * impression.
+ * The public landing page, set as a magazine feature.
+ *
+ * Printed, not lit: warm paper rather than a screen, ink rather than white
+ * text, and one hot accent. The application behind it is dark, and that is
+ * deliberate for a tool someone stares at all day - but this page is about
+ * food, and food is not slate blue.
+ *
+ * Nothing here is imported from app.css. That file carries a theme toggle,
+ * component layers and sixty tokens this page has no use for; what the two
+ * share is the scene's palette, restated below.
  */
 
-/*
- * The WebGL stage.
- *
- * Structural only - no colours here, so the design stays an open decision. The
- * sizing is not optional though: a <canvas> with no CSS is 300x150, and the
- * stage would be an unnoticeable smudge rather than something visibly broken.
- */
-.stage {
-  position: relative;
-  width: 100%;
-  height: 100svh;
-  /* svh rather than vh: on a phone, vh is the viewport with the browser chrome
-     hidden, so a 100vh stage is taller than the screen and pushes the hero out
-     of sight until the toolbar collapses. */
-  min-height: 24rem;
+@theme {
+    /* Paper and ink. */
+    --color-paper: #faf6ef;
+    --color-paper-2: #f3ece0;
+    --color-paper-3: #ebe2d2;
+    --color-ink: #16130f;
+    --color-ink-2: #463d33;
+    --color-ink-3: #6e6358;
+    --color-rule: #ddd2bf;
+
+    /*
+     * Saffron carries rules, numerals and display type. It is not used for
+     * small text: on paper this deep it is comfortable at 24px and marginal
+     * at 13, and a colour that fails at one size everywhere is worse than a
+     * colour used only where it works.
+     */
+    --color-saffron: #c9571f;
+    --color-leaf: #3a6b46;
+    --color-clay: #a63c28;
+
+    --font-serif:
+        ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
+        Georgia, 'Times New Roman', serif;
+    --font-sans:
+        ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+        Arial, sans-serif;
+}
+
+html {
+    background: var(--color-paper);
+    /*
+     * No smooth scrolling. The page is a long read with in-page links, and an
+     * animated jump through four screens of text is slower to orient in than
+     * an instant one.
+     */
+}
+
+body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 
 /*
- * The canvas is decoration - the page's meaning is in the HTML beside it, which
- * is why it carries aria-hidden and takes no pointer events. Scrolling and
- * clicking pass straight through to the page.
+ * Display sizes are set tight and dark; body copy is not. A serif at 18px
+ * with open leading is what makes a page read as printed rather than as a
+ * website with a serif applied to it.
  */
-.stage #scene {
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+.display {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    line-height: 0.96;
+    letter-spacing: -0.022em;
+}
+
+/* Labels, kickers, captions and anything that behaves like furniture. */
+.label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+}
+
+/*
+ * Same focus rule as the application: unlayered so it outranks any utility
+ * that removes the outline, and offset clear of the control so what it has to
+ * contrast with is the paper rather than whatever the control is filled with.
+ */
+:where(a[href], button, [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* ------------------------------------------------------------- the opening */
+
+/*
+ * The dropcap. Float rather than a grid cell, because the paragraph has to
+ * wrap around three lines of it and nothing else reproduces that.
+ */
+.dropcap::first-letter {
+    float: left;
+    font-size: 4.4em;
+    line-height: 0.78;
+    padding: 0.06em 0.09em 0 0;
+    color: var(--color-saffron);
+    font-weight: 400;
+}
+
+/*
+ * Marginalia. Beside the text on a wide screen, in the flow on a narrow one -
+ * a note squeezed into a 90px column is not a note, it is a column of single
+ * words.
+ */
+.margin-note {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--color-ink-3);
+    border-top: 1px solid var(--color-rule);
+    padding-top: 0.75rem;
+}
+
+/* ----------------------------------------------------------- the waste plot */
+
+/*
+ * One mark per meal cooked on an ordinary Tuesday, so the arithmetic in the
+ * standfirst can be counted by anyone who doubts it.
+ */
+.plot {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(0.6rem, 1fr));
+    gap: 0.3rem;
+}
+
+.plot span {
+    aspect-ratio: 1;
+    border-radius: 1px;
+    background: var(--color-leaf);
+    opacity: 0;
+    transform: scale(0.6);
+    transition:
+        opacity 260ms ease,
+        transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.plot span.is-binned {
+    background: var(--color-clay);
+    opacity: 0;
+}
+
+.plot.is-in span {
+    opacity: 1;
+    transform: none;
+}
+
+.plot.is-in span.is-binned {
+    /* Faded, not absent: the meal was cooked, it just was not eaten. */
+    opacity: 0.22;
+}
+
+/* ------------------------------------------------------------ the quietness */
+
+/*
+ * The only motion on the page, and deliberately small. An editorial page is
+ * won on its setting, not on things sliding in - this is enough to feel alive
+ * on the way down and not enough to be noticed.
+ */
+.rise {
+    opacity: 0;
+    transform: translateY(0.75rem);
+    transition:
+        opacity 700ms ease,
+        transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rise.is-in {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise,
+    .plot span {
+        transition: none;
+        opacity: 1;
+        transform: none;
+    }
+
+    .plot span.is-binned {
+        opacity: 0.22;
+    }
 }

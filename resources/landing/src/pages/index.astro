@@ -2,9 +2,81 @@
 import '../styles/landing.css';
 
 const appName = 'MealBells';
-const title = `${appName} — Smarter Meal Planning`;
+const title = `${appName} — lunch, for 103 people`;
 const description =
-  'MealBells helps companies and catering vendors plan meal preparation with better demand visibility.';
+  'Every working day a canteen has to decide how many meals to cook. MealBells makes that one number true before the kitchen starts, so nobody opens an empty box and nothing is cooked for the bin.';
+
+/*
+ * Only emitted once a real domain is configured. A canonical pointing at a
+ * placeholder is worse than none: it tells search engines the page lives
+ * somewhere it does not.
+ */
+const site = import.meta.env.PUBLIC_SITE_URL ?? '';
+
+/*
+ * A worked example, and labelled as one on the page. The arithmetic has to
+ * hold, because the plot further down draws one mark per meal and anybody can
+ * count them: 127 on the roster, 24 away, 103 eaten.
+ */
+const ROSTER = 127;
+const AWAY = 24;
+const EATEN = ROSTER - AWAY;
+
+/*
+ * Pulled from the body copy rather than attributed to anyone. A landing page
+ * that invents a customer and puts words in their mouth is lying, and this
+ * product does not have public customers to quote yet.
+ */
+const pullQuote =
+  'The gap between cooked and eaten is paid for twice. Once in food, and once in the hour somebody spends counting heads.';
+
+const notes = [
+  {
+    head: 'The cutoff',
+    body: 'Set per company, in that company’s own timezone. Most pick an hour before the vans load.',
+  },
+  {
+    head: 'Leave',
+    body: 'Approved leave and work-from-home arrive from the HR system, so somebody on holiday is never counted for a lunch.',
+  },
+  {
+    head: 'After the lock',
+    body: 'A change made late is a message the kitchen has to read. Nothing quietly edits a number they have already started cooking to.',
+  },
+];
+
+const method = [
+  {
+    n: 'I',
+    head: 'People say what they will not eat',
+    body: 'An employee opens MealBells and skips tomorrow. Two taps, no message to anyone, nobody’s permission. A day they always miss becomes a rule they set once and forget.',
+  },
+  {
+    n: 'II',
+    head: 'The count settles on its own',
+    body: 'Leave and work-from-home come in from the HR system overnight. Recurring skips apply themselves. By morning the number is close without anyone having touched it.',
+  },
+  {
+    n: 'III',
+    head: 'The kitchen gets one number',
+    body: 'At the cutoff the count locks and goes to the vendor, with the day’s menu. That number is what gets cooked, and it is the same number everyone is looking at.',
+  },
+];
+
+const roles = [
+  {
+    who: 'The employee',
+    body: 'Skips a day in two taps. Sees what is cooking this week, and how long is left to change their mind.',
+  },
+  {
+    who: 'HR and admin',
+    body: 'A roster that keeps itself, a count they can watch before it locks, and an escalation when it looks wrong.',
+  },
+  {
+    who: 'The kitchen',
+    body: 'One number each morning and the menu to cook. No group chat, no headcount guessed from last week.',
+  },
+];
 ---
 
 <!doctype html>
@@ -16,103 +88,266 @@ const description =
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#f7f6fc" />
+    <meta name="theme-color" content="#faf6ef" />
+    <meta name="color-scheme" content="light" />
 
-    <link rel="canonical" href="https://your-domain.com/" />
+    {site && <link rel="canonical" href={site} />}
 
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content={appName} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content="https://your-domain.com/" />
+    {site && <meta property="og:url" content={site} />}
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
 
-
   <body>
-    <header class="site-header">
-      <a class="logo" href="/" aria-label="MealBells home">
-        MealBells
-      </a>
+    <!-- ------------------------------------------------------- masthead -->
+    <header class="border-b border-ink">
+      <div
+        class="mx-auto flex max-w-[78rem] items-center justify-between gap-6 px-6 py-5 sm:px-10"
+      >
+        <a href="/" class="flex items-baseline gap-3" aria-label={`${appName} home`}>
+          <span class="font-serif text-[22px] tracking-[-0.01em] text-ink">{appName}</span>
+          <span class="label hidden text-ink-3 sm:inline">A worked example</span>
+        </a>
 
-      <nav aria-label="Main navigation">
-        <a href="#how-it-works">How it works</a>
-        <a href="#benefits">Benefits</a>
-        <a href="#contact">Contact</a>
-      </nav>
+        <nav class="hidden items-center gap-8 sm:flex" aria-label="Main">
+          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#method"
+            >Method</a
+          >
+          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#plot">The cost</a>
+          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#roles">Who</a>
+        </nav>
 
-      <a class="header-cta" href="#contact">
-        Get started
-      </a>
+        <a
+          href="/login"
+          class="label border border-ink px-3.5 py-2 text-ink transition-colors hover:bg-ink hover:text-paper"
+        >
+          Sign in
+        </a>
+      </div>
     </header>
 
     <main>
-      <section id="stage" class="stage">
-        <canvas id="scene" aria-hidden="true"></canvas>
-        <!-- beat divs yahan -->
-      </section>
+      <!-- ------------------------------------------------- opening spread -->
+      <article>
+        <div class="mx-auto max-w-[78rem] px-6 sm:px-10">
+          <div class="border-b border-rule py-14 sm:py-24">
+            <p class="label text-saffron">One ordinary Tuesday</p>
 
-      <section
-        class="hero"
-        id="hero"
-        aria-labelledby="hero-title"
-      >
-        <!-- Shared Three.js canvas will be mounted here. -->
-        <div
-          class="scene-container"
-          id="mealbells-scene"
-          aria-hidden="true"
-        ></div>
+            <h1
+              class="display mt-7 text-[clamp(3rem,10.5vw,8.5rem)] text-ink"
+            >
+              Lunch, for<br />
+              <span class="num text-saffron">{EATEN}</span> people
+            </h1>
 
-        <!-- Keep meaningful content in HTML, not inside WebGL. -->
-        <div class="hero-content">
-          <p class="eyebrow">Smarter meal planning</p>
+            <p
+              class="mt-9 max-w-[46rem] text-[clamp(1.1rem,2.2vw,1.6rem)] leading-[1.4] text-ink-2"
+            >
+              Every working day a canteen has to decide how many meals to cook. Get it
+              wrong one way and somebody opens an empty box. Wrong the other way and two
+              dozen lunches go in the bin.
+            </p>
 
-          <h1 id="hero-title">
-            Every meal.
-            <span>Better planned.</span>
-          </h1>
-
-          <p class="hero-description">
-            Give your catering team better visibility into expected
-            meals, so they can prepare smarter and reduce food waste.
-          </p>
-
-          <a class="primary-cta" href="#how-it-works">
-            Discover MealBells
-          </a>
+            <dl
+              class="mt-12 flex flex-wrap items-baseline gap-x-12 gap-y-5 border-t border-rule pt-6"
+            >
+              <div>
+                <dt class="label text-ink-3">On the roster</dt>
+                <dd class="num mt-1 text-3xl text-ink">{ROSTER}</dd>
+              </div>
+              <div>
+                <dt class="label text-ink-3">Away that day</dt>
+                <dd class="num mt-1 text-3xl text-ink">{AWAY}</dd>
+              </div>
+              <div>
+                <dt class="label text-ink-3">Cooked, eaten</dt>
+                <dd class="num mt-1 text-3xl text-leaf">{EATEN}</dd>
+              </div>
+            </dl>
+          </div>
         </div>
 
-        <p class="scroll-hint" aria-hidden="true">
-          Scroll to explore
-        </p>
-      </section>
+        <!-- --------------------------------------------- the body, with notes -->
+        <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
+          <div class="grid grid-cols-1 gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_16rem]">
+            <div class="min-w-0 max-w-[40rem]">
+              <p class="dropcap rise text-ink">
+                Every working day, somewhere between seven and eleven in the morning, a
+                kitchen has to commit to a number. It is not a forecast and it cannot be
+                revised at noon — rice goes on, boxes get filled, a van leaves. Whatever
+                the number was at the cutoff is what arrives.
+              </p>
 
-      <section id="how-it-works" class="content-section">
-        <p class="eyebrow">How it works</p>
-        <h2>Turn meal decisions into preparation clarity.</h2>
-        <p>
-          Understand expected meal demand before preparation begins.
-        </p>
-      </section>
+              <p class="rise mt-6 text-ink">
+                Most places arrive at it the same way: somebody counts the roster, takes
+                off whoever they happen to know is away, and adds a few for safety. The
+                few for safety is the whole problem. It is a margin against being wrong,
+                and it gets paid for every single day, in food that was cooked for nobody.
+              </p>
 
-      <section id="benefits" class="content-section">
-        <p class="eyebrow">Why MealBells</p>
-        <h2>Better visibility for teams and vendors.</h2>
-        <p>
-          Make meal planning more predictable with clearer demand
-          information.
-        </p>
-      </section>
+              <p class="rise mt-6 text-ink">
+                The information needed to get it right already exists. The people who are
+                not coming in know they are not coming in. Somebody in HR has their leave
+                approved. The person working from home on Wednesdays has been doing it for
+                a year. None of it reaches the kitchen in time, because there has never
+                been anywhere to put it.
+              </p>
 
-      <section id="contact" class="content-section">
-        <h2>Let's plan smarter.</h2>
-        <a href="mailto:hello@your-domain.com">
-          Contact MealBells
-        </a>
-      </section>
+              <p class="rise mt-6 text-ink">
+                MealBells is that place. It is not a forecast, and there is no model in it
+                — it is a count of what people have actually said, closed at a time
+                everybody agreed on.
+              </p>
+            </div>
+
+            <aside class="min-w-0 space-y-8 lg:pt-2" aria-label="Notes">
+              {
+                notes.map((note) => (
+                  <div class="margin-note rise">
+                    <p class="label text-ink-2">{note.head}</p>
+                    <p class="mt-2">{note.body}</p>
+                  </div>
+                ))
+              }
+            </aside>
+          </div>
+        </div>
+
+        <!-- ------------------------------------------------------ pull quote -->
+        <div class="border-y border-ink bg-paper-2">
+          <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
+            <blockquote
+              class="rise display max-w-[52rem] text-[clamp(1.6rem,4.4vw,3.2rem)] text-ink"
+            >
+              {pullQuote}
+            </blockquote>
+          </div>
+        </div>
+
+        <!-- ------------------------------------------------------- the plot -->
+        <section id="plot" class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
+          <div class="grid grid-cols-1 gap-x-16 gap-y-12 lg:grid-cols-2">
+            <div class="rise">
+              <p class="label text-saffron">The cost of the margin</p>
+              <h2 class="display mt-5 text-[clamp(2rem,5vw,3.6rem)] text-ink">
+                {ROSTER} cooked.<br />{AWAY} in the bin.
+              </h2>
+              <p class="mt-7 max-w-[34rem] text-ink-2">
+                Not once — every working day. The gap between cooked and eaten is paid
+                for twice: once in food, and once in the hour somebody spends counting
+                heads on a group chat to make the gap smaller.
+              </p>
+
+              <dl class="mt-10 grid max-w-sm grid-cols-2 gap-x-10 gap-y-7">
+                <div>
+                  <dt class="label text-ink-3">Binned, a day</dt>
+                  <dd class="num mt-1.5 text-4xl text-clay">{AWAY}</dd>
+                </div>
+                <div>
+                  <dt class="label text-ink-3">Binned, a year</dt>
+                  <dd class="num mt-1.5 text-4xl text-clay">
+                    {(AWAY * 250).toLocaleString('en-IN')}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <figure class="rise">
+              <div class="plot" data-plot aria-hidden="true">
+                {
+                  Array.from({ length: ROSTER }).map((_, i) => (
+                    <span class={i >= EATEN ? 'is-binned' : ''} />
+                  ))
+                }
+              </div>
+              <figcaption class="mt-5 text-[15px] italic leading-relaxed text-ink-3">
+                One mark per meal cooked. The faded ones are the lunches nobody was there
+                to eat.
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------- the method -->
+        <section id="method" class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
+          <p class="label rise text-saffron">Method</p>
+          <h2 class="display rise mt-5 max-w-[32rem] text-[clamp(2rem,5vw,3.6rem)] text-ink">
+            Three things happen, and the last one is a number.
+          </h2>
+
+          <ol class="mt-14 space-y-px border-t border-rule">
+            {
+              method.map((step) => (
+                <li class="rise grid grid-cols-1 gap-x-10 gap-y-3 border-b border-rule py-9 sm:grid-cols-[4rem_minmax(0,22rem)_minmax(0,1fr)]">
+                  <span class="num font-serif text-2xl text-saffron">{step.n}</span>
+                  <h3 class="font-serif text-[1.4rem] leading-snug text-ink">{step.head}</h3>
+                  <p class="max-w-[34rem] text-ink-2">{step.body}</p>
+                </li>
+              ))
+            }
+          </ol>
+        </section>
+
+        <!-- ----------------------------------------------------- the roles -->
+        <section id="roles" class="border-t border-ink bg-paper-2">
+          <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
+            <h2 class="display rise max-w-[30rem] text-[clamp(2rem,5vw,3.6rem)] text-ink">
+              One number, three people who need it to be right.
+            </h2>
+
+            <div class="mt-14 grid grid-cols-1 gap-px bg-rule md:grid-cols-3">
+              {
+                roles.map((role) => (
+                  <div class="rise bg-paper-2 p-8 md:p-9">
+                    <p class="label text-saffron">{role.who}</p>
+                    <p class="mt-5 text-ink-2">{role.body}</p>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------------------------------------- the end -->
+        <section class="mx-auto max-w-[78rem] px-6 py-24 sm:px-10 sm:py-36">
+          <div class="rise max-w-[42rem]">
+            <h2 class="display text-[clamp(2.2rem,6vw,4.4rem)] text-ink">
+              See it with your own headcount.
+            </h2>
+            <p class="mt-7 text-[1.15rem] leading-relaxed text-ink-2">
+              One company, one kitchen, one cutoff time. That is the whole setup, and it
+              takes an afternoon.
+            </p>
+
+            <div class="mt-11 flex flex-wrap items-center gap-4">
+              <a
+                href="mailto:hello@example.com"
+                class="label bg-ink px-7 py-4 text-paper transition-opacity hover:opacity-85"
+              >
+                Talk to us
+              </a>
+              <a
+                href="/login"
+                class="label border border-ink px-7 py-4 text-ink transition-colors hover:bg-ink hover:text-paper"
+              >
+                Sign in
+              </a>
+            </div>
+          </div>
+        </section>
+      </article>
     </main>
 
-    <footer class="site-footer">
-      <p>&copy; {new Date().getFullYear()} MealBells.</p>
+    <footer class="border-t border-ink">
+      <div
+        class="mx-auto flex max-w-[78rem] flex-wrap items-center justify-between gap-4 px-6 py-8 text-[15px] text-ink-3 sm:px-10"
+      >
+        <p>&copy; {new Date().getFullYear()} {appName}</p>
+        <p class="italic">Meal planning for companies and the kitchens that feed them.</p>
+      </div>
     </footer>
 
     <script>
