@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
 use App\Models\CompanyHrmsConnection;
+use App\Models\CompanyTiffinAssignment;
 use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
 use App\Models\MealAdjustment;
@@ -32,15 +33,75 @@ class DemoSeederTest extends TestCase
         $this->seed(DemoSeeder::class);
     }
 
-    public function test_it_seeds_two_companies_on_one_vendor(): void
+    /**
+     * Acme and Northwind are the pair a demo is walked through, and they share a
+     * kitchen so the vendor's preparation view has two companies to break down.
+     */
+    public function test_the_two_walkable_companies_share_one_kitchen(): void
     {
-        $this->assertEquals(1, TiffinService::count());
-        $this->assertEquals(2, Company::count());
+        $shared = TiffinService::where('name', 'Annapurna Gourmet Tiffin')->firstOrFail();
+
+        foreach (['Acme Industries', 'Northwind Traders'] as $name) {
+            $company = Company::where('name', $name)->firstOrFail();
+
+            $this->assertNotNull($company->activeAssignment, "{$name} is not paired.");
+            $this->assertSame(
+                $shared->id,
+                $company->activeAssignment->tiffin_service_id,
+                "{$name} is not on the shared kitchen.",
+            );
+        }
+    }
+
+    /**
+     * Two companies demonstrates the meal flow and not the platform: the super
+     * admin's directory, the health screen and every report read as a product
+     * with two customers, and the pairing screen offers a choice of one.
+     */
+    public function test_every_company_is_paired_and_configured(): void
+    {
+        $this->assertEquals(20, Company::count());
 
         foreach (Company::all() as $company) {
             $this->assertNotNull($company->activeAssignment, "{$company->name} is not paired.");
             $this->assertNotNull($company->setting, "{$company->name} has no settings.");
         }
+    }
+
+    /**
+     * A shared cutoff makes the scheduler look like it locks the whole platform
+     * at one moment, which is the opposite of what the product does.
+     */
+    public function test_cutoffs_are_not_all_the_same(): void
+    {
+        $distinct = Company::with('setting')->get()
+            ->pluck('setting.cutoff_time')
+            ->unique();
+
+        $this->assertGreaterThan(1, $distinct->count());
+    }
+
+    /**
+     * The second kitchen has no company, and that is the point: without it a
+     * demo cannot reach the super admin's pairing decision (one choice is not a
+     * choice) or the screen a kitchen sees before it is connected to anyone.
+     */
+    public function test_it_seeds_a_second_kitchen_paired_with_nobody(): void
+    {
+        $this->assertEquals(5, TiffinService::count());
+
+        $unpaired = TiffinService::where('name', 'Tulsi Rasoi')->firstOrFail();
+
+        $this->assertSame(
+            0,
+            CompanyTiffinAssignment::where('tiffin_service_id', $unpaired->id)->count(),
+            'the second kitchen is paired, so the unconnected screens cannot be demonstrated',
+        );
+
+        $this->assertNotNull(
+            User::where('tiffin_service_id', $unpaired->id)->where('role', 'tiffin_admin')->first(),
+            'the second kitchen has no login, so nobody can see those screens',
+        );
     }
 
     public function test_it_seeds_thirty_and_ten_employees(): void
@@ -66,8 +127,14 @@ class DemoSeederTest extends TestCase
 
     public function test_it_publishes_a_menu_for_this_week_and_next(): void
     {
-        $this->assertEquals(2, WeeklyMenu::where('status', 'published')->count());
-        $this->assertEquals(10, MenuItem::count());
+        // Two weeks for each kitchen that cooks for somebody. A company whose
+        // kitchen has no menu shows "No menu published" on every screen, which
+        // is a broken-looking demo rather than a feature.
+        $cooking = TiffinService::whereHas('assignments')->count();
+
+        $this->assertSame(4, $cooking);
+        $this->assertEquals($cooking * 2, WeeklyMenu::where('status', 'published')->count());
+        $this->assertEquals($cooking * 2 * 5, MenuItem::count());
 
         foreach (WeeklyMenu::all() as $menu) {
             $this->assertCount(5, $menu->items);
@@ -186,7 +253,7 @@ class DemoSeederTest extends TestCase
         $this->post('/logout');
 
         $this->post('/login', ['email' => 'vendor@mealbells.test', 'password' => 'demo1234'])
-            ->assertRedirect('/tiffin-admin/dashboard');
+            ->assertRedirect('/tiffin-admin/preparation');
 
         $this->post('/logout');
 
@@ -194,22 +261,51 @@ class DemoSeederTest extends TestCase
             ->assertRedirect('/company-admin/dashboard');
     }
 
-    public function test_an_employee_signs_in_with_the_company_and_employee_code(): void
+    public function test_an_employee_signs_in_with_their_email(): void
     {
-        $acme = Company::where('name', 'Acme Industries')->sole();
-
-        $this->post('/login', [
-            'company_code' => $acme->code,
-            'login_code' => 'ACME001',
-            'password' => 'demo1234',
-        ])->assertRedirect('/employee/dashboard');
+        $this->post('/login', ['identifier' => 'acme001@demo.test', 'password' => 'demo1234'])
+            ->assertRedirect('/employee/dashboard');
     }
 
-    public function test_it_creates_three_employee_logins_per_company(): void
+    /**
+     * The seeded employee who has no address gets no login, which is the
+     * product's own rule rather than a hole in the demo: sign-in is by email,
+     * so there would be nothing to sign in with.
+     */
+    public function test_the_employee_without_an_email_has_no_login(): void
     {
-        foreach (Company::all() as $company) {
-            $this->assertEquals(3, Employee::where('company_id', $company->id)
-                ->whereNotNull('user_id')->count());
+        $withoutEmail = Employee::whereNull('email')->get();
+
+        $this->assertNotEmpty($withoutEmail, 'the demo is meant to include one');
+
+        foreach ($withoutEmail as $employee) {
+            $this->assertNull($employee->user_id);
+        }
+    }
+
+    /**
+     * The two walkable companies pick their first three employees, and the one
+     * of those with no address cannot be given an account, so two land.
+     *
+     * The other eighteen get one each: enough to sign in and look around, but
+     * they are scenery, and sixty employee logins is not a list anybody reads.
+     */
+    public function test_employee_logins_are_created_for_every_company(): void
+    {
+        foreach (['Acme Industries', 'Northwind Traders'] as $name) {
+            $company = Company::where('name', $name)->firstOrFail();
+
+            $this->assertEquals(2, Employee::where('company_id', $company->id)
+                ->whereNotNull('user_id')->count(), "{$name} should have two logins.");
+        }
+
+        $others = Company::whereNotIn('name', ['Acme Industries', 'Northwind Traders'])->get();
+
+        $this->assertCount(18, $others);
+
+        foreach ($others as $company) {
+            $this->assertEquals(1, Employee::where('company_id', $company->id)
+                ->whereNotNull('user_id')->count(), "{$company->name} should have one login.");
         }
     }
 

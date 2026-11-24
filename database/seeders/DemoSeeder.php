@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Actions\Employee\CreateEmployeeLogins;
 use App\Actions\Meal\CalculateExpectedMeals;
 use App\Models\Company;
 use App\Models\CompanyCalendarDay;
 use App\Models\CompanyHrmsConnection;
 use App\Models\CompanySetting;
 use App\Models\CompanyTiffinAssignment;
+use App\Models\DailyOverrides;
 use App\Models\Employee;
 use App\Models\HrmsWebhookEvent;
 use App\Models\MealAdjustment;
@@ -26,15 +26,20 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * A full, walkable demo: two companies on one vendor, a published week of menus,
+ * A full, walkable demo.
+ *
+ * Acme and Northwind are the two companies a demo is actually walked through:
  * skips from every source, a locked day with a late change on it, a holiday,
- * guest meals, and logins for every role.
+ * guest meals, an emergency menu override, and an HR system connected to one of
+ * them and not the other. Every row printLogins() prints is one of these.
+ *
+ * Around them sits the rest of a plausible platform - five kitchens, one of them
+ * paired with nobody, and twenty companies between them - so the super admin's
+ * directory, the health screen and the reports are not a product with two
+ * customers. Those companies are scenery: lighter activity, and no login rows.
  *
  * Dates are derived from today rather than hardcoded, so the demo still reads
  * correctly whenever it is run.
- *
- * No HRMS data is seeded on purpose - the webhook flow has its own demo path
- * through hrms:simulate.
  */
 class DemoSeeder extends Seeder
 {
@@ -43,7 +48,55 @@ class DemoSeeder extends Seeder
     /** Known so a demo can sign a webhook by hand or with hrms:simulate. */
     protected const HRMS_SECRET = 'whsec_demo_acme_0123456789';
 
+    /**
+     * Three more kitchens, so twenty companies are not all cooked for by one.
+     *
+     * @var array<int, array{0: string, 1: string, 2: string, 3: string}>
+     */
+    protected const EXTRA_KITCHENS = [
+        ['Sharda Kitchen', '7 Mill Road, Pune', '9820022211', 'vendor.sharda@mealbells.test'],
+        ['Gokul Bhojnalaya', '91 Station Road, Pune', '9820033322', 'vendor.gokul@mealbells.test'],
+        ['Satkar Caterers', '3 Canal Street, Pune', '9820044433', 'vendor.satkar@mealbells.test'],
+    ];
+
+    /**
+     * Companies beyond the two the demo is walked through, so the super admin's
+     * directory, the health screen and the reports hold a believable number of
+     * rows rather than two. Headcounts vary on purpose: every company having a
+     * round forty is the first thing that reads as seeded data.
+     *
+     * @var array<int, array{0: string, 1: string, 2: int}>
+     */
+    protected const SCALE_COMPANIES = [
+        ['Meridian Softworks', 'MERI', 46],
+        ['Kaveri Textiles', 'KAVE', 62],
+        ['Sunrise Logistics', 'SUNR', 24],
+        ['Blue Orbit Analytics', 'BLOR', 18],
+        ['Deccan Pharma', 'DECC', 55],
+        ['Pinnacle Realty', 'PINN', 14],
+        ['Vayu Aerospace', 'VAYU', 31],
+        ['Nalanda EdTech', 'NALA', 27],
+        ['Greenfield Agritech', 'GREE', 38],
+        ['Trident Engineering', 'TRID', 44],
+        ['Saffron Hospitality', 'SAFF', 21],
+        ['Zenith Bearings', 'ZENI', 36],
+        ['Chinar Finserv', 'CHIN', 29],
+        ['Konkan Seafoods', 'KONK', 17],
+        ['Aether Labs', 'AETH', 12],
+        ['Rangoli Media', 'RANG', 23],
+        ['Indus Cement', 'INDU', 51],
+        ['Prayag Insurance', 'PRAY', 33],
+    ];
+
     protected string $timezone = 'Asia/Kolkata';
+
+    /**
+     * Every demo account shares one password, so it is hashed once.
+     *
+     * Hashed per user, bcrypt was most of this seeder's running time - at
+     * twenty companies that is over a hundred hashes of one known string.
+     */
+    protected string $passwordHash = '';
 
     /** @var array<int, array{role: string, company: string, login: string, password: string, note: string}> */
     protected array $logins = [];
@@ -56,12 +109,15 @@ class DemoSeeder extends Seeder
             return;
         }
 
+        $this->passwordHash = Hash::make(self::PASSWORD);
+
         $tiffin = $this->seedVendor();
 
-        $acme = $this->seedCompany('Acme Industries', 'ACME', $tiffin, employeeCount: 30, cutoff: '11:00:00');
-        $northwind = $this->seedCompany('Northwind Traders', 'NWND', $tiffin, employeeCount: 10, cutoff: '10:30:00');
+        $acme = $this->seedCompany('Acme Industries', 'ACME', $tiffin, employeeCount: 30, cutoff: '11:00:00', featured: true);
+        $northwind = $this->seedCompany('Northwind Traders', 'NWND', $tiffin, employeeCount: 10, cutoff: '10:30:00', featured: true);
 
         $this->seedWeeklyMenu($tiffin);
+        $this->seedDailyOverride($tiffin);
 
         $this->seedActivity($acme);
         $this->seedActivity($northwind, lighter: true);
@@ -69,6 +125,9 @@ class DemoSeeder extends Seeder
         // Only Acme is wired to an HR system, so the connect screen has
         // something to show while Northwind demonstrates the unconnected state.
         $this->seedHrmsConnection($acme);
+
+        $this->seedUnpairedVendor();
+        $this->seedScale($tiffin);
 
         $this->printLogins();
     }
@@ -84,7 +143,7 @@ class DemoSeeder extends Seeder
         User::create([
             'name' => 'Platform Root',
             'email' => 'root@mealbells.test',
-            'password' => Hash::make(self::PASSWORD),
+            'password' => $this->passwordHash,
             'role' => 'super_admin',
             'must_change_password' => false,
         ]);
@@ -98,7 +157,7 @@ class DemoSeeder extends Seeder
         User::create([
             'name' => 'Chef Rahul',
             'email' => 'vendor@mealbells.test',
-            'password' => Hash::make(self::PASSWORD),
+            'password' => $this->passwordHash,
             'role' => 'tiffin_admin',
             'tiffin_service_id' => $tiffin->id,
             'must_change_password' => false,
@@ -113,7 +172,48 @@ class DemoSeeder extends Seeder
         return $tiffin;
     }
 
-    protected function seedCompany(string $name, string $code, TiffinService $tiffin, int $employeeCount, string $cutoff): Company
+    /**
+     * A second kitchen, deliberately paired with nobody.
+     *
+     * Two things were unreachable in a demo with one kitchen. The super admin's
+     * pairing screen offered a single choice, so the decision it exists for
+     * looked like a formality. And the vendor's own "this kitchen is not
+     * connected to a company yet" screen - what every real vendor sees on their
+     * first day - could not be shown at all.
+     *
+     * It stays unpaired on purpose. Pairing it during a demo is itself the
+     * thing worth demonstrating, and it can be undone by re-running the build.
+     */
+    protected function seedUnpairedVendor(): void
+    {
+        $tulsi = TiffinService::create([
+            'name' => 'Tulsi Rasoi',
+            'address' => '44 Market Road, Pune',
+            'contact_phone' => '9820098765',
+        ]);
+
+        User::create([
+            'name' => 'Chef Meera',
+            'email' => 'vendor.tulsi@mealbells.test',
+            'password' => $this->passwordHash,
+            'role' => 'tiffin_admin',
+            'tiffin_service_id' => $tulsi->id,
+            'must_change_password' => false,
+        ]);
+
+        $this->logins[] = [
+            'role' => 'tiffin_admin', 'company' => 'Tulsi Rasoi',
+            'login' => 'vendor.tulsi@mealbells.test', 'password' => self::PASSWORD,
+            'note' => 'Unpaired: shows a new vendor\'s first-day screens',
+        ];
+    }
+
+    /**
+     * @param  bool  $featured  Whether this company's logins go in the printed
+     *                          table. Twenty companies produce over a hundred
+     *                          rows, which is not a list anybody can use.
+     */
+    protected function seedCompany(string $name, string $code, TiffinService $tiffin, int $employeeCount, string $cutoff, bool $featured = false): Company
     {
         $company = Company::create([
             'name' => $name,
@@ -127,7 +227,7 @@ class DemoSeeder extends Seeder
         $primaryAdmin = User::create([
             'name' => "{$name} HR",
             'email' => "hr@{$domain}",
-            'password' => Hash::make(self::PASSWORD),
+            'password' => $this->passwordHash,
             'role' => 'company_admin',
             'company_id' => $company->id,
             'must_change_password' => false,
@@ -136,23 +236,25 @@ class DemoSeeder extends Seeder
         $backupAdmin = User::create([
             'name' => "{$name} HR Backup",
             'email' => "hr.backup@{$domain}",
-            'password' => Hash::make(self::PASSWORD),
+            'password' => $this->passwordHash,
             'role' => 'company_admin',
             'company_id' => $company->id,
             'must_change_password' => false,
         ]);
 
-        $this->logins[] = [
-            'role' => 'company_admin', 'company' => $name,
-            'login' => "hr@{$domain}", 'password' => self::PASSWORD,
-            'note' => 'Primary admin (gets the daily summary)',
-        ];
+        if ($featured) {
+            $this->logins[] = [
+                'role' => 'company_admin', 'company' => $name,
+                'login' => "hr@{$domain}", 'password' => self::PASSWORD,
+                'note' => 'Primary admin (gets the daily summary)',
+            ];
 
-        $this->logins[] = [
-            'role' => 'company_admin', 'company' => $name,
-            'login' => "hr.backup@{$domain}", 'password' => self::PASSWORD,
-            'note' => 'Backup admin (gets anomaly escalations)',
-        ];
+            $this->logins[] = [
+                'role' => 'company_admin', 'company' => $name,
+                'login' => "hr.backup@{$domain}", 'password' => self::PASSWORD,
+                'note' => 'Backup admin (gets anomaly escalations)',
+            ];
+        }
 
         CompanySetting::create([
             'company_id' => $company->id,
@@ -171,79 +273,125 @@ class DemoSeeder extends Seeder
             'assigned_at' => Carbon::today($this->timezone)->subMonth(),
         ]);
 
-        $this->seedEmployees($company, $code, $domain, $employeeCount);
+        $this->seedEmployees($company, $code, $domain, $employeeCount, $featured);
 
         return $company;
     }
 
-    protected function seedEmployees(Company $company, string $code, string $domain, int $count): void
+    protected function seedEmployees(Company $company, string $code, string $domain, int $count, bool $featured = false): void
     {
         $firstNames = ['Aarav', 'Diya', 'Vivaan', 'Ananya', 'Arjun', 'Isha', 'Kabir', 'Meera', 'Rohan', 'Saanvi',
             'Advait', 'Kiara', 'Reyansh', 'Myra', 'Ayaan', 'Aadhya', 'Krishna', 'Anika', 'Ishaan', 'Navya',
             'Dhruv', 'Riya', 'Atharv', 'Pari', 'Shaurya', 'Avni', 'Veer', 'Tara', 'Nikhil', 'Sara'];
 
+        // Names used to be the first name plus the company code - "Aarav ACME".
+        // On a roster of sixty that reads as test data at a glance, which is
+        // the one thing demo data must not do. The two lists are coprime in
+        // length, so a surname does not repeat with the same first name until
+        // well past any company's headcount.
+        $surnames = ['Sharma', 'Iyer', 'Patil', 'Nair', 'Deshmukh', 'Rao', 'Kulkarni', 'Banerjee', 'Gupta',
+            'Chauhan', 'Menon', 'Joshi', 'Reddy', 'Pillai', 'Shetty', 'Verma', 'Mehta', 'Bhatt', 'Kaur',
+            'Saxena', 'Naik', 'Dubey', 'Sinha', 'Trivedi', 'Jain', 'Ghosh', 'Pandey', 'Bose', 'Chopra',
+            'Mishra', 'Agarwal'];
+
+        $now = now();
+        $rows = [];
+
+        /** @var array<int, array{code: string, name: string, email: string, index: int}> */
+        $wantLogins = [];
+
         foreach (range(1, $count) as $index) {
             $employeeCode = sprintf('%s%03d', $code, $index);
-            $name = $firstNames[($index - 1) % count($firstNames)]." {$code}";
+            $name = $firstNames[($index - 1) % count($firstNames)]
+                .' '.$surnames[($index - 1) % count($surnames)];
 
             // A couple of each company are deliberately not eligible, so the
             // base count never trivially equals the headcount.
             $isInactive = $index === $count;
             $isIneligible = $index === $count - 1;
 
-            // One employee with no address, so the demo also covers the company
-            // code route and the admin notice that goes with it.
-            $hasEmail = $index !== 2;
+            // One employee with no address, so the demo covers the roster notice
+            // that names who could not be given a login and why.
+            // One obvious domain for the rest, so a demo login is recognisable
+            // at a glance.
+            $email = $index === 2 ? null : strtolower($employeeCode).'@demo.test';
 
-            $employee = Employee::create([
+            $rows[] = [
                 'company_id' => $company->id,
                 'employee_code' => $employeeCode,
                 // The HR system's own reference, so the connect screen can
                 // suggest one and hrms:simulate has something to aim at.
                 'external_id' => "HR-{$employeeCode}",
                 'name' => $name,
-                // One obvious domain for every employee, so a demo login is
-                // recognisable at a glance.
-                'email' => $hasEmail ? strtolower($employeeCode).'@demo.test' : null,
+                'email' => $email,
                 'attendance_source' => 'manual',
                 'is_meal_eligible' => ! $isIneligible,
                 'status' => $isInactive ? 'inactive' : 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            /*
+             * Logins for the first three of a featured company and the first of
+             * every other - minus the one with no address, who gets none. That
+             * is not a gap in the demo, it is the demo: sign-in is by email, so
+             * an employee without one cannot be given an account, and the roster
+             * screen says so.
+             */
+            if ($email && ($featured ? $index <= 3 : $index === 1)) {
+                $wantLogins[] = ['code' => $employeeCode, 'name' => $name, 'email' => $email, 'index' => $index];
+            }
+        }
+
+        /*
+         * One insert per company rather than one per employee.
+         *
+         * At twenty companies this is over six hundred rows, and created one at
+         * a time it made DemoSeederTest - which reseeds for every test - roughly
+         * seven times slower than the rest of the suite put together. Employee
+         * has no 'created' hooks, and its observer only listens for 'updated',
+         * so nothing is skipped by going round the model here. The defaults the
+         * model would have applied are written out above instead.
+         */
+        Employee::insert($rows);
+
+        foreach ($wantLogins as $wanted) {
+            $user = User::create([
+                'name' => $wanted['name'],
+                'email' => $wanted['email'],
+                'password' => $this->passwordHash,
+                'role' => 'employee',
+                'company_id' => $company->id,
+                'login_code' => $wanted['code'],
+                // False on purpose: true would drop every demo login onto
+                // the change-password screen before anything can be shown.
+                'must_change_password' => false,
             ]);
 
-            // Logins for the first three of each company: enough to demo the
-            // employee portal without printing a forty-row table.
-            if ($index <= 3) {
-                $user = User::create([
-                    'name' => $name,
-                    // The employee with no address still needs an account, so it
-                    // gets the same stand-in the provisioning action would use.
-                    'email' => $employee->email ?: CreateEmployeeLogins::placeholderEmail($company, $employeeCode),
-                    'password' => Hash::make(self::PASSWORD),
-                    'role' => 'employee',
-                    'company_id' => $company->id,
-                    'login_code' => $employeeCode,
-                    // False on purpose: true would drop every demo login onto
-                    // the change-password screen before anything can be shown.
-                    'must_change_password' => false,
-                ]);
+            Employee::where('company_id', $company->id)
+                ->where('employee_code', $wanted['code'])
+                ->update(['user_id' => $user->id]);
 
-                $employee->update(['user_id' => $user->id]);
-
+            if ($featured) {
                 $this->logins[] = [
                     'role' => 'employee', 'company' => $company->name,
-                    'login' => $employee->email ?: "{$company->code} / {$employeeCode}",
+                    'login' => $wanted['email'],
                     'password' => self::PASSWORD,
-                    'note' => $employee->email
-                        ? ($index === 1 ? 'Has a recurring Monday skip' : 'Employee portal')
-                        : 'No email: company code + employee code only',
+                    'note' => $wanted['index'] === 1 ? 'Has a recurring Monday skip' : 'Employee portal',
                 ];
             }
         }
     }
 
-    protected function seedWeeklyMenu(TiffinService $tiffin): void
+    /**
+     * @param  array<string, string>|null  $meals  Defaults to Annapurna's week.
+     *                                             Kitchens serving an identical
+     *                                             menu is the sort of thing that
+     *                                             gets noticed mid-demo.
+     */
+    protected function seedWeeklyMenu(TiffinService $tiffin, ?array $meals = null): void
     {
-        $meals = [
+        $meals ??= [
             'Monday' => 'Rajma Chawal, Salad, Gulab Jamun',
             'Tuesday' => 'Paneer Butter Masala, Jeera Rice, Roti',
             'Wednesday' => 'Chole Bhature, Pickle, Buttermilk',
@@ -267,6 +415,94 @@ class DemoSeeder extends Seeder
                     'meal_description' => $description,
                 ]);
             }
+        }
+    }
+
+    /**
+     * One emergency override, on today.
+     *
+     * Four screens read this - the vendor's dashboard and preparation page, the
+     * company admin's dashboard and the employee's next seven days - and until
+     * now the demo seeded none, so on all four the override was dead UI nobody
+     * demonstrating the product could ever reach. Today's date is deliberate:
+     * the dashboards only look at today, so anything else shows on one screen.
+     */
+    protected function seedDailyOverride(TiffinService $tiffin): void
+    {
+        DailyOverrides::create([
+            'tiffin_service_id' => $tiffin->id,
+            'date' => Carbon::today($this->timezone)->toDateString(),
+            'meal_description' => 'Khichdi, Kadhi, Papad, Mango Pickle',
+            'reason' => 'Gas supply failed at 6am. A single-pot meal was the only way to cook for everyone before the vans left.',
+        ]);
+    }
+
+    /**
+     * The rest of the platform: three more kitchens and eighteen more companies.
+     *
+     * Two companies on one kitchen demonstrates the meal flow perfectly and the
+     * platform not at all. The super admin's directory, the health screen and
+     * every report read as a product with two customers, and the pairing screen
+     * offers a choice of one. These exist to be a plausible denominator.
+     *
+     * They get lighter activity and no rows in the login table on purpose: they
+     * are scenery, and a hundred and twenty logins is not a list anybody can
+     * use. Their HR login follows the same pattern as everyone else's, which
+     * printLogins() states once.
+     */
+    protected function seedScale(TiffinService $annapurna): void
+    {
+        $alternateMeals = [
+            'Monday' => 'Pav Bhaji, Onion Salad, Shrikhand',
+            'Tuesday' => 'Masoor Dal, Bhindi Fry, Roti, Rice',
+            'Wednesday' => 'Veg Pulao, Dahi Kadhi, Papad',
+            'Thursday' => 'Matar Paneer, Tawa Roti, Boondi Raita',
+            'Friday' => 'Sambar Rice, Beans Poriyal, Rasam, Payasam',
+        ];
+
+        $kitchens = [$annapurna];
+
+        foreach (self::EXTRA_KITCHENS as [$name, $address, $phone, $email]) {
+            $kitchen = TiffinService::create([
+                'name' => $name,
+                'address' => $address,
+                'contact_phone' => $phone,
+            ]);
+
+            User::create([
+                'name' => $name.' Admin',
+                'email' => $email,
+                'password' => $this->passwordHash,
+                'role' => 'tiffin_admin',
+                'tiffin_service_id' => $kitchen->id,
+                'must_change_password' => false,
+            ]);
+
+            $this->logins[] = [
+                'role' => 'tiffin_admin', 'company' => $name,
+                'login' => $email, 'password' => self::PASSWORD,
+                'note' => 'Another kitchen, with its own menu and companies',
+            ];
+
+            $this->seedWeeklyMenu($kitchen, $alternateMeals);
+
+            $kitchens[] = $kitchen;
+        }
+
+        // Cutoffs differ per company, because a single shared cutoff makes the
+        // scheduler look like it locks the whole platform at one moment.
+        $cutoffs = ['10:00:00', '10:30:00', '11:00:00', '11:30:00', '12:00:00'];
+
+        foreach (self::SCALE_COMPANIES as $index => [$name, $code, $headcount]) {
+            $company = $this->seedCompany(
+                $name,
+                $code,
+                $kitchens[$index % count($kitchens)],
+                employeeCount: $headcount,
+                cutoff: $cutoffs[$index % count($cutoffs)],
+            );
+
+            $this->seedActivity($company, lighter: true);
         }
     }
 
@@ -611,7 +847,10 @@ class DemoSeeder extends Seeder
 
     protected function printLogins(): void
     {
-        if (! $this->command) {
+        // getOutput() is null when a seeder is driven from a test rather than
+        // the console, and newLine() below would fail on it. Output is the only
+        // thing this method does, so there is nothing to do without it.
+        if (! $this->command || ! $this->command->getOutput()) {
             return;
         }
 
@@ -627,7 +866,19 @@ class DemoSeeder extends Seeder
         );
 
         $this->command->newLine();
-        $this->command->line('Employees sign in with their email, or with the company code and their employee code.');
+        $this->command->line('Everyone signs in with an email address. There is no employee-code route.');
+        $this->command->newLine();
+
+        // The other companies are deliberately not in the table above. Stating
+        // the pattern is shorter than a hundred and twenty rows, and it is how
+        // anybody reaches them if a demo needs to.
+        $this->command->line(sprintf(
+            'The other %d companies are not listed; their logins follow the same pattern:',
+            count(self::SCALE_COMPANIES),
+        ));
+        $this->command->line('  HR:       hr@<code>.test       e.g. hr@meri.test');
+        $this->command->line('  Employee: <code>001@demo.test  e.g. meri001@demo.test');
+        $this->command->newLine();
         $this->command->line('Acme HRMS webhook secret: '.self::HRMS_SECRET);
         $this->command->line('Run `php artisan queue:work` for notifications, and `php artisan schedule:work` for the cutoff.');
         $this->command->newLine();

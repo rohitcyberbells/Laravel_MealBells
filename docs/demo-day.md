@@ -60,27 +60,82 @@ Nothing in the meal flow needs it: `QUEUE_CONNECTION=sync` runs jobs inline.
 
 ## 3. Fresh demo data
 
+Demo data goes in a **separate file**, so building it can never cost you what
+is in your working database:
+
 ```bash
-php artisan migrate:fresh --seed --seeder=DemoSeeder
+php artisan mealbells:demo-db            # writes database/demo.sqlite
+php artisan mealbells:demo-db --force    # rebuild it
 ```
 
-Two companies (Acme, Northwind), 40 employees, skips from every source, a
-recurring rule, extra meals, a post-cutoff change and HRMS events. It prints
-every login at the end.
+Then point the app at it and restart:
+
+```env
+DB_DATABASE=/absolute/path/to/database/demo.sqlite
+```
+
+It has to go in `.env`, not on the command line — see the warning in section 2
+about `php artisan serve`. Delete the line to go back to your own data.
+
+The command refuses to write to any database it did not build itself, so
+`--path` cannot be aimed at your working file by mistake. Rebuilding the demo
+file while `.env` is pointed at it is fine — that is the normal case.
+
+> **The old way, `migrate:fresh --seed --seeder=DemoSeeder`, still works and
+> still destroys everything in the current database.** It is the right command
+> only when you are certain the current database holds nothing you want.
+
+`php artisan db:seed` also builds this same demo world. It used to build a
+second, much thinner one of its own.
+
+### What you get
+
+**20 companies, 5 kitchens, 621 employees.**
+
+Acme and Northwind are the two you walk a demo through — on one shared kitchen,
+with skips from every source, a recurring rule, extra meals, a holiday, a
+post-cutoff change, an emergency menu override on today, and an HR system
+connected to one of them and not the other.
+
+The other 18 companies and 3 kitchens are the denominator: they make the super
+admin's directory, the health screen and the reports read as a platform rather
+than a product with two customers. Headcounts vary (12 to 62) and cutoffs differ,
+because every company having a round 40 and the same cutoff is the first thing
+that reads as seeded data.
+
+One kitchen is paired with nobody. Dates are derived from today, so it never
+reads stale.
 
 **All demo passwords are `demo1234`.**
 
 | Role | Sign in with |
 |---|---|
 | Super admin | `root@mealbells.test` |
-| Vendor (Annapurna) | `vendor@mealbells.test` |
+| Kitchen (Annapurna, paired) | `vendor@mealbells.test` |
+| Kitchen (Tulsi Rasoi, unpaired) | `vendor.tulsi@mealbells.test` |
 | Company admin (Acme) | `hr@acme.test` |
 | Backup admin | `hr.backup@acme.test` |
-| Employee, by email | `acme001@demo.test` |
-| Employee, by code | company `ACME01` + code `ACME002` |
+| Employee (Acme) | `acme001@demo.test` |
 | Company admin (Northwind) | `hr@nwnd.test` |
 
-The seeder refuses to run outside `local` and `testing`.
+Everyone signs in with an email address and a password. There is no
+employee-code route.
+
+The other 18 companies are not in that table — 120 rows is not a list anybody
+reads. Their logins follow the same pattern, and the seeder prints it:
+
+| | |
+|---|---|
+| HR | `hr@<code>.test` — e.g. `hr@meri.test` |
+| Employee | `<code>001@demo.test` — e.g. `meri001@demo.test` |
+
+**Tulsi Rasoi is unpaired on purpose.** Sign in as it to show what a kitchen
+sees on its first day, before MealBells has connected it to a company — and
+pair it live from the super admin's screen, which is the decision that screen
+exists for. Re-running the build puts it back.
+
+Both the seeder and `mealbells:demo-db` refuse to run outside `local` and
+`testing`.
 
 ---
 
