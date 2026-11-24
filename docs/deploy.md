@@ -53,9 +53,23 @@ Four values that cause real harm if wrong:
 
 ### Database
 
-PostgreSQL. One migration branches on the driver to use a partial unique index
-on Postgres, and the JSON columns suit `jsonb`. SQLite is for local work and the
-test suite.
+**SQLite, deliberately** — see `.env.example`. At one company and a couple of
+dozen employees there is no Postgres server worth installing, securing, tuning
+and backing up. `mealbells:backup` already handles it with `VACUUM INTO`, which
+asks SQLite for a consistent copy rather than copying a file mid-write.
+
+Two things make that safe, and both bite silently if missed:
+
+| | |
+|---|---|
+| `DB_DATABASE` **outside the release directory** | With atomic releases, a relative path means every deploy serves a new empty database while the real one sits in the previous release folder. No error |
+| `DB_JOURNAL_MODE=WAL` and `DB_BUSY_TIMEOUT` | Three processes write at once — web, queue worker, and a scheduler running every minute. On the defaults a write locks the file and a second writer fails outright with "database is locked", intermittently and only under load |
+
+**Reconsider Postgres at roughly twenty companies**, when employees across
+several of them record skips in the same pre-cutoff hour and writes start to
+queue. One migration already branches on the driver to use a partial unique
+index there, and the JSON columns suit `jsonb`. Moving is a config change plus a
+data copy, not a rewrite.
 
 **The two drivers disagree in ways tests do not notice.** The suite runs on
 SQLite in memory and production runs PostgreSQL, so CI runs the whole suite

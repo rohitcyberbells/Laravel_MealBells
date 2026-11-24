@@ -32,15 +32,53 @@ return [
 
     'connections' => [
 
+        /*
+         * SQLite runs production here, and these three settings are what make
+         * that safe. Laravel applies each as a PRAGMA on connect and skips any
+         * left null, which is what they all were.
+         *
+         * Three processes write to this file at once: the web server, the queue
+         * worker, and the scheduler - which runs mealbells:process-cutoff and
+         * hrms:pull-attendance every single minute. On the defaults that is the
+         * one workload SQLite handles worst, and the failure is intermittent and
+         * load-dependent, so it shows up in production and not in testing.
+         */
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+
+            /*
+             * Milliseconds a connection waits for the lock instead of failing.
+             * Unset, a write that arrives while another is in progress gives up
+             * at once with "database is locked" - so the cutoff job and an
+             * employee recording a skip in the same second is enough.
+             */
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+
+            /*
+             * WAL lets readers carry on during a write. On the default journal a
+             * write locks the whole file, so every page in the app waits behind
+             * the minute-by-minute scheduler.
+             *
+             * It has no effect on the in-memory database the suite uses, which
+             * is always journal_mode = memory.
+             */
+            'journal_mode' => env('DB_JOURNAL_MODE', 'WAL'),
+
+            /*
+             * FULL, not the NORMAL usually paired with WAL.
+             *
+             * NORMAL buys write throughput by not flushing each commit, at the
+             * cost of losing recently committed transactions if the machine
+             * loses power. This application writes a few thousand rows a day, so
+             * there is no throughput here to buy - and the rows are the skips a
+             * day's meal count was computed from.
+             */
+            'synchronous' => env('DB_SYNCHRONOUS', 'FULL'),
+
             'transaction_mode' => 'DEFERRED',
         ],
 

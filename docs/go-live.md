@@ -15,7 +15,8 @@ cutoff happen.
 
 | | |
 |---|---|
-| A server | PHP 8.3+ (built on 8.4), PostgreSQL, a web server, somewhere to run two background processes |
+| A server | PHP 8.3+ (built on 8.4), a web server, somewhere to run two background processes. **A persistent disk** — the database is a SQLite file, and a container platform with an ephemeral filesystem destroys it on every restart |
+| A path for the database **outside the release folder** | `/var/lib/mealbells/database.sqlite` or similar. With atomic releases a relative path means each deploy serves a new empty database — see [deploy.md](deploy.md) |
 | HTTPS | Not optional. `SESSION_SECURE_COOKIE=true` means the session cookie is never sent over plain http, so the app is unusable without a certificate |
 | An SMTP account you have tested | The vendor's daily count and every password reset go through it |
 | A domain | Needed for `APP_URL`, which the mails link back to |
