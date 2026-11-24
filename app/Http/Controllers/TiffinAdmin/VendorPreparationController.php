@@ -4,6 +4,7 @@ namespace App\Http\Controllers\TiffinAdmin;
 
 use App\Actions\Meal\BuildVendorPreparationView;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyTiffinAssignment;
 use App\Models\DailyOverrides;
 use App\Models\WeeklyMenu;
 use Carbon\Carbon;
@@ -35,11 +36,24 @@ class VendorPreparationController extends Controller
                 'selectedDate' => $date,
                 'todayOverride' => null,
                 'todayMenu' => null,
+                'isPaired' => false,
             ]);
         }
 
         $tiffinService = $user->tiffinService;
         $prepData = $action->execute($tiffinService, $date);
+
+        /*
+         * Whether this kitchen has a company at all, which is a different
+         * thing from having no meals today. The screen used to say "no
+         * company is assigned to you, or none is active on this date" and
+         * leave the reader to work out which - one of those means somebody
+         * still has to set the account up, the other means it is Sunday.
+         */
+        $isPaired = count($prepData['companies'] ?? []) > 0
+            || CompanyTiffinAssignment::where('tiffin_service_id', $tiffinService->id)
+                ->where('is_active', true)
+                ->exists();
 
         // Fetch today's override if any
         $todayOverride = DailyOverrides::where('tiffin_service_id', $tiffinService->id)
@@ -59,6 +73,7 @@ class VendorPreparationController extends Controller
         return Inertia::render('TiffinAdmin/Preparation', [
             'tiffinService' => $tiffinService,
             'preparationData' => $prepData,
+            'isPaired' => $isPaired,
             'selectedDate' => $date,
             'todayOverride' => $todayOverride,
             'todayMenu' => $todayMenuItem?->meal_description,

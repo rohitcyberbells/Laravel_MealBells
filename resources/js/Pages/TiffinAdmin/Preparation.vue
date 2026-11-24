@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '../../Layouts/AppLayout.vue';
 import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     tiffinService: Object,
@@ -9,6 +9,8 @@ const props = defineProps({
     selectedDate: String,
     todayOverride: Object,
     todayMenu: String,
+    /** False when no company has been paired with this kitchen yet. */
+    isPaired: { type: Boolean, default: true },
 });
 
 const currentDate = ref(props.selectedDate || new Date().toISOString().split('T')[0]);
@@ -117,8 +119,35 @@ const statusLabel = (status) => ({
             <section class="bg-mb-card/70 backdrop-blur-xl border border-mb-line rounded-2xl p-6">
                 <h2 class="text-sm font-semibold text-mb-text-strong mb-4">By company</h2>
 
-                <div v-if="!preparationData || preparationData.companies.length === 0" class="py-12 text-center text-sm text-mb-text-muted dark:text-mb-text-soft">
-                    No company is assigned to you, or none is active on this date.
+                <!--
+                    Two states that used to share one sentence joined by "or",
+                    which left the reader unable to tell a half-finished
+                    account from an ordinary Sunday. Setup is somebody's job;
+                    a day off is nobody's.
+                -->
+                <div v-if="!isPaired" class="py-14 max-w-md">
+                    <h3 class="text-base font-semibold text-mb-text-strong">
+                        This kitchen is not connected to a company yet
+                    </h3>
+                    <p class="mt-2 text-sm leading-relaxed text-mb-text-muted dark:text-mb-text-soft">
+                        Counts appear here once MealBells pairs you with the company you
+                        cook for. That is set up at our end — there is nothing for you to
+                        do, and you will be told when it is live.
+                    </p>
+                    <p class="mt-5 text-sm text-mb-text-muted dark:text-mb-text-soft">
+                        In the meantime you can
+                        <Link href="/tiffin-admin/dashboard" class="font-semibold text-mb-emerald underline underline-offset-4">
+                            set this week's menu</Link>, which will be waiting when the
+                        first count arrives.
+                    </p>
+                </div>
+
+                <div v-else-if="!preparationData || preparationData.companies.length === 0" class="py-14 max-w-md">
+                    <h3 class="text-base font-semibold text-mb-text-strong">No meals on this date</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-mb-text-muted dark:text-mb-text-soft">
+                        Nothing to cook — the company you serve does not take meals on this
+                        day. Pick another date above to see its count.
+                    </p>
                 </div>
 
                 <div v-else class="overflow-x-auto">
