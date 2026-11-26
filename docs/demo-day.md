@@ -108,15 +108,18 @@ reads stale.
 
 **All demo passwords are `demo1234`.**
 
+Every demo account is on one domain, `@bells.com`, so a credential is
+recognisable as ours at a glance and nothing can be mistaken for a real inbox.
+
 | Role | Sign in with |
 |---|---|
-| Super admin | `root@mealbells.test` |
-| Kitchen (Annapurna, paired) | `vendor@mealbells.test` |
-| Kitchen (Tulsi Rasoi, unpaired) | `vendor.tulsi@mealbells.test` |
-| Company admin (Acme) | `hr@acme.test` |
-| Backup admin | `hr.backup@acme.test` |
-| Employee (Acme) | `acme001@demo.test` |
-| Company admin (Northwind) | `hr@nwnd.test` |
+| Super admin | `admin@bells.com` |
+| Kitchen (Annapurna, paired) | `annapurna@bells.com` |
+| Kitchen (Tulsi Rasoi, unpaired) | `tulsi@bells.com` |
+| Company admin (Acme) | `hr.acme@bells.com` |
+| Backup admin | `hr.acme.backup@bells.com` |
+| Company admin (Northwind) | `hr.nwnd@bells.com` |
+| Employee (Acme) | the first row of Acme's roster — the sign-in page's quick-demo button fills it in |
 
 Everyone signs in with an email address and a password. There is no
 employee-code route.
@@ -126,8 +129,8 @@ reads. Their logins follow the same pattern, and the seeder prints it:
 
 | | |
 |---|---|
-| HR | `hr@<code>.test` — e.g. `hr@meri.test` |
-| Employee | `<code>001@demo.test` — e.g. `meri001@demo.test` |
+| HR | `hr.<code>@bells.com` — e.g. `hr.meri@bells.com` |
+| Employee | `firstname.lastname@bells.com` — read it off that company's roster screen |
 
 **Tulsi Rasoi is unpaired on purpose.** Sign in as it to show what a kitchen
 sees on its first day, before MealBells has connected it to a company — and
@@ -244,7 +247,7 @@ Then in a browser:
 
 - [ ] `/` shows the landing page, or the sign-in page if the landing build was skipped
 - [ ] the browser tab reads **MealBells**, not "Laravel"
-- [ ] sign in as `hr@acme.test` and open all seven sidebar links
+- [ ] sign in as `hr.acme@bells.com` and open all seven sidebar links
 - [ ] **Dashboard** shows today's count and the week-ahead strip
 - [ ] **Daily Count** countdown reads `HH:MM:SS`
 - [ ] tick two employees → **Create logins** shows temporary passwords

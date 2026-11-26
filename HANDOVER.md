@@ -89,8 +89,16 @@ php artisan db:seed --class=DemoSeeder
 composer run dev                  # server + queue + vite together
 ```
 
-All demo passwords are `demo1234`; the seeder prints every login. Full demo
-runbook: `docs/demo-day.md`.
+All demo passwords are `demo1234`. Full demo runbook: `docs/demo-day.md`.
+
+**Where the logins are written down.** `docs/logins.md` holds every account in
+the development database, and it is **gitignored, so it is not in this
+repository** — it pairs the real Cyberbells admin addresses with the shared
+development password, and those are the accounts that go live. A private
+repository is not a secret store and git history cannot be un-pushed, so that
+file stays on the laptop that needs it. If you are setting up fresh and do not
+have it, the sample accounts are listed in `docs/demo-day.md`, and
+`php artisan mealbells:sample-orgs` prints the ones it creates.
 
 **If every page is blank**, delete `public/hot`. It is a marker Vite writes
 while `npm run dev` is running; while it exists every page loads its assets from

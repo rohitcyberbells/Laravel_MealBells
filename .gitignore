@@ -44,3 +44,12 @@ Thumbs.db
 # anchored, so it does not reach either of these.
 /resources/landing/.astro
 /resources/landing/node_modules
+
+# Every login in the local development database, written down so nobody has to
+# remember them. Never committed: it pairs the real Cyberbells admin addresses
+# with the shared development password, and those are the accounts that go
+# live. A private repository is not a secret store, and git history is
+# permanent - a file like this cannot be un-pushed.
+#
+# It lives on the laptop that needs it. HANDOVER.md explains how to rebuild it.
+/docs/logins.md

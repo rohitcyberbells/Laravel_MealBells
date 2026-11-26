@@ -49,43 +49,53 @@ class DemoSeeder extends Seeder
     protected const HRMS_SECRET = 'whsec_demo_acme_0123456789';
 
     /**
+     * Every demo account is on one domain, so a credential is recognisable as
+     * ours at a glance and nothing in a demo can be mistaken for a real inbox.
+     */
+    protected const DOMAIN = 'bells.com';
+
+    /**
      * Three more kitchens, so twenty companies are not all cooked for by one.
      *
      * @var array<int, array{0: string, 1: string, 2: string, 3: string}>
      */
     protected const EXTRA_KITCHENS = [
-        ['Sharda Kitchen', '7 Mill Road, Pune', '9820022211', 'vendor.sharda@mealbells.test'],
-        ['Gokul Bhojnalaya', '91 Station Road, Pune', '9820033322', 'vendor.gokul@mealbells.test'],
-        ['Satkar Caterers', '3 Canal Street, Pune', '9820044433', 'vendor.satkar@mealbells.test'],
+        ['Sharda Kitchen', 'Shop 7, Mill Road, Kothrud, Pune 411038', '9823104477', 'sharda'],
+        ['Gokul Bhojnalaya', '91 Station Road, Shivajinagar, Pune 411005', '8806621390', 'gokul'],
+        ['Satkar Caterers', 'Unit 3, Canal Street, Yerwada, Pune 411006', '9850337214', 'satkar'],
     ];
 
     /**
      * Companies beyond the two the demo is walked through, so the super admin's
      * directory, the health screen and the reports hold a believable number of
-     * rows rather than two. Headcounts vary on purpose: every company having a
-     * round forty is the first thing that reads as seeded data.
+     * rows rather than two.
      *
-     * @var array<int, array{0: string, 1: string, 2: int}>
+     * Headcount, address and phone all differ per row. They used to share one
+     * address and one phone number across all twenty, which is the single
+     * fastest way for anybody being shown this to see it is made up - a
+     * directory where every company is at 440 Business Park is not a directory.
+     *
+     * @var array<int, array{0: string, 1: string, 2: int, 3: string, 4: string}>
      */
     protected const SCALE_COMPANIES = [
-        ['Meridian Softworks', 'MERI', 46],
-        ['Kaveri Textiles', 'KAVE', 62],
-        ['Sunrise Logistics', 'SUNR', 24],
-        ['Blue Orbit Analytics', 'BLOR', 18],
-        ['Deccan Pharma', 'DECC', 55],
-        ['Pinnacle Realty', 'PINN', 14],
-        ['Vayu Aerospace', 'VAYU', 31],
-        ['Nalanda EdTech', 'NALA', 27],
-        ['Greenfield Agritech', 'GREE', 38],
-        ['Trident Engineering', 'TRID', 44],
-        ['Saffron Hospitality', 'SAFF', 21],
-        ['Zenith Bearings', 'ZENI', 36],
-        ['Chinar Finserv', 'CHIN', 29],
-        ['Konkan Seafoods', 'KONK', 17],
-        ['Aether Labs', 'AETH', 12],
-        ['Rangoli Media', 'RANG', 23],
-        ['Indus Cement', 'INDU', 51],
-        ['Prayag Insurance', 'PRAY', 33],
+        ['Meridian Softworks', 'MERI', 46, 'Tower B, Cerebrum IT Park, Kalyani Nagar, Pune 411014', '9822017634'],
+        ['Kaveri Textiles', 'KAVE', 62, 'Plot 14, MIDC Bhosari, Pune 411026', '8605443120'],
+        ['Sunrise Logistics', 'SUNR', 24, 'Warehouse 9, Talawade Road, Pune 412114', '9890226581'],
+        ['Blue Orbit Analytics', 'BLOR', 18, '5th Floor, Panchshil Tech Park, Hinjewadi, Pune 411057', '9765518042'],
+        ['Deccan Pharma', 'DECC', 55, 'Plot 22, Pharma Zone, Chakan MIDC, Pune 410501', '8975330916'],
+        ['Pinnacle Realty', 'PINN', 14, '2nd Floor, Amar Paradigm, Baner Road, Pune 411045', '9823778105'],
+        ['Vayu Aerospace', 'VAYU', 31, 'Hangar 4, Lohegaon Industrial Area, Pune 411032', '8888204763'],
+        ['Nalanda EdTech', 'NALA', 27, '301 Sanas Plaza, Viman Nagar, Pune 411014', '9028614477'],
+        ['Greenfield Agritech', 'GREE', 38, 'Survey 118, Wagholi, Pune 412207', '9850071263'],
+        ['Trident Engineering', 'TRID', 44, 'Gate 3, Pimpri Industrial Estate, Pune 411018', '8793352618'],
+        ['Saffron Hospitality', 'SAFF', 21, 'Nagar Road, Kharadi, Pune 411014', '9767440852'],
+        ['Zenith Bearings', 'ZENI', 36, 'Block C, Chinchwad MIDC, Pune 411019', '9890553741'],
+        ['Chinar Finserv', 'CHIN', 29, '7th Floor, Marvel Edge, Viman Nagar, Pune 411014', '8956127403'],
+        ['Konkan Seafoods', 'KONK', 17, 'Cold Store 2, Market Yard, Gultekdi, Pune 411037', '9822649170'],
+        ['Aether Labs', 'AETH', 12, '12 Bavdhan Tech Hub, Bavdhan, Pune 411021', '9604338215'],
+        ['Rangoli Media', 'RANG', 23, 'Studio 6, FC Road, Shivajinagar, Pune 411004', '8237905614'],
+        ['Indus Cement', 'INDU', 51, 'Depot Road, Katraj, Pune 411046', '9823440278'],
+        ['Prayag Insurance', 'PRAY', 33, '4th Floor, Nucleus Mall, Camp, Pune 411001', '9765082336'],
     ];
 
     protected string $timezone = 'Asia/Kolkata';
@@ -101,6 +111,13 @@ class DemoSeeder extends Seeder
     /** @var array<int, array{role: string, company: string, login: string, password: string, note: string}> */
     protected array $logins = [];
 
+    /**
+     * Addresses handed out so far, so no two employees get the same one.
+     *
+     * @var array<string, true>
+     */
+    protected array $takenAddresses = [];
+
     public function run(): void
     {
         if (! app()->environment('local', 'testing')) {
@@ -113,8 +130,21 @@ class DemoSeeder extends Seeder
 
         $tiffin = $this->seedVendor();
 
-        $acme = $this->seedCompany('Acme Industries', 'ACME', $tiffin, employeeCount: 30, cutoff: '11:00:00', featured: true);
-        $northwind = $this->seedCompany('Northwind Traders', 'NWND', $tiffin, employeeCount: 10, cutoff: '10:30:00', featured: true);
+        $acme = $this->seedCompany(
+            'Acme Industries', 'ACME', $tiffin,
+            employeeCount: 30, cutoff: '11:00:00',
+            address: 'Unit 4, Magarpatta Cybercity, Hadapsar, Pune 411028',
+            phone: '9822140357',
+            featured: true,
+        );
+
+        $northwind = $this->seedCompany(
+            'Northwind Traders', 'NWND', $tiffin,
+            employeeCount: 10, cutoff: '10:30:00',
+            address: '2nd Floor, Trade Centre, Aundh, Pune 411007',
+            phone: '8806094512',
+            featured: true,
+        );
 
         $this->seedWeeklyMenu($tiffin);
         $this->seedDailyOverride($tiffin);
@@ -136,13 +166,13 @@ class DemoSeeder extends Seeder
     {
         $tiffin = TiffinService::create([
             'name' => 'Annapurna Gourmet Tiffin',
-            'address' => '12 Kitchen Lane, Pune',
-            'contact_phone' => '9820012345',
+            'address' => 'Kitchen 12, Shankar Sheth Road, Swargate, Pune 411042',
+            'contact_phone' => '9822015580',
         ]);
 
         User::create([
             'name' => 'Platform Root',
-            'email' => 'root@mealbells.test',
+            'email' => 'admin@'.self::DOMAIN,
             'password' => $this->passwordHash,
             'role' => 'super_admin',
             'must_change_password' => false,
@@ -150,13 +180,13 @@ class DemoSeeder extends Seeder
 
         $this->logins[] = [
             'role' => 'super_admin', 'company' => '—',
-            'login' => 'root@mealbells.test', 'password' => self::PASSWORD,
+            'login' => 'admin@'.self::DOMAIN, 'password' => self::PASSWORD,
             'note' => 'Pairing, health, HRMS secrets',
         ];
 
         User::create([
             'name' => 'Chef Rahul',
-            'email' => 'vendor@mealbells.test',
+            'email' => 'annapurna@'.self::DOMAIN,
             'password' => $this->passwordHash,
             'role' => 'tiffin_admin',
             'tiffin_service_id' => $tiffin->id,
@@ -165,7 +195,7 @@ class DemoSeeder extends Seeder
 
         $this->logins[] = [
             'role' => 'tiffin_admin', 'company' => 'Annapurna',
-            'login' => 'vendor@mealbells.test', 'password' => self::PASSWORD,
+            'login' => 'annapurna@'.self::DOMAIN, 'password' => self::PASSWORD,
             'note' => 'Weekly menu, preparation view',
         ];
 
@@ -188,13 +218,13 @@ class DemoSeeder extends Seeder
     {
         $tulsi = TiffinService::create([
             'name' => 'Tulsi Rasoi',
-            'address' => '44 Market Road, Pune',
-            'contact_phone' => '9820098765',
+            'address' => '44 Market Road, Hadapsar, Pune 411028',
+            'contact_phone' => '8806712945',
         ]);
 
         User::create([
             'name' => 'Chef Meera',
-            'email' => 'vendor.tulsi@mealbells.test',
+            'email' => 'tulsi@'.self::DOMAIN,
             'password' => $this->passwordHash,
             'role' => 'tiffin_admin',
             'tiffin_service_id' => $tulsi->id,
@@ -203,7 +233,7 @@ class DemoSeeder extends Seeder
 
         $this->logins[] = [
             'role' => 'tiffin_admin', 'company' => 'Tulsi Rasoi',
-            'login' => 'vendor.tulsi@mealbells.test', 'password' => self::PASSWORD,
+            'login' => 'tulsi@'.self::DOMAIN, 'password' => self::PASSWORD,
             'note' => 'Unpaired: shows a new vendor\'s first-day screens',
         ];
     }
@@ -213,20 +243,21 @@ class DemoSeeder extends Seeder
      *                          table. Twenty companies produce over a hundred
      *                          rows, which is not a list anybody can use.
      */
-    protected function seedCompany(string $name, string $code, TiffinService $tiffin, int $employeeCount, string $cutoff, bool $featured = false): Company
+    protected function seedCompany(string $name, string $code, TiffinService $tiffin, int $employeeCount, string $cutoff, string $address, string $phone, bool $featured = false): Company
     {
         $company = Company::create([
             'name' => $name,
             'code' => $code.'01',
-            'address' => '440 Business Park, Pune',
-            'contact_phone' => '9820054321',
+            'address' => $address,
+            'contact_phone' => $phone,
         ]);
 
-        $domain = strtolower($code).'.test';
+        $slug = strtolower($code);
+        $domain = self::DOMAIN;
 
         $primaryAdmin = User::create([
             'name' => "{$name} HR",
-            'email' => "hr@{$domain}",
+            'email' => "hr.{$slug}@{$domain}",
             'password' => $this->passwordHash,
             'role' => 'company_admin',
             'company_id' => $company->id,
@@ -235,7 +266,7 @@ class DemoSeeder extends Seeder
 
         $backupAdmin = User::create([
             'name' => "{$name} HR Backup",
-            'email' => "hr.backup@{$domain}",
+            'email' => "hr.{$slug}.backup@{$domain}",
             'password' => $this->passwordHash,
             'role' => 'company_admin',
             'company_id' => $company->id,
@@ -245,13 +276,13 @@ class DemoSeeder extends Seeder
         if ($featured) {
             $this->logins[] = [
                 'role' => 'company_admin', 'company' => $name,
-                'login' => "hr@{$domain}", 'password' => self::PASSWORD,
+                'login' => "hr.{$slug}@{$domain}", 'password' => self::PASSWORD,
                 'note' => 'Primary admin (gets the daily summary)',
             ];
 
             $this->logins[] = [
                 'role' => 'company_admin', 'company' => $name,
-                'login' => "hr.backup@{$domain}", 'password' => self::PASSWORD,
+                'login' => "hr.{$slug}.backup@{$domain}", 'password' => self::PASSWORD,
                 'note' => 'Backup admin (gets anomaly escalations)',
             ];
         }
@@ -273,12 +304,12 @@ class DemoSeeder extends Seeder
             'assigned_at' => Carbon::today($this->timezone)->subMonth(),
         ]);
 
-        $this->seedEmployees($company, $code, $domain, $employeeCount, $featured);
+        $this->seedEmployees($company, $code, $employeeCount, $featured);
 
         return $company;
     }
 
-    protected function seedEmployees(Company $company, string $code, string $domain, int $count, bool $featured = false): void
+    protected function seedEmployees(Company $company, string $code, int $count, bool $featured = false): void
     {
         $firstNames = ['Aarav', 'Diya', 'Vivaan', 'Ananya', 'Arjun', 'Isha', 'Kabir', 'Meera', 'Rohan', 'Saanvi',
             'Advait', 'Kiara', 'Reyansh', 'Myra', 'Ayaan', 'Aadhya', 'Krishna', 'Anika', 'Ishaan', 'Navya',
@@ -292,7 +323,8 @@ class DemoSeeder extends Seeder
         $surnames = ['Sharma', 'Iyer', 'Patil', 'Nair', 'Deshmukh', 'Rao', 'Kulkarni', 'Banerjee', 'Gupta',
             'Chauhan', 'Menon', 'Joshi', 'Reddy', 'Pillai', 'Shetty', 'Verma', 'Mehta', 'Bhatt', 'Kaur',
             'Saxena', 'Naik', 'Dubey', 'Sinha', 'Trivedi', 'Jain', 'Ghosh', 'Pandey', 'Bose', 'Chopra',
-            'Mishra', 'Agarwal'];
+            'Mishra', 'Agarwal', 'Thakur', 'Rane', 'Salunkhe', 'Mahajan', 'Bhosale', 'Chavan', 'Gokhale',
+            'Kamat', 'Dalvi', 'Phadke', 'Sawant', 'Borkar', 'Kadam', 'Gaikwad', 'Prabhu', 'Hegde'];
 
         $now = now();
         $rows = [];
@@ -300,10 +332,20 @@ class DemoSeeder extends Seeder
         /** @var array<int, array{code: string, name: string, email: string, index: int}> */
         $wantLogins = [];
 
+        /*
+         * Each company starts at its own place in both lists, so Acme and
+         * Kaveri do not both open with Aarav Sharma, Diya Iyer, Vivaan Patil.
+         * The lists are 30 and 31 long - coprime - so within one company a
+         * first name and surname never pair up twice.
+         */
+        $firstOffset = crc32($code) % count($firstNames);
+        $lastOffset = crc32(strrev($code)) % count($surnames);
+
         foreach (range(1, $count) as $index) {
             $employeeCode = sprintf('%s%03d', $code, $index);
-            $name = $firstNames[($index - 1) % count($firstNames)]
-                .' '.$surnames[($index - 1) % count($surnames)];
+            $first = $firstNames[($index - 1 + $firstOffset) % count($firstNames)];
+            $last = $surnames[($index - 1 + $lastOffset) % count($surnames)];
+            $name = "{$first} {$last}";
 
             // A couple of each company are deliberately not eligible, so the
             // base count never trivially equals the headcount.
@@ -312,9 +354,7 @@ class DemoSeeder extends Seeder
 
             // One employee with no address, so the demo covers the roster notice
             // that names who could not be given a login and why.
-            // One obvious domain for the rest, so a demo login is recognisable
-            // at a glance.
-            $email = $index === 2 ? null : strtolower($employeeCode).'@demo.test';
+            $email = $index === 2 ? null : $this->addressFor($first, $last);
 
             $rows[] = [
                 'company_id' => $company->id,
@@ -381,6 +421,34 @@ class DemoSeeder extends Seeder
                 ];
             }
         }
+    }
+
+    /**
+     * A person's own address, rather than their employee code.
+     *
+     * Employees used to be acme001@demo.test. It is unique for free and it
+     * reads as a row out of a database, which is the one thing data being
+     * shown to somebody must not do.
+     *
+     * Six hundred people drawn from thirty first names and thirty-one surnames
+     * will collide, so the first duplicate keeps the plain address and the rest
+     * take a number - which is what a real company does too.
+     */
+    protected function addressFor(string $first, string $last): string
+    {
+        $base = strtolower($first.'.'.$last);
+        $address = $base.'@'.self::DOMAIN;
+
+        $seen = 1;
+
+        while (isset($this->takenAddresses[$address])) {
+            $seen++;
+            $address = $base.$seen.'@'.self::DOMAIN;
+        }
+
+        $this->takenAddresses[$address] = true;
+
+        return $address;
     }
 
     /**
@@ -462,7 +530,9 @@ class DemoSeeder extends Seeder
 
         $kitchens = [$annapurna];
 
-        foreach (self::EXTRA_KITCHENS as [$name, $address, $phone, $email]) {
+        foreach (self::EXTRA_KITCHENS as [$name, $address, $phone, $slug]) {
+            $email = $slug.'@'.self::DOMAIN;
+
             $kitchen = TiffinService::create([
                 'name' => $name,
                 'address' => $address,
@@ -493,13 +563,15 @@ class DemoSeeder extends Seeder
         // scheduler look like it locks the whole platform at one moment.
         $cutoffs = ['10:00:00', '10:30:00', '11:00:00', '11:30:00', '12:00:00'];
 
-        foreach (self::SCALE_COMPANIES as $index => [$name, $code, $headcount]) {
+        foreach (self::SCALE_COMPANIES as $index => [$name, $code, $headcount, $address, $phone]) {
             $company = $this->seedCompany(
                 $name,
                 $code,
                 $kitchens[$index % count($kitchens)],
                 employeeCount: $headcount,
                 cutoff: $cutoffs[$index % count($cutoffs)],
+                address: $address,
+                phone: $phone,
             );
 
             $this->seedActivity($company, lighter: true);
@@ -873,11 +945,13 @@ class DemoSeeder extends Seeder
         // the pattern is shorter than a hundred and twenty rows, and it is how
         // anybody reaches them if a demo needs to.
         $this->command->line(sprintf(
-            'The other %d companies are not listed; their logins follow the same pattern:',
+            'The other %d companies are not listed; their HR login follows the same pattern:',
             count(self::SCALE_COMPANIES),
         ));
-        $this->command->line('  HR:       hr@<code>.test       e.g. hr@meri.test');
-        $this->command->line('  Employee: <code>001@demo.test  e.g. meri001@demo.test');
+        $this->command->line('  hr.<code>@'.self::DOMAIN.'   e.g. hr.meri@'.self::DOMAIN);
+        $this->command->newLine();
+        $this->command->line('Employees sign in with firstname.lastname@'.self::DOMAIN.'. Their');
+        $this->command->line('addresses are on the roster screen of whichever company they work for.');
         $this->command->newLine();
         $this->command->line('Acme HRMS webhook secret: '.self::HRMS_SECRET);
         $this->command->line('Run `php artisan queue:work` for notifications, and `php artisan schedule:work` for the cutoff.');

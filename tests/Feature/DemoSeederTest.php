@@ -20,6 +20,8 @@ use App\Models\WeeklyMenu;
 use Carbon\Carbon;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class DemoSeederTest extends TestCase
@@ -247,23 +249,23 @@ class DemoSeederTest extends TestCase
         // change-password screen before anything could be demonstrated.
         $this->assertEquals(0, User::where('must_change_password', true)->count());
 
-        $this->post('/login', ['email' => 'root@mealbells.test', 'password' => 'demo1234'])
+        $this->post('/login', ['email' => 'admin@bells.com', 'password' => 'demo1234'])
             ->assertRedirect('/super-admin/dashboard');
 
         $this->post('/logout');
 
-        $this->post('/login', ['email' => 'vendor@mealbells.test', 'password' => 'demo1234'])
+        $this->post('/login', ['email' => 'annapurna@bells.com', 'password' => 'demo1234'])
             ->assertRedirect('/tiffin-admin/preparation');
 
         $this->post('/logout');
 
-        $this->post('/login', ['email' => 'hr@acme.test', 'password' => 'demo1234'])
+        $this->post('/login', ['email' => 'hr.acme@bells.com', 'password' => 'demo1234'])
             ->assertRedirect('/company-admin/dashboard');
     }
 
     public function test_an_employee_signs_in_with_their_email(): void
     {
-        $this->post('/login', ['identifier' => 'acme001@demo.test', 'password' => 'demo1234'])
+        $this->post('/login', ['identifier' => 'reyansh.kamat@bells.com', 'password' => 'demo1234'])
             ->assertRedirect('/employee/dashboard');
     }
 
@@ -307,6 +309,56 @@ class DemoSeederTest extends TestCase
             $this->assertEquals(1, Employee::where('company_id', $company->id)
                 ->whereNotNull('user_id')->count(), "{$company->name} should have one login.");
         }
+    }
+
+    /**
+     * Every quick-demo button on the sign-in page reaches a real account.
+     *
+     * The addresses used to be written into Login.vue, which made them right
+     * for exactly one database: switching between the demo file and a working
+     * one left all four buttons filling in accounts that do not exist, and a
+     * button cannot say so until somebody presses it, most likely in front of
+     * whoever is being shown the demo. The server now reads them out of the
+     * loaded database, and this holds it to that.
+     */
+    public function test_the_sign_in_pages_demo_buttons_all_reach_a_real_account(): void
+    {
+        $accounts = $this->demoAccounts();
+
+        $this->assertCount(4, $accounts, 'There should be one button per role.');
+
+        foreach ($accounts as $account) {
+            $this->assertTrue(
+                Auth::validate(['email' => $account['email'], 'password' => $account['password']]),
+                "The demo button for {$account['email']} does not sign in.",
+            );
+        }
+    }
+
+    /**
+     * A database whose accounts have real passwords offers no buttons at all,
+     * rather than four that cannot work.
+     */
+    public function test_no_demo_buttons_are_offered_when_the_shared_password_does_not_work(): void
+    {
+        User::query()->update(['password' => bcrypt('something-else-entirely')]);
+
+        $this->assertSame([], $this->demoAccounts());
+    }
+
+    /** @return array<int, array{label: string, email: string, password: string}> */
+    protected function demoAccounts(): array
+    {
+        $props = [];
+
+        // The panel is local only, and the suite runs as 'testing'.
+        app()['env'] = 'local';
+
+        $this->get('/login')->assertInertia(function (AssertableInertia $page) use (&$props) {
+            $props = $page->toArray()['props']['demoAccounts'] ?? [];
+        });
+
+        return array_map(fn ($account) => (array) $account, $props);
     }
 
     /**
