@@ -161,12 +161,19 @@ class ProductionModeTest extends TestCase
 
         $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Auth/Login')
-            ->where('demo', false)
+            ->where('demoAccounts', [])
         );
 
         $body = $this->get('/login')->getContent();
 
-        foreach (['demo1234', 'root@mealbells.test', 'hr@acme.test', 'Quick demo login'] as $leak) {
+        // Every address the seeder creates, and the password they share. The
+        // list is built from the database now, so the leak to guard against is
+        // any real account reaching the page rather than four fixed strings.
+        foreach (User::pluck('email') as $address) {
+            $this->assertStringNotContainsString($address, $body);
+        }
+
+        foreach (['demo1234', 'Quick demo login'] as $leak) {
             $this->assertStringNotContainsString($leak, $body);
         }
     }
@@ -178,7 +185,7 @@ class ProductionModeTest extends TestCase
 
         $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Auth/Login')
-            ->where('demo', true)
+            ->has('demoAccounts')
         );
     }
 }

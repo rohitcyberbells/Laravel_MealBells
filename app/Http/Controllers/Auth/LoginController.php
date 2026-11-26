@@ -12,21 +12,71 @@ use Inertia\Inertia;
 
 class LoginController extends Controller
 {
+    /** The password every seeded demo account shares. */
+    protected const DEMO_PASSWORD = 'demo1234';
+
+    /** One button per role, in the order a demo walks through them. */
+    protected const DEMO_ROLES = [
+        'super_admin' => 'Super admin',
+        'tiffin_admin' => 'Kitchen',
+        'company_admin' => 'Company admin',
+        'employee' => 'Employee',
+    ];
+
     public function create()
     {
         return Inertia::render('Auth/Login', [
-            /*
-             * The one-click role buttons, local only.
-             *
-             * They had no condition at all, so they rendered in every
-             * environment - publishing four working sign-ins, a shared
-             * password and a real person's address on the public page of a
-             * deployment. Decided here rather than in the component, because
-             * a build-time flag can be wrong and the server always knows what
-             * it is.
-             */
-            'demo' => app()->environment('local'),
+            'demoAccounts' => $this->demoAccounts(),
         ]);
+    }
+
+    /**
+     * The one-click role buttons, read out of whatever database is loaded.
+     *
+     * Two bugs, and this answers both.
+     *
+     * They had no condition at all to begin with, so they rendered in every
+     * environment - publishing four working sign-ins, a shared password and a
+     * real person's address on the public page of a deployment. That is
+     * decided here rather than in the component, because a build-time flag
+     * can be wrong and the server always knows what it is.
+     *
+     * Then the addresses were written into the component, which made them
+     * right for exactly one database. Switching between the demo file and a
+     * working one left all four buttons filling in accounts that do not
+     * exist - and silently, since a button cannot say so until it is pressed.
+     * Each one is now a row that is actually there.
+     *
+     * The shared password is checked rather than assumed, so a database whose
+     * accounts have real passwords offers no buttons at all instead of four
+     * that cannot work.
+     *
+     * @return array<int, array{label: string, email: string, password: string}>
+     */
+    protected function demoAccounts(): array
+    {
+        if (! app()->environment('local')) {
+            return [];
+        }
+
+        $accounts = [];
+
+        foreach (self::DEMO_ROLES as $role => $label) {
+            $user = User::where('role', $role)
+                ->where('is_active', true)
+                ->orderBy('id')
+                ->first();
+
+            if ($user && Hash::check(self::DEMO_PASSWORD, $user->password)) {
+                $accounts[] = [
+                    'label' => $label,
+                    'email' => $user->email,
+                    'password' => self::DEMO_PASSWORD,
+                ];
+            }
+        }
+
+        return $accounts;
     }
 
     /**

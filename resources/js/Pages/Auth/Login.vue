@@ -1,14 +1,20 @@
 <script setup>
+import AuthLayout from '../../Layouts/AuthLayout.vue';
+import TextField from '../../Layouts/TextField.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
     /**
-     * Whether to offer the one-click role buttons. Sent by the server and
-     * true only in local: they fill in a real address and a shared password,
-     * which is a fine convenience on a laptop and a published credential
-     * anywhere else.
+     * The one-click role buttons, or an empty list.
+     *
+     * The server builds these from whatever database is loaded, and sends
+     * none outside local. They used to be written here, which made them right
+     * for exactly one database: switching between the demo file and a working
+     * one left every button filling in an account that does not exist.
+     *
+     * @type {{ label: string, email: string, password: string }[]}
      */
-    demo: { type: Boolean, default: false },
+    demoAccounts: { type: Array, default: () => [] },
 });
 
 const form = useForm({
@@ -19,83 +25,84 @@ const form = useForm({
 
 const submit = () => form.post('/login');
 
-const fillDemo = (identifier) => {
-    form.identifier = identifier;
-    form.password = 'demo1234';
+const fillDemo = (account) => {
+    form.identifier = account.email;
+    form.password = account.password;
 };
 </script>
 
 <template>
-    <div class="mb-theme min-h-screen bg-mb-page text-mb-text-strong flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-mb-card border border-mb-line rounded-xl p-6 shadow-2xl">
-            <h1 class="text-2xl font-bold text-mb-emerald text-center mb-1">MealBells</h1>
-            <p class="text-mb-text-muted text-sm text-center mb-6">Sign in to your dashboard</p>
+    <AuthLayout title="Sign in" subtitle="Your credentials come from whoever set up your account — your HR team, or MealBells.">
+        <form @submit.prevent="submit" class="space-y-4">
+            <TextField
+                id="login-email"
+                v-model="form.identifier"
+                label="Email address"
+                type="email"
+                autocomplete="username"
+                inputmode="email"
+                placeholder="you@company.com"
+                required
+                autofocus
+                :error="form.errors.identifier"
+            />
 
-            <form @submit.prevent="submit" class="space-y-4">
-                <div>
-                    <label for="login-email" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">
-                        Email address
-                    </label>
-                    <input id="login-email"
-                        v-model="form.identifier"
-                        type="email"
-                        autocomplete="username"
-                        inputmode="email"
-                        placeholder="you@company.com"
-                        required
-                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
-                    />
-                    <p v-if="form.errors.identifier" class="text-mb-rose text-xs mt-1">{{ form.errors.identifier }}</p>
-                </div>
+            <TextField
+                id="login-password"
+                v-model="form.password"
+                label="Password"
+                type="password"
+                autocomplete="current-password"
+                required
+                :error="form.errors.password"
+            />
 
-                <div>
-                    <label for="login-password" class="block text-xs font-semibold text-mb-text-soft uppercase mb-1">Password</label>
-                    <input id="login-password"
-                        v-model="form.password"
-                        type="password"
-                        autocomplete="current-password"
-                        required
-                        class="w-full bg-mb-inset border border-mb-line-mid rounded-lg px-3 py-2 text-mb-text-strong focus:outline-none focus:border-mb-tint-emerald"
-                    />
-                    <p v-if="form.errors.password" class="text-mb-rose text-xs mt-1">{{ form.errors.password }}</p>
-                </div>
+            <div class="flex items-center justify-between gap-3 pt-0.5">
+                <label class="flex items-center gap-2 text-xs text-mb-text-muted dark:text-mb-text-soft cursor-pointer">
+                    <input v-model="form.remember" type="checkbox" class="w-3.5 h-3.5 accent-mb-tint-emerald cursor-pointer" />
+                    Keep me signed in
+                </label>
+                <Link href="/forgot-password" class="text-xs font-medium text-mb-text-muted dark:text-mb-text-soft hover:text-mb-emerald transition-colors">
+                    Forgot password?
+                </Link>
+            </div>
 
-                <div class="flex items-center justify-between gap-3">
-                    <label class="flex items-center gap-2 text-xs text-mb-text-muted cursor-pointer">
-                        <input v-model="form.remember" type="checkbox" class="accent-mb-tint-emerald cursor-pointer" />
-                        Keep me signed in
-                    </label>
-                    <Link href="/forgot-password" class="text-xs text-mb-text-muted hover:text-mb-emerald">
-                        Forgot password?
-                    </Link>
-                </div>
+            <button
+                type="submit"
+                :disabled="form.processing"
+                class="w-full h-11 rounded-xl bg-mb-tint-emerald hover:brightness-110 disabled:opacity-50 disabled:hover:brightness-100 font-semibold text-sm text-mb-on-accent shadow-lg shadow-mb-tint-emerald/20 transition cursor-pointer"
+            >
+                {{ form.processing ? 'Signing in…' : 'Sign in' }}
+            </button>
+        </form>
 
+        <div v-if="demoAccounts.length" class="mt-7 pt-5 border-t border-mb-line">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft mb-2.5">
+                Quick demo login
+            </p>
+            <div class="grid grid-cols-2 gap-2">
                 <button
-                    type="submit"
-                    :disabled="form.processing"
-                    class="w-full bg-mb-tint-emerald hover:bg-mb-tint-emerald disabled:opacity-50 font-semibold text-mb-on-accent py-2 rounded-lg transition cursor-pointer"
+                    v-for="account in demoAccounts"
+                    :key="account.email"
+                    type="button"
+                    :title="account.email"
+                    class="h-9 px-2.5 rounded-lg bg-mb-raised hover:bg-mb-chip border border-mb-line text-xs font-medium text-mb-text-soft hover:text-mb-text-strong transition-colors cursor-pointer"
+                    @click="fillDemo(account)"
                 >
-                    Sign In
+                    {{ account.label }}
                 </button>
-            </form>
-
-            <div v-if="demo" class="mt-6 pt-4 border-t border-mb-line">
-                <p class="text-xs font-semibold text-mb-text-muted uppercase mb-2 text-center">Quick demo login</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <button @click="fillDemo('root@mealbells.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-emerald-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
-                        Super Admin
-                    </button>
-                    <button @click="fillDemo('vendor@mealbells.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-amber-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
-                        Tiffin Admin
-                    </button>
-                    <button @click="fillDemo('hr@acme.test')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-cyan-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
-                        Company Admin
-                    </button>
-                    <button @click="fillDemo('rohit.cyberbells@gmail.com')" class="bg-mb-raised hover:bg-mb-chip text-xs text-mb-indigo-soft py-1.5 px-2 rounded border border-mb-line-mid cursor-pointer">
-                        Employee
-                    </button>
-                </div>
             </div>
         </div>
-    </div>
+
+        <!--
+            One door, four roles, and nobody signs themselves up - so the only
+            useful thing to say is who to ask, and that differs. Saying "ask
+            your HR team" was right for an employee and wrong for a kitchen,
+            which has no HR team and is set up by MealBells.
+        -->
+        <template #footer>
+            No account yet? Accounts are created for you — employees by their HR team,
+            companies and kitchens by MealBells.
+        </template>
+    </AuthLayout>
 </template>
