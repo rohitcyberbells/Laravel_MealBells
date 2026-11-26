@@ -2,9 +2,9 @@
 import '../styles/landing.css';
 
 const appName = 'MealBells';
-const title = `${appName} — lunch, for 103 people`;
+const title = `${appName} — know how many lunches to make, every morning`;
 const description =
-  'Every working day a canteen has to decide how many meals to cook. MealBells makes that one number true before the kitchen starts, so nobody opens an empty box and nothing is cooked for the bin.';
+  'Every working day an office canteen has to decide how many lunches to make. MealBells works the number out from who is in, who is on leave and who said they will skip — so nobody opens an empty box and nothing goes in the bin.';
 
 /*
  * Only emitted once a real domain is configured. A canonical pointing at a
@@ -14,67 +14,50 @@ const description =
 const site = import.meta.env.PUBLIC_SITE_URL ?? '';
 
 /*
- * A worked example, and labelled as one on the page. The arithmetic has to
- * hold, because the plot further down draws one mark per meal and anybody can
- * count them: 127 on the roster, 24 away, 103 eaten.
+ * One worked day, and the numbers have to agree with each other because the
+ * mock below prints all three.
  */
 const ROSTER = 127;
 const AWAY = 24;
 const EATEN = ROSTER - AWAY;
 
 /*
- * Pulled from the body copy rather than attributed to anyone. A landing page
- * that invents a customer and puts words in their mouth is lying, and this
- * product does not have public customers to quote yet.
+ * The rows in the mock are the real Preparation screen's columns, and they add
+ * up to EATEN. A screenshot that does not survive arithmetic is the fastest way
+ * to look unserious.
  */
-const pullQuote =
-  'The gap between cooked and eaten is paid for twice. Once in food, and once in the hour somebody spends counting heads.';
-
-const notes = [
-  {
-    head: 'The cutoff',
-    body: 'Set per company, in that company’s own timezone. Most pick an hour before the vans load.',
-  },
-  {
-    head: 'Leave',
-    body: 'Approved leave and work-from-home arrive from the HR system, so somebody on holiday is never counted for a lunch.',
-  },
-  {
-    head: 'After the lock',
-    body: 'A change made late is a message the kitchen has to read. Nothing quietly edits a number they have already started cooking to.',
-  },
+const companies = [
+  { name: 'Acme Industries', eligible: 84, skips: 17, extra: 4, status: 'Confirmed' },
+  { name: 'Northwind Traders', eligible: 43, skips: 11, extra: 0, status: 'Auto-confirmed' },
 ];
 
-const method = [
+const steps = [
   {
-    n: 'I',
-    head: 'People say what they will not eat',
-    body: 'An employee opens MealBells and skips tomorrow. Two taps, no message to anyone, nobody’s permission. A day they always miss becomes a rule they set once and forget.',
+    head: 'Staff say when they’ll miss lunch',
+    body: 'Two taps on their phone. No form, nobody to ask. If they are never in on Fridays, they set that once and forget it.',
   },
   {
-    n: 'II',
-    head: 'The count settles on its own',
-    body: 'Leave and work-from-home come in from the HR system overnight. Recurring skips apply themselves. By morning the number is close without anyone having touched it.',
+    head: 'Leave comes in on its own',
+    body: 'When someone’s leave or work-from-home is approved, MealBells already knows. Nobody on holiday has a lunch made for them.',
   },
   {
-    n: 'III',
-    head: 'The kitchen gets one number',
-    body: 'At the cutoff the count locks and goes to the vendor, with the day’s menu. That number is what gets cooked, and it is the same number everyone is looking at.',
+    head: 'The number is fixed by a set time',
+    body: 'Each morning the kitchen gets one count and can start cooking. If anything changes after that they are told — the number never changes quietly behind them.',
   },
 ];
 
 const roles = [
   {
-    who: 'The employee',
-    body: 'Skips a day in two taps. Sees what is cooking this week, and how long is left to change their mind.',
+    who: 'Staff',
+    body: 'Say you are out tomorrow. Set the days you are never in. Ask for an extra plate when someone is visiting.',
   },
   {
-    who: 'HR and admin',
-    body: 'A roster that keeps itself, a count they can watch before it locks, and an escalation when it looks wrong.',
+    who: 'The office team',
+    body: 'Add people, mark holidays, pick the time the count is fixed each day — and see tomorrow’s number before it reaches the kitchen.',
   },
   {
     who: 'The kitchen',
-    body: 'One number each morning and the menu to cook. No group chat, no headcount guessed from last week.',
+    body: 'One clear number every morning, split by office, and the whole week’s menu in one place.',
   },
 ];
 ---
@@ -82,19 +65,12 @@ const roles = [
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#faf6ef" />
-    <meta name="color-scheme" content="light" />
-
     {site && <link rel="canonical" href={site} />}
-
-    <meta property="og:type" content="article" />
-    <meta property="og:site_name" content={appName} />
+    <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     {site && <meta property="og:url" content={site} />}
@@ -103,26 +79,39 @@ const roles = [
 
   <body>
     <!-- ------------------------------------------------------- masthead -->
-    <header class="border-b border-ink">
-      <div
-        class="mx-auto flex max-w-[78rem] items-center justify-between gap-6 px-6 py-5 sm:px-10"
-      >
-        <a href="/" class="flex items-baseline gap-3" aria-label={`${appName} home`}>
-          <span class="font-serif text-[22px] tracking-[-0.01em] text-ink">{appName}</span>
-          <span class="label hidden text-ink-3 sm:inline">A worked example</span>
+    <header class="sticky top-0 z-30 border-b border-line bg-page/85 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-[72rem] items-center justify-between gap-6 px-5 py-3.5 sm:px-8">
+        <a href="/" class="flex items-center gap-2.5" aria-label={`${appName} home`}>
+          <!-- The sidebar's mark, at the size the sidebar uses it. -->
+          <span
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white"
+            style="background-image: linear-gradient(to top right, var(--color-cyan), var(--color-tint-emerald));"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+              <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+            </svg>
+          </span>
+          <span class="text-[15px] font-bold tracking-tight text-ink">{appName}</span>
         </a>
 
-        <nav class="hidden items-center gap-8 sm:flex" aria-label="Main">
-          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#method"
-            >Method</a
-          >
-          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#plot">The cost</a>
-          <a class="label text-ink-2 underline-offset-4 hover:underline" href="#roles">Who</a>
+        <nav class="hidden items-center gap-7 sm:flex" aria-label="Main">
+          <a class="text-sm font-medium text-ink-3 hover:text-ink" href="#how">How it works</a>
+          <a class="text-sm font-medium text-ink-3 hover:text-ink" href="#who">Who it’s for</a>
         </nav>
 
         <a
           href="/login"
-          class="label border border-ink px-3.5 py-2 text-ink transition-colors hover:bg-ink hover:text-paper"
+          class="rounded-xl bg-tint-emerald px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
         >
           Sign in
         </a>
@@ -130,223 +119,225 @@ const roles = [
     </header>
 
     <main>
-      <!-- ------------------------------------------------- opening spread -->
-      <article>
-        <div class="mx-auto max-w-[78rem] px-6 sm:px-10">
-          <div class="border-b border-rule py-14 sm:py-24">
-            <p class="label text-saffron">One ordinary Tuesday</p>
-
-            <h1
-              class="display mt-7 text-[clamp(3rem,10.5vw,8.5rem)] text-ink"
-            >
-              Lunch, for<br />
-              <span class="num text-saffron">{EATEN}</span> people
-            </h1>
-
-            <p
-              class="mt-9 max-w-[46rem] text-[clamp(1.1rem,2.2vw,1.6rem)] leading-[1.4] text-ink-2"
-            >
-              Every working day a canteen has to decide how many meals to cook. Get it
-              wrong one way and somebody opens an empty box. Wrong the other way and two
-              dozen lunches go in the bin.
-            </p>
-
-            <dl
-              class="mt-12 flex flex-wrap items-baseline gap-x-12 gap-y-5 border-t border-rule pt-6"
-            >
-              <div>
-                <dt class="label text-ink-3">On the roster</dt>
-                <dd class="num mt-1 text-3xl text-ink">{ROSTER}</dd>
-              </div>
-              <div>
-                <dt class="label text-ink-3">Away that day</dt>
-                <dd class="num mt-1 text-3xl text-ink">{AWAY}</dd>
-              </div>
-              <div>
-                <dt class="label text-ink-3">Cooked, eaten</dt>
-                <dd class="num mt-1 text-3xl text-leaf">{EATEN}</dd>
-              </div>
-            </dl>
-          </div>
+      <!-- ----------------------------------------------------------- hero -->
+      <section class="relative overflow-hidden">
+        <!-- The application's ambient wash, behind the hero only. -->
+        <div class="wash" aria-hidden="true">
+          <span
+            class="-top-40 -left-24 h-[30rem] w-[30rem]"
+            style="background: color-mix(in srgb, var(--color-tint-emerald) 16%, transparent);"></span>
+          <span
+            class="-top-32 right-[-8rem] h-[34rem] w-[34rem]"
+            style="background: color-mix(in srgb, var(--color-cyan) 12%, transparent);"></span>
         </div>
 
-        <!-- --------------------------------------------- the body, with notes -->
-        <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
-          <div class="grid grid-cols-1 gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_16rem]">
-            <div class="min-w-0 max-w-[40rem]">
-              <p class="dropcap rise text-ink">
-                Every working day, somewhere between seven and eleven in the morning, a
-                kitchen has to commit to a number. It is not a forecast and it cannot be
-                revised at noon — rice goes on, boxes get filled, a van leaves. Whatever
-                the number was at the cutoff is what arrives.
-              </p>
+        <div class="relative mx-auto max-w-[72rem] px-5 pt-16 pb-10 sm:px-8 sm:pt-24">
+          <p class="label text-emerald">Daily meal counts</p>
 
-              <p class="rise mt-6 text-ink">
-                Most places arrive at it the same way: somebody counts the roster, takes
-                off whoever they happen to know is away, and adds a few for safety. The
-                few for safety is the whole problem. It is a margin against being wrong,
-                and it gets paid for every single day, in food that was cooked for nobody.
-              </p>
+          <h1
+            class="mt-4 max-w-[20ch] text-[clamp(2.2rem,6vw,3.9rem)] font-bold leading-[1.05] tracking-[-0.03em] text-ink"
+          >
+            Cook for the people who are actually coming in.
+          </h1>
 
-              <p class="rise mt-6 text-ink">
-                The information needed to get it right already exists. The people who are
-                not coming in know they are not coming in. Somebody in HR has their leave
-                approved. The person working from home on Wednesdays has been doing it for
-                a year. None of it reaches the kitchen in time, because there has never
-                been anywhere to put it.
-              </p>
+          <p class="mt-5 max-w-[46ch] text-lg leading-relaxed text-ink-3">
+            Every morning the kitchen has to decide how many lunches to make. MealBells
+            works it out from who is in, who is on leave and who said they will skip —
+            then fixes the number by a set time, so what gets made is what gets eaten.
+          </p>
 
-              <p class="rise mt-6 text-ink">
-                MealBells is that place. It is not a forecast, and there is no model in it
-                — it is a count of what people have actually said, closed at a time
-                everybody agreed on.
-              </p>
-            </div>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <a
+              href="/login"
+              class="rounded-xl bg-tint-emerald px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110"
+              style="box-shadow: 0 10px 25px -8px color-mix(in srgb, var(--color-tint-emerald) 45%, transparent);"
+            >
+              Sign in
+            </a>
+            <a
+              href="#how"
+              class="rounded-xl border border-line-mid bg-card px-6 py-3 text-sm font-semibold text-ink-2 transition hover:bg-raised"
+            >
+              How it works
+            </a>
+          </div>
 
-            <aside class="min-w-0 space-y-8 lg:pt-2" aria-label="Notes">
-              {
-                notes.map((note) => (
-                  <div class="margin-note rise">
-                    <p class="label text-ink-2">{note.head}</p>
-                    <p class="mt-2">{note.body}</p>
+          <!-- --------------------------------------- the product, actually shown -->
+          <figure class="rise mt-14 sm:mt-16">
+            <div class="overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-slate-900/10">
+              <div class="flex items-center gap-2 border-b border-line bg-raised px-4 py-2.5">
+                <span class="h-2.5 w-2.5 rounded-full bg-line-mid"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-line-mid"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-line-mid"></span>
+                <span class="ml-2 text-xs font-medium text-ink-4">Preparation — Tuesday</span>
+              </div>
+
+              <div class="space-y-5 p-5 sm:p-7">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p class="label text-ink-4">Tiffins to cook</p>
+                    <p class="num mt-2 text-6xl font-light leading-none text-ink sm:text-7xl">
+                      {EATEN}
+                      <span class="text-2xl font-normal text-ink-4">meals</span>
+                    </p>
                   </div>
-                ))
-              }
-            </aside>
-          </div>
-        </div>
-
-        <!-- ------------------------------------------------------ pull quote -->
-        <div class="border-y border-ink bg-paper-2">
-          <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
-            <blockquote
-              class="rise display max-w-[52rem] text-[clamp(1.6rem,4.4vw,3.2rem)] text-ink"
-            >
-              {pullQuote}
-            </blockquote>
-          </div>
-        </div>
-
-        <!-- ------------------------------------------------------- the plot -->
-        <section id="plot" class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
-          <div class="grid grid-cols-1 gap-x-16 gap-y-12 lg:grid-cols-2">
-            <div class="rise">
-              <p class="label text-saffron">The cost of the margin</p>
-              <h2 class="display mt-5 text-[clamp(2rem,5vw,3.6rem)] text-ink">
-                {ROSTER} cooked.<br />{AWAY} in the bin.
-              </h2>
-              <p class="mt-7 max-w-[34rem] text-ink-2">
-                Not once — every working day. The gap between cooked and eaten is paid
-                for twice: once in food, and once in the hour somebody spends counting
-                heads on a group chat to make the gap smaller.
-              </p>
-
-              <dl class="mt-10 grid max-w-sm grid-cols-2 gap-x-10 gap-y-7">
-                <div>
-                  <dt class="label text-ink-3">Binned, a day</dt>
-                  <dd class="num mt-1.5 text-4xl text-clay">{AWAY}</dd>
+                  <span
+                    class="inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-emerald"
+                  >
+                    <span class="h-2 w-2 shrink-0 rounded-full bg-emerald"></span>
+                    Locked — this is the number
+                  </span>
                 </div>
-                <div>
-                  <dt class="label text-ink-3">Binned, a year</dt>
-                  <dd class="num mt-1.5 text-4xl text-clay">
-                    {(AWAY * 250).toLocaleString('en-IN')}
-                  </dd>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-left">
+                    <thead>
+                      <tr class="label border-b border-line text-ink-4">
+                        <th class="py-2 pr-3 font-semibold">Company</th>
+                        <th class="px-3 py-2 text-right font-semibold">Eligible</th>
+                        <th class="px-3 py-2 text-right font-semibold">Skips</th>
+                        <th class="px-3 py-2 text-right font-semibold">Extra</th>
+                        <th class="px-3 py-2 text-right font-semibold">To cook</th>
+                        <th class="py-2 pl-3 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line text-sm">
+                      {
+                        companies.map((c) => (
+                          <tr>
+                            <td class="py-3 pr-3 font-medium text-ink">{c.name}</td>
+                            <td class="num px-3 py-3 text-right text-ink-3">{c.eligible}</td>
+                            <td class="num px-3 py-3 text-right text-rose">&minus;{c.skips}</td>
+                            <td class="num px-3 py-3 text-right text-emerald">+{c.extra}</td>
+                            <td class="num px-3 py-3 text-right text-lg font-semibold text-ink">
+                              {c.eligible - c.skips + c.extra}
+                            </td>
+                            <td class="py-3 pl-3">
+                              <span class="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-emerald">
+                                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald" />
+                                {c.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      }
+                    </tbody>
+                  </table>
                 </div>
-              </dl>
+              </div>
             </div>
 
-            <figure class="rise">
-              <div class="plot" data-plot aria-hidden="true">
-                {
-                  Array.from({ length: ROSTER }).map((_, i) => (
-                    <span class={i >= EATEN ? 'is-binned' : ''} />
-                  ))
-                }
-              </div>
-              <figcaption class="mt-5 text-[15px] italic leading-relaxed text-ink-3">
-                One mark per meal cooked. The faded ones are the lunches nobody was there
-                to eat.
-              </figcaption>
-            </figure>
-          </div>
-        </section>
+            <figcaption class="mt-3 text-center text-xs text-ink-4">
+              What the kitchen sees on a day when {ROSTER} people are on the list and {AWAY} are away.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
 
-        <!-- ---------------------------------------------------- the method -->
-        <section id="method" class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
-          <p class="label rise text-saffron">Method</p>
-          <h2 class="display rise mt-5 max-w-[32rem] text-[clamp(2rem,5vw,3.6rem)] text-ink">
-            Three things happen, and the last one is a number.
+      <!-- ------------------------------------------------------ how it works -->
+      <section id="how" class="mx-auto max-w-[72rem] scroll-mt-20 px-5 py-16 sm:px-8 sm:py-24">
+        <p class="label rise text-emerald">How it works</p>
+        <h2
+          class="rise mt-3 max-w-[22ch] text-[clamp(1.6rem,3.6vw,2.4rem)] font-bold leading-tight tracking-[-0.02em] text-ink"
+        >
+          It works itself out, then stops changing.
+        </h2>
+
+        <ol class="mt-10 grid gap-5 sm:grid-cols-3">
+          {
+            steps.map((step, i) => (
+              <li class="rise rounded-2xl border border-line bg-card p-6">
+                <span class="num text-sm font-semibold text-emerald">0{i + 1}</span>
+                <h3 class="mt-3 text-base font-semibold text-ink">{step.head}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-ink-3">{step.body}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      <!-- ----------------------------------------------------- the arithmetic -->
+      <section class="border-y border-line bg-card">
+        <div class="mx-auto max-w-[72rem] px-5 py-14 sm:px-8">
+          <dl class="rise flex flex-wrap items-baseline gap-x-14 gap-y-6">
+            <div>
+              <dt class="label text-ink-4">People on the list</dt>
+              <dd class="num mt-1.5 text-4xl font-light text-ink">{ROSTER}</dd>
+            </div>
+            <div>
+              <dt class="label text-ink-4">Away that day</dt>
+              <dd class="num mt-1.5 text-4xl font-light text-ink">{AWAY}</dd>
+            </div>
+            <div>
+              <dt class="label text-emerald">Cooked, and eaten</dt>
+              <dd class="num mt-1.5 text-4xl font-light text-emerald">{EATEN}</dd>
+            </div>
+            <p class="max-w-[34ch] text-sm leading-relaxed text-ink-3">
+              Most places count heads and add a few extra, just in case. Those extra
+              lunches get made, paid for and thrown away — every single day.
+            </p>
+          </dl>
+        </div>
+      </section>
+
+      <!-- -------------------------------------------------------- who it's for -->
+      <section id="who" class="mx-auto max-w-[72rem] scroll-mt-20 px-5 py-16 sm:px-8 sm:py-24">
+        <p class="label rise text-emerald">Who it’s for</p>
+        <h2
+          class="rise mt-3 text-[clamp(1.6rem,3.6vw,2.4rem)] font-bold leading-tight tracking-[-0.02em] text-ink"
+        >
+          Three people, one number.
+        </h2>
+
+        <div class="mt-10 grid gap-5 sm:grid-cols-3">
+          {
+            roles.map((role) => (
+              <div class="rise rounded-2xl border border-line bg-card p-6">
+                <h3 class="text-base font-semibold text-ink">{role.who}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-ink-3">{role.body}</p>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------------------- close -->
+      <section class="border-t border-line bg-card">
+        <div class="mx-auto max-w-[72rem] px-5 py-16 text-center sm:px-8 sm:py-20">
+          <h2
+            class="rise mx-auto max-w-[20ch] text-[clamp(1.6rem,3.6vw,2.4rem)] font-bold leading-tight tracking-[-0.02em] text-ink"
+          >
+            Stop cooking for people who aren’t there.
           </h2>
-
-          <ol class="mt-14 space-y-px border-t border-rule">
-            {
-              method.map((step) => (
-                <li class="rise grid grid-cols-1 gap-x-10 gap-y-3 border-b border-rule py-9 sm:grid-cols-[4rem_minmax(0,22rem)_minmax(0,1fr)]">
-                  <span class="num font-serif text-2xl text-saffron">{step.n}</span>
-                  <h3 class="font-serif text-[1.4rem] leading-snug text-ink">{step.head}</h3>
-                  <p class="max-w-[34rem] text-ink-2">{step.body}</p>
-                </li>
-              ))
-            }
-          </ol>
-        </section>
-
-        <!-- ----------------------------------------------------- the roles -->
-        <section id="roles" class="border-t border-ink bg-paper-2">
-          <div class="mx-auto max-w-[78rem] px-6 py-16 sm:px-10 sm:py-24">
-            <h2 class="display rise max-w-[30rem] text-[clamp(2rem,5vw,3.6rem)] text-ink">
-              One number, three people who need it to be right.
-            </h2>
-
-            <div class="mt-14 grid grid-cols-1 gap-px bg-rule md:grid-cols-3">
-              {
-                roles.map((role) => (
-                  <div class="rise bg-paper-2 p-8 md:p-9">
-                    <p class="label text-saffron">{role.who}</p>
-                    <p class="mt-5 text-ink-2">{role.body}</p>
-                  </div>
-                ))
-              }
-            </div>
+          <p class="rise mx-auto mt-4 max-w-[44ch] text-base leading-relaxed text-ink-3">
+            There is no sign-up. Staff get their login from their own office team, and
+            offices and kitchens are set up by us.
+          </p>
+          <div class="rise mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="/login"
+              class="rounded-xl bg-tint-emerald px-7 py-3.5 text-sm font-semibold text-white transition hover:brightness-110"
+              style="box-shadow: 0 10px 25px -8px color-mix(in srgb, var(--color-tint-emerald) 45%, transparent);"
+            >
+              Sign in
+            </a>
+            <a
+              href="mailto:hello@example.com"
+              class="rounded-xl border border-line-mid px-7 py-3.5 text-sm font-semibold text-ink-2 transition hover:bg-raised"
+            >
+              Talk to us
+            </a>
           </div>
-        </section>
-
-        <!-- ------------------------------------------------------- the end -->
-        <section class="mx-auto max-w-[78rem] px-6 py-24 sm:px-10 sm:py-36">
-          <div class="rise max-w-[42rem]">
-            <h2 class="display text-[clamp(2.2rem,6vw,4.4rem)] text-ink">
-              See it with your own headcount.
-            </h2>
-            <p class="mt-7 text-[1.15rem] leading-relaxed text-ink-2">
-              One company, one kitchen, one cutoff time. That is the whole setup, and it
-              takes an afternoon.
-            </p>
-
-            <div class="mt-11 flex flex-wrap items-center gap-4">
-              <a
-                href="mailto:hello@example.com"
-                class="label bg-ink px-7 py-4 text-paper transition-opacity hover:opacity-85"
-              >
-                Talk to us
-              </a>
-              <a
-                href="/login"
-                class="label border border-ink px-7 py-4 text-ink transition-colors hover:bg-ink hover:text-paper"
-              >
-                Sign in
-              </a>
-            </div>
-          </div>
-        </section>
-      </article>
+        </div>
+      </section>
     </main>
 
-    <footer class="border-t border-ink">
+    <footer class="border-t border-line">
       <div
-        class="mx-auto flex max-w-[78rem] flex-wrap items-center justify-between gap-4 px-6 py-8 text-[15px] text-ink-3 sm:px-10"
+        class="mx-auto flex max-w-[72rem] flex-wrap items-center justify-between gap-4 px-5 py-8 text-xs text-ink-4 sm:px-8"
       >
-        <p>&copy; {new Date().getFullYear()} {appName}</p>
-        <p class="italic">Meal planning for companies and the kitchens that feed them.</p>
+        <span>&copy; {new Date().getFullYear()} {appName}</span>
+        <a href="/login" class="font-medium hover:text-ink">Sign in</a>
       </div>
     </footer>
 
