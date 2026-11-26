@@ -69,7 +69,7 @@ const changeRange = (newRange) => {
                     </div>
                     <p class="text-xs text-mb-text-muted dark:text-mb-text-soft mt-2">
                         <template v-if="report.self_service_pct !== null">
-                            (Self + Recurring) / Total Skips ({{ report.total_active_skips }} total skips)
+                            Skipped by staff themselves, out of {{ report.total_active_skips }} skips in all
                         </template>
                         <template v-else>
                             No skips recorded in this period yet
@@ -113,15 +113,15 @@ const changeRange = (newRange) => {
                 <h2 class="text-sm font-semibold text-mb-text-strong mb-5">Channel breakdown — active skips</h2>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-x-6 gap-y-5">
                     <div>
-                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">Self Portal</span>
+                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">In the app</span>
                         <span class="block mt-1 text-2xl font-semibold tabular-nums text-mb-cyan">{{ report.skips_by_source.self }}</span>
                     </div>
                     <div>
-                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">Recurring</span>
+                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">Every week</span>
                         <span class="block mt-1 text-2xl font-semibold tabular-nums text-mb-emerald">{{ report.skips_by_source.recurring }}</span>
                     </div>
                     <div>
-                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">HR Manual</span>
+                        <span class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-mb-text-muted dark:text-mb-text-soft">By HR</span>
                         <span class="block mt-1 text-2xl font-semibold tabular-nums text-mb-amber">{{ report.skips_by_source.hr }}</span>
                     </div>
                     <div>
@@ -147,8 +147,8 @@ const changeRange = (newRange) => {
                         <thead class="bg-mb-raised/60 text-mb-text-muted dark:text-mb-text-soft uppercase text-[11px] tracking-wider font-semibold">
                             <tr>
                                 <th class="py-3 px-4">Date</th>
-                                <th class="py-3 px-4">HR Manual Skips</th>
-                                <th class="py-3 px-4">Self-Service Skips (Self + Recurring)</th>
+                                <th class="py-3 px-4">Entered by HR</th>
+                                <th class="py-3 px-4">Staff did it themselves</th>
                                 <th class="py-3 px-4">Total Skips</th>
                             </tr>
                         </thead>

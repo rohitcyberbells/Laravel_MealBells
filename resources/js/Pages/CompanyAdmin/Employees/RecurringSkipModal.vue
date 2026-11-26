@@ -168,7 +168,7 @@ const weekdayOptions = Object.entries(WEEKDAYS).map(([number, label]) => ({
                     </div>
 
                     <p v-if="!sortedRules.length" class="text-xs text-mb-text-faint dark:text-mb-text-soft italic">
-                        No recurring skip rules for this employee.
+                        No weekly days set for this employee yet.
                     </p>
                 </div>
             </div>

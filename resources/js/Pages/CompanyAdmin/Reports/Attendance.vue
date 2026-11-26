@@ -136,7 +136,7 @@ const changeRange = (newRange) => {
                             <th class="text-right py-3 px-4">Clocked in</th>
                             <th class="text-right py-3 px-4">Absent</th>
                             <th class="text-right py-3 px-4" title="The HR system had no answer for these people">Unknown</th>
-                            <th class="text-right py-3 px-4" title="Already on leave, WFH, a recurring rule, or entered by hand">Already not eating</th>
+                            <th class="text-right py-3 px-4" title="Already on leave, working from home, skipping this day every week, or entered by hand">Already not eating</th>
                             <th class="text-right py-3 px-4">Would not have ordered</th>
                             <th class="text-right py-3 px-4" title="Whether MealBells held leave and WFH records for this date">Leave known</th>
                         </tr>

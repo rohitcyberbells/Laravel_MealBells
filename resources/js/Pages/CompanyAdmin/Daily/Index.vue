@@ -1,4 +1,5 @@
 <script setup>
+import { skipSourceLabel } from '../../../skipSources.js';
 import AppLayout from '../../../Layouts/AppLayout.vue';
 import SelectField from '../../../Layouts/SelectField.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -191,9 +192,9 @@ watch(() => props.employees_for_search, () => {
 const bulkForm = useForm({ employee_ids: [], dates: [], source: 'hr', reason: '' });
 
 const bulkSources = [
-    { value: 'hr', label: 'HR' },
-    { value: 'leave', label: 'Leave' },
-    { value: 'wfh', label: 'WFH' },
+    { value: 'hr', label: 'Marked by HR' },
+    { value: 'leave', label: 'On leave' },
+    { value: 'wfh', label: 'Working from home' },
 ];
 
 const submitBulk = () => {
@@ -626,7 +627,7 @@ const sourceTone = (source) => ({
                                                 :class="['w-1.5 h-1.5 shrink-0 rounded-full', sourceTone(skipByEmployee[employee.id].source).dot]"
                                                 aria-hidden="true"
                                             ></span>
-                                            Not eating · {{ skipByEmployee[employee.id].source }}
+                                            Not eating · {{ skipSourceLabel(skipByEmployee[employee.id].source) }}
                                         </span>
                                         <!-- The source alone does not say which leave
                                              this was. Our own label only - the vendor's

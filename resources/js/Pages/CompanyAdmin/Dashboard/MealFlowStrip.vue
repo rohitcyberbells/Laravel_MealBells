@@ -1,4 +1,5 @@
 <script setup>
+import { SKIP_SOURCE_LABELS as SKIP_LABELS } from '../../../skipSources.js';
 import { Link } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { theme } from '../../../theme.js';
@@ -11,15 +12,6 @@ const props = defineProps({
     // Locked: what the kitchen was told. Open: the live estimate.
     expected: { type: Number, default: 0 },
 });
-
-const SKIP_LABELS = {
-    leave: 'On leave',
-    wfh: 'Working from home',
-    hr: 'Marked by HR',
-    self: 'Skipped themselves',
-    link: 'Skipped by email link',
-    recurring: 'Recurring skip',
-};
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
